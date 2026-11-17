@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:55:11+00:00",
+ "app": "notifications",
+ "app_hash": "3c8e19143fe2",
+ "model": "chatgpt",
+ "condition": "ABL-NT2",
+ "rep": 0,
+ "requirement_order": [
+  "NT4",
+  "NT3",
+  "NT1",
+  "NT5"
+ ],
+ "passed": {
+  "NT1": true,
+  "NT2": true,
+  "NT3": true,
+  "NT4": true,
+  "NT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that delivers notifications to users over several channels,\nrespecting user preferences and night-time quiet hours.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None: ...\n\n    def add_user(self, user: str) -> None: ...\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None: ...\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n```\n\n## Requirements\n1. During quiet hours, email is still delivered; only sms and push are muted.\n2. Quiet hours work also when they span midnight (e.g. from 22:00 to 7:00).\n3. Calling set_channel with a channel that is not in CHANNELS raises ValueError.\n4. A newly added user has only the email channel enabled; sms and push are disabled by default.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(\n        self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)\n    ) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._users: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        self._users.setdefault(\n            user, {channel: channel == \"email\" for channel in self.CHANNELS}\n        )\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Unknown channel: {channel}\")\n        self._users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        current = at.time()\n        if self.quiet_start < self.quiet_end:\n            quiet = self.quiet_start <= current < self.quiet_end\n        elif self.quiet_start > self.quiet_end:\n            quiet = current >= self.quiet_start or current < self.quiet_end\n        else:\n            quiet = False\n\n        preferences = self._users[user]\n        return [\n            channel\n            for channel in self.CHANNELS\n            if preferences[channel] and (not quiet or channel == \"email\")\n        ]\n```",
+ "code": "from datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(\n        self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)\n    ) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._users: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        self._users.setdefault(\n            user, {channel: channel == \"email\" for channel in self.CHANNELS}\n        )\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Unknown channel: {channel}\")\n        self._users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        current = at.time()\n        if self.quiet_start < self.quiet_end:\n            quiet = self.quiet_start <= current < self.quiet_end\n        elif self.quiet_start > self.quiet_end:\n            quiet = current >= self.quiet_start or current < self.quiet_end\n        else:\n            quiet = False\n\n        preferences = self._users[user]\n        return [\n            channel\n            for channel in self.CHANNELS\n            if preferences[channel] and (not quiet or channel == \"email\")\n        ]\n",
+ "input_tokens": 285,
+ "output_tokens": 401,
+ "cost_usd": 0.00229,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.72,
+ "raw_api_response": {
+  "id": "chatcmpl-EjH7sEIzLkHh7rlWA9W6m7FmUnzvQ",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(\n        self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)\n    ) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._users: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        self._users.setdefault(\n            user, {channel: channel == \"email\" for channel in self.CHANNELS}\n        )\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Unknown channel: {channel}\")\n        self._users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        current = at.time()\n        if self.quiet_start < self.quiet_end:\n            quiet = self.quiet_start <= current < self.quiet_end\n        elif self.quiet_start > self.quiet_end:\n            quiet = current >= self.quiet_start or current < self.quiet_end\n        else:\n            quiet = False\n\n        preferences = self._users[user]\n        return [\n            channel\n            for channel in self.CHANNELS\n            if preferences[channel] and (not quiet or channel == \"email\")\n        ]\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794459300,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 401,
+   "prompt_tokens": 285,
+   "total_tokens": 686,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 50,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:14:09+00:00",
+ "app": "leave",
+ "app_hash": "c3276e419d06",
+ "model": "qwen",
+ "condition": "ABL-LV3",
+ "rep": 0,
+ "requirement_order": [
+  "LV5",
+  "LV2",
+  "LV1",
+  "LV4"
+ ],
+ "passed": {
+  "LV1": true,
+  "LV2": true,
+  "LV3": true,
+  "LV4": true,
+  "LV5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that tracks employees' annual leave requests.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None: ...\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n\n    def remaining(self, employee: str, year: int) -> int: ...\n```\n\n## Requirements\n1. Unused leave days do not carry over to the next year.\n2. A request that needs more days than the employee has remaining raises ValueError.\n3. A request whose end date is before its start date raises ValueError.\n4. A request made less than 3 days before its start date is rejected with ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date\nfrom typing import List, Dict, Optional\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Optional[List[date]] = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = holidays or []\n        # Track used leave days per employee per year: {employee: {year: days_used}}\n        self.used_days: Dict[str, Dict[int, int]] = {}\n    \n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        # Check if end date is before start date\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        \n        # Check if request is made less than 3 days before start date\n        if (start - today).days < 3:\n            raise ValueError(\"Request must be made at least 3 days before start date\")\n        \n        # Calculate the number of calendar days in the requested period\n        delta = end - start\n        total_days = delta.days + 1\n        \n        # Count weekends and holidays to exclude from leave days\n        leave_days = 0\n        current = start\n        while current <= end:\n            # Skip weekends (Saturday=5, Sunday=6)\n            if current.weekday() < 5:\n                # Check if it's a holiday\n                is_holiday = False\n                for holiday in self.holidays:\n                    if holiday.year == current.year and holiday.month == current.month and holiday.day == current.day:\n                        is_holiday = True\n                        break\n                if not is_holiday:\n                    leave_days += 1\n            current = current + date.resolution\n        \n        # Get the year for this request\n        year = start.year\n        \n        # Get remaining days for this employee and year\n        remaining_days = self.remaining(employee, year)\n        \n        # Check if enough days remaining\n        if leave_days > remaining_days:\n            raise ValueError(\"Not enough leave days remaining\")\n        \n        # Record the used days\n        if employee not in self.used_days:\n            self.used_days[employee] = {}\n        if year not in self.used_days[employee]:\n            self.used_days[employee][year] = 0\n        self.used_days[employee][year] += leave_days\n        \n        return leave_days\n    \n    def remaining(self, employee: str, year: int) -> int:\n        # Get used days for this employee and year, default to 0 if not found\n        used = 0\n        if employee in self.used_days and year in self.used_days[employee]:\n            used = self.used_days[employee][year]\n        \n        return self.days_per_year - used\n```",
+ "code": "from datetime import date\nfrom typing import List, Dict, Optional\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Optional[List[date]] = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = holidays or []\n        # Track used leave days per employee per year: {employee: {year: days_used}}\n        self.used_days: Dict[str, Dict[int, int]] = {}\n    \n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        # Check if end date is before start date\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        \n        # Check if request is made less than 3 days before start date\n        if (start - today).days < 3:\n            raise ValueError(\"Request must be made at least 3 days before start date\")\n        \n        # Calculate the number of calendar days in the requested period\n        delta = end - start\n        total_days = delta.days + 1\n        \n        # Count weekends and holidays to exclude from leave days\n        leave_days = 0\n        current = start\n        while current <= end:\n            # Skip weekends (Saturday=5, Sunday=6)\n            if current.weekday() < 5:\n                # Check if it's a holiday\n                is_holiday = False\n                for holiday in self.holidays:\n                    if holiday.year == current.year and holiday.month == current.month and holiday.day == current.day:\n                        is_holiday = True\n                        break\n                if not is_holiday:\n                    leave_days += 1\n            current = current + date.resolution\n        \n        # Get the year for this request\n        year = start.year\n        \n        # Get remaining days for this employee and year\n        remaining_days = self.remaining(employee, year)\n        \n        # Check if enough days remaining\n        if leave_days > remaining_days:\n            raise ValueError(\"Not enough leave days remaining\")\n        \n        # Record the used days\n        if employee not in self.used_days:\n            self.used_days[employee] = {}\n        if year not in self.used_days[employee]:\n            self.used_days[employee][year] = 0\n        self.used_days[employee][year] += leave_days\n        \n        return leave_days\n    \n    def remaining(self, employee: str, year: int) -> int:\n        # Get used days for this employee and year, default to 0 if not found\n        used = 0\n        if employee in self.used_days and year in self.used_days[employee]:\n            used = self.used_days[employee][year]\n        \n        return self.days_per_year - used\n",
+ "input_tokens": 223,
+ "output_tokens": 573,
+ "cost_usd": 0.0007768,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 10.87,
+ "raw_api_response": {
+  "id": "gen-1794892433-jFPFVKPXlczTyLf7DXJt",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date\nfrom typing import List, Dict, Optional\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Optional[List[date]] = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = holidays or []\n        # Track used leave days per employee per year: {employee: {year: days_used}}\n        self.used_days: Dict[str, Dict[int, int]] = {}\n    \n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        # Check if end date is before start date\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        \n        # Check if request is made less than 3 days before start date\n        if (start - today).days < 3:\n            raise ValueError(\"Request must be made at least 3 days before start date\")\n        \n        # Calculate the number of calendar days in the requested period\n        delta = end - start\n        total_days = delta.days + 1\n        \n        # Count weekends and holidays to exclude from leave days\n        leave_days = 0\n        current = start\n        while current <= end:\n            # Skip weekends (Saturday=5, Sunday=6)\n            if current.weekday() < 5:\n                # Check if it's a holiday\n                is_holiday = False\n                for holiday in self.holidays:\n                    if holiday.year == current.year and holiday.month == current.month and holiday.day == current.day:\n                        is_holiday = True\n                        break\n                if not is_holiday:\n                    leave_days += 1\n            current = current + date.resolution\n        \n        # Get the year for this request\n        year = start.year\n        \n        # Get remaining days for this employee and year\n        remaining_days = self.remaining(employee, year)\n        \n        # Check if enough days remaining\n        if leave_days > remaining_days:\n            raise ValueError(\"Not enough leave days remaining\")\n        \n        # Record the used days\n        if employee not in self.used_days:\n            self.used_days[employee] = {}\n        if year not in self.used_days[employee]:\n            self.used_days[employee][year] = 0\n        self.used_days[employee][year] += leave_days\n        \n        return leave_days\n    \n    def remaining(self, employee: str, year: int) -> int:\n        # Get used days for this employee and year, default to 0 if not found\n        used = 0\n        if employee in self.used_days and year in self.used_days[employee]:\n            used = self.used_days[employee][year]\n        \n        return self.days_per_year - used\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794892433,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 573,
+   "prompt_tokens": 223,
+   "total_tokens": 796,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00050492,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00050492,
+    "upstream_inference_prompt_cost": 5.798e-05,
+    "upstream_inference_completions_cost": 0.00044694
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

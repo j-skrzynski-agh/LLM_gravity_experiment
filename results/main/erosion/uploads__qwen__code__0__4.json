@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T17:26:32+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "qwen",
+ "variant": "code",
+ "rep": 0,
+ "step": 4,
+ "change": "Add a method `rename(self, old: str, new: str) -> None` that renames a stored file.",
+ "start_file": "uploads__qwen__FULL__0.json",
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Store uploaded files per month: {month: {filename: size_bytes}}\n        self.uploads = {}\n\n    def upload(self, name: str, size_bytes: int, month: str, owner: str = \"\") -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Upload size cannot be 0 bytes\")\n        \n        # Initialize month entry if it doesn't exist\n        if month not in self.uploads:\n            self.uploads[month] = {}\n        \n        # If file already exists in this month, no change to quota\n        if name in self.uploads[month]:\n            return\n        \n        # Calculate current usage for this month\n        current_usage = sum(self.uploads[month].values())\n        \n        # Check if adding this file would exceed the limit\n        if current_usage + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file\n        self.uploads[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Only delete if the month and file exist\n        if month in self.uploads and name in self.uploads[month]:\n            del self.uploads[month][name]\n            # Clean up empty month entries\n            if not self.uploads[month]:\n                del self.uploads[month]\n\n    def used_bytes(self, month: str) -> int:\n        # Return 0 for months with no uploads\n        if month not in self.uploads:\n            return 0\n        return sum(self.uploads[month].values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"Return how many bytes can still be uploaded in the month.\"\"\"\n        used = self.used_bytes(month)\n        return max(0, self.monthly_limit_bytes - used)\n\n    def files(self) -> list[str]:\n        # Collect all file names from all months\n        all_files = []\n        for month_uploads in self.uploads.values():\n            all_files.extend(month_uploads.keys())\n        # Return sorted list of unique file names\n        return sorted(set(all_files))\n\n    def files_of(self, owner: str) -> list[str]:\n        # Since owner information is not currently tracked in the implementation,\n        # this method returns an empty list as a placeholder.\n        # Note: The current implementation doesn't store owner information,\n        # so this method cannot return meaningful results without modifying\n        # the data structure to track owners.\n        return []\n```\n\n## Change request\nAdd a method `rename(self, old: str, new: str) -> None` that renames a stored file.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Store uploaded files per month: {month: {filename: size_bytes}}\n        self.uploads = {}\n\n    def upload(self, name: str, size_bytes: int, month: str, owner: str = \"\") -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Upload size cannot be 0 bytes\")\n        \n        # Initialize month entry if it doesn't exist\n        if month not in self.uploads:\n            self.uploads[month] = {}\n        \n        # If file already exists in this month, no change to quota\n        if name in self.uploads[month]:\n            return\n        \n        # Calculate current usage for this month\n        current_usage = sum(self.uploads[month].values())\n        \n        # Check if adding this file would exceed the limit\n        if current_usage + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file\n        self.uploads[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Only delete if the month and file exist\n        if month in self.uploads and name in self.uploads[month]:\n            del self.uploads[month][name]\n            # Clean up empty month entries\n            if not self.uploads[month]:\n                del self.uploads[month]\n\n    def used_bytes(self, month: str) -> int:\n        # Return 0 for months with no uploads\n        if month not in self.uploads:\n            return 0\n        return sum(self.uploads[month].values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"Return how many bytes can still be uploaded in the month.\"\"\"\n        used = self.used_bytes(month)\n        return max(0, self.monthly_limit_bytes - used)\n\n    def files(self) -> list[str]:\n        # Collect all file names from all months\n        all_files = []\n        for month_uploads in self.uploads.values():\n            all_files.extend(month_uploads.keys())\n        # Return sorted list of unique file names\n        return sorted(set(all_files))\n\n    def files_of(self, owner: str) -> list[str]:\n        # Since owner information is not currently tracked in the implementation,\n        # this method returns an empty list as a placeholder.\n        # Note: The current implementation doesn't store owner information,\n        # so this method cannot return meaningful results without modifying\n        # the data structure to track owners.\n        return []\n\n    def rename(self, old: str, new: str) -> None:\n        \"\"\"Rename a stored file across all months.\"\"\"\n        if old == new:\n            return\n            \n        # Search through all months for the old filename\n        for month in self.uploads:\n            if old in self.uploads[month]:\n                # Check if the new name already exists in this month\n                if new in self.uploads[month]:\n                    raise ValueError(f\"Cannot rename '{old}' to '{new}' - file '{new}' already exists in month '{month}'\")\n                \n                # Rename the file by moving its size value\n                self.uploads[month][new] = self.uploads[month][old]\n                del self.uploads[month][old]\n                \n                # Clean up empty month entries after deletion\n                if not self.uploads[month]:\n                    del self.uploads[month]\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Store uploaded files per month: {month: {filename: size_bytes}}\n        self.uploads = {}\n\n    def upload(self, name: str, size_bytes: int, month: str, owner: str = \"\") -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Upload size cannot be 0 bytes\")\n        \n        # Initialize month entry if it doesn't exist\n        if month not in self.uploads:\n            self.uploads[month] = {}\n        \n        # If file already exists in this month, no change to quota\n        if name in self.uploads[month]:\n            return\n        \n        # Calculate current usage for this month\n        current_usage = sum(self.uploads[month].values())\n        \n        # Check if adding this file would exceed the limit\n        if current_usage + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file\n        self.uploads[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Only delete if the month and file exist\n        if month in self.uploads and name in self.uploads[month]:\n            del self.uploads[month][name]\n            # Clean up empty month entries\n            if not self.uploads[month]:\n                del self.uploads[month]\n\n    def used_bytes(self, month: str) -> int:\n        # Return 0 for months with no uploads\n        if month not in self.uploads:\n            return 0\n        return sum(self.uploads[month].values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"Return how many bytes can still be uploaded in the month.\"\"\"\n        used = self.used_bytes(month)\n        return max(0, self.monthly_limit_bytes - used)\n\n    def files(self) -> list[str]:\n        # Collect all file names from all months\n        all_files = []\n        for month_uploads in self.uploads.values():\n            all_files.extend(month_uploads.keys())\n        # Return sorted list of unique file names\n        return sorted(set(all_files))\n\n    def files_of(self, owner: str) -> list[str]:\n        # Since owner information is not currently tracked in the implementation,\n        # this method returns an empty list as a placeholder.\n        # Note: The current implementation doesn't store owner information,\n        # so this method cannot return meaningful results without modifying\n        # the data structure to track owners.\n        return []\n\n    def rename(self, old: str, new: str) -> None:\n        \"\"\"Rename a stored file across all months.\"\"\"\n        if old == new:\n            return\n            \n        # Search through all months for the old filename\n        for month in self.uploads:\n            if old in self.uploads[month]:\n                # Check if the new name already exists in this month\n                if new in self.uploads[month]:\n                    raise ValueError(f\"Cannot rename '{old}' to '{new}' - file '{new}' already exists in month '{month}'\")\n                \n                # Rename the file by moving its size value\n                self.uploads[month][new] = self.uploads[month][old]\n                del self.uploads[month][old]\n                \n                # Clean up empty month entries after deletion\n                if not self.uploads[month]:\n                    del self.uploads[month]\n",
+ "input_tokens": 638,
+ "output_tokens": 752,
+ "cost_usd": 0.0011576,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 15.62,
+ "raw_api_response": {
+  "id": "gen-1794936371-PINLUgE0yXTpt1NzXhLx",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Store uploaded files per month: {month: {filename: size_bytes}}\n        self.uploads = {}\n\n    def upload(self, name: str, size_bytes: int, month: str, owner: str = \"\") -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Upload size cannot be 0 bytes\")\n        \n        # Initialize month entry if it doesn't exist\n        if month not in self.uploads:\n            self.uploads[month] = {}\n        \n        # If file already exists in this month, no change to quota\n        if name in self.uploads[month]:\n            return\n        \n        # Calculate current usage for this month\n        current_usage = sum(self.uploads[month].values())\n        \n        # Check if adding this file would exceed the limit\n        if current_usage + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file\n        self.uploads[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Only delete if the month and file exist\n        if month in self.uploads and name in self.uploads[month]:\n            del self.uploads[month][name]\n            # Clean up empty month entries\n            if not self.uploads[month]:\n                del self.uploads[month]\n\n    def used_bytes(self, month: str) -> int:\n        # Return 0 for months with no uploads\n        if month not in self.uploads:\n            return 0\n        return sum(self.uploads[month].values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"Return how many bytes can still be uploaded in the month.\"\"\"\n        used = self.used_bytes(month)\n        return max(0, self.monthly_limit_bytes - used)\n\n    def files(self) -> list[str]:\n        # Collect all file names from all months\n        all_files = []\n        for month_uploads in self.uploads.values():\n            all_files.extend(month_uploads.keys())\n        # Return sorted list of unique file names\n        return sorted(set(all_files))\n\n    def files_of(self, owner: str) -> list[str]:\n        # Since owner information is not currently tracked in the implementation,\n        # this method returns an empty list as a placeholder.\n        # Note: The current implementation doesn't store owner information,\n        # so this method cannot return meaningful results without modifying\n        # the data structure to track owners.\n        return []\n\n    def rename(self, old: str, new: str) -> None:\n        \"\"\"Rename a stored file across all months.\"\"\"\n        if old == new:\n            return\n            \n        # Search through all months for the old filename\n        for month in self.uploads:\n            if old in self.uploads[month]:\n                # Check if the new name already exists in this month\n                if new in self.uploads[month]:\n                    raise ValueError(f\"Cannot rename '{old}' to '{new}' - file '{new}' already exists in month '{month}'\")\n                \n                # Rename the file by moving its size value\n                self.uploads[month][new] = self.uploads[month][old]\n                del self.uploads[month][old]\n                \n                # Clean up empty month entries after deletion\n                if not self.uploads[month]:\n                    del self.uploads[month]\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794936371,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 752,
+   "prompt_tokens": 638,
+   "total_tokens": 1390,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00075244,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00075244,
+    "upstream_inference_prompt_cost": 0.00016588,
+    "upstream_inference_completions_cost": 0.00058656
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

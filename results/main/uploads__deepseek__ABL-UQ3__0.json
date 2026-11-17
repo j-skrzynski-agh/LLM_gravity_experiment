@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:17:40+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "deepseek",
+ "condition": "ABL-UQ3",
+ "rep": 0,
+ "requirement_order": [
+  "UQ1",
+  "UQ5",
+  "UQ4",
+  "UQ2"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. Uploading a file of size 0 raises ValueError.\n2. Uploading again a file with the same name in the same month does not count towards the limit a second time.\n3. Deleting a file does not give back quota in the current month.\n4. An upload that would exceed the monthly limit raises ValueError, and the file is not counted.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> {name: size}\n        self._files: dict[str, dict[str, int]] = {}\n        # month -> set of names already counted in that month\n        self._counted: dict[str, set[str]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0\")\n\n        files = self._files.setdefault(month, {})\n        counted = self._counted.setdefault(month, set())\n\n        # Re-uploading same name in same month: no additional quota counted\n        if name in counted:\n            files[name] = size_bytes\n            return\n\n        # Check limit\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Upload would exceed monthly limit\")\n\n        files[name] = size_bytes\n        counted.add(name)\n\n    def delete(self, name: str, month: str) -> None:\n        files = self._files.get(month)\n        if files is not None and name in files:\n            del files[name]\n        # Quota is not returned in the current month;\n        # the name remains in _counted so its size still counts.\n\n    def used_bytes(self, month: str) -> int:\n        files = self._files.get(month, {})\n        counted = self._counted.get(month, set())\n        return sum(size for name, size in files.items() if name in counted)\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> {name: size}\n        self._files: dict[str, dict[str, int]] = {}\n        # month -> set of names already counted in that month\n        self._counted: dict[str, set[str]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0\")\n\n        files = self._files.setdefault(month, {})\n        counted = self._counted.setdefault(month, set())\n\n        # Re-uploading same name in same month: no additional quota counted\n        if name in counted:\n            files[name] = size_bytes\n            return\n\n        # Check limit\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Upload would exceed monthly limit\")\n\n        files[name] = size_bytes\n        counted.add(name)\n\n    def delete(self, name: str, month: str) -> None:\n        files = self._files.get(month)\n        if files is not None and name in files:\n            del files[name]\n        # Quota is not returned in the current month;\n        # the name remains in _counted so its size still counts.\n\n    def used_bytes(self, month: str) -> int:\n        files = self._files.get(month, {})\n        counted = self._counted.get(month, set())\n        return sum(size for name, size in files.items() if name in counted)\n",
+ "input_tokens": 236,
+ "output_tokens": 372,
+ "cost_usd": 0.0005171999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.0,
+ "raw_api_response": {
+  "id": "e20265a0-d23b-4057-b28a-6101e24dfe5b",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> {name: size}\n        self._files: dict[str, dict[str, int]] = {}\n        # month -> set of names already counted in that month\n        self._counted: dict[str, set[str]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0\")\n\n        files = self._files.setdefault(month, {})\n        counted = self._counted.setdefault(month, set())\n\n        # Re-uploading same name in same month: no additional quota counted\n        if name in counted:\n            files[name] = size_bytes\n            return\n\n        # Check limit\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Upload would exceed monthly limit\")\n\n        files[name] = size_bytes\n        counted.add(name)\n\n    def delete(self, name: str, month: str) -> None:\n        files = self._files.get(month)\n        if files is not None and name in files:\n            del files[name]\n        # Quota is not returned in the current month;\n        # the name remains in _counted so its size still counts.\n\n    def used_bytes(self, month: str) -> int:\n        files = self._files.get(month, {})\n        counted = self._counted.get(month, set())\n        return sum(size for name, size in files.items() if name in counted)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794453453,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 372,
+   "prompt_tokens": 236,
+   "total_tokens": 608,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 236
+  }
+ }
+}

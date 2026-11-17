@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:32:14+00:00",
+ "task": "cart_total",
+ "task_hash": "fd677849fb3b",
+ "model": "deepseek",
+ "condition": "BARE",
+ "rep": 2,
+ "requirement_order": [],
+ "model_id": "deepseek-flash",
+ "prompt": "Write the code that calculates the final price of a shopping cart: products with prices and quantities, and customers can enter a discount code.",
+ "response": "# Shopping Cart Final Price Calculator\n\nHere's a complete implementation with a flexible discount system:\n\n```python\nfrom dataclasses import dataclass, field\nfrom typing import Dict, List, Optional, Callable\nfrom decimal import Decimal, ROUND_HALF_UP\n\n\n@dataclass\nclass Product:\n    name: str\n    price: Decimal\n    quantity: int = 1\n\n\n@dataclass\nclass Cart:\n    items: List[Product] = field(default_factory=list)\n    discount_code: Optional[str] = None\n\n    def add_item(self, product: Product) -> None:\n        self.items.append(product)\n\n    def subtotal(self) -> Decimal:\n        return sum((item.price * item.quantity for item in self.items), Decimal(\"0\"))\n\n\n# --- Discount strategies -------------------------------------------------\n# Each strategy receives (subtotal, raw_code) and returns (discount_amount, label)\n\ndef percent_discount(rate: Decimal, min_subtotal: Decimal = Decimal(\"0\")) -> Callable:\n    def apply(subtotal: Decimal, _code: str):\n        if subtotal < min_subtotal:\n            return Decimal(\"0\"), f\"{int(rate * 100)}% off (min order ${min_subtotal})\"\n        return (subtotal * rate).quantize(Decimal(\"0.01\"), ROUND_HALF_UP), f\"{int(rate * 100)}% off\"\n    return apply\n\n\ndef fixed_discount(amount: Decimal, min_subtotal: Decimal = Decimal(\"0\")) -> Callable:\n    def apply(subtotal: Decimal, _code: str):\n        if subtotal < min_subtotal:\n            return Decimal(\"0\"), f\"${amount} off (min order ${min_subtotal})\"\n        return min(amount, subtotal), f\"${amount} off\"\n    return apply\n\n\nDISCOUNT_CODES: Dict[str, Callable] = {\n    \"SAVE10\":    percent_discount(Decimal(\"0.10\")),\n    \"SAVE20\":    percent_discount(Decimal(\"0.20\"), min_subtotal=Decimal(\"50\")),\n    \"FLAT5\":     fixed_discount(Decimal(\"5\")),\n    \"WELCOME15\": fixed_discount(Decimal(\"15\"), min_subtotal=Decimal(\"75\")),\n}\n\nTAX_RATE = Decimal(\"0.08\")  # 8% sales tax \u2014 adjust as needed\n\n\ndef calculate_final_price(cart: Cart) -> Dict[str, Decimal | str | None]:\n    subtotal = cart.subtotal()\n\n    discount = Decimal(\"0\")\n    discount_label: Optional[str] = None\n\n    code = (cart.discount_code or \"\").strip().upper()\n    if code:\n        strategy = DISCOUNT_CODES.get(code)\n        if strategy:\n            discount, discount_label = strategy(subtotal, code)\n        else:\n            discount_label = f\"Invalid code: '{code}'\"\n\n    taxable = subtotal - discount\n    tax = (taxable * TAX_RATE).quantize(Decimal(\"0.01\"), ROUND_HALF_UP)\n    total = (taxable + tax).quantize(Decimal(\"0.01\"), ROUND_HALF_UP)\n\n    return {\n        \"subtotal\": subtotal.quantize(Decimal(\"0.01\"), ROUND_HALF_UP),\n        \"discount\": discount,\n        \"discount_label\": discount_label,\n        \"tax\": tax,\n        \"total\": total,\n    }\n\n\n# --- Demo ----------------------------------------------------------------\nif __name__ == \"__main__\":\n    cart = Cart()\n    cart.add_item(Product(\"Wireless Mouse\", Decimal(\"29.99\"), 2))\n    cart.add_item(Product(\"Mechanical Keyboard\", Decimal(\"89.50\"), 1))\n    cart.add_item(Product(\"USB-C Cable\", Decimal(\"12.00\"), 3))\n\n    # Try entering a discount code\n    cart.discount_code = input(\"Enter discount code (or press Enter to skip): \")\n\n    result = calculate_final_price(cart)\n\n    print(\"\\n--- Receipt ---\")\n    for item in cart.items:\n        line = item.price * item.quantity\n        print(f\"{item.name:<25} x{item.quantity:<3} ${line:>8.2f}\")\n    print(\"-\" * 40)\n    print(f\"Subtotal:  ${result['subtotal']:>8.2f}\")\n    if result[\"discount\"] > 0:\n        print(f\"Discount: -${result['discount']:>7.2f}  ({result['discount_label']})\")\n    elif result[\"discount_label\"]:\n        print(f\"Note:       {result['discount_label']}\")\n    print(f\"Tax (8%):   ${result['tax']:>8.2f}\")\n    print(f\"TOTAL:      ${result['total']:>8.2f}\")\n```\n\n### How it works\n\n1. **`Product`** \u2014 holds a name, price (as `Decimal` so you avoid floating\u2011point money bugs), and quantity.\n2. **`Cart`** \u2014 a list of items; `subtotal()` multiplies price by quantity.\n3. **Discount codes** \u2014 a strategy map so you can add new rules without touching `calculate_final_price`. Two helpers build the common cases:\n   - `percent_discount(rate, min_subtotal)` \u2192 e.g. `SAVE20` only applies if subtotal \u2265 $50.\n   - `fixed_discount(amount, min_subtotal)` \u2192 e.g. `FLAT5` takes $5 off.\n4. **Calculation order** (order matters for correctness):\n   - Subtotal \u2192 apply discount \u2192 tax the discounted amount \u2192 final total.\n   - Discount is capped at the subtotal so a fixed code can never make the order negative.\n5. **Invalid codes** are reported but don't break checkout.\n\n### Sample run\n\n```\nEnter discount code: save20\n\n--- Receipt ---\nWireless Mouse            x2   $   59.98\nMechanical Keyboard       x1   $   89.50\nUSB-C Cable               x3   $   36.00\n----------------------------------------\nSubtotal:  $  185.48\nDiscount: -$   37.10  (20% off)\nTax (8%):   $   11.87\nTOTAL:      $  160.25\n```\n\n### Easy extensions\n\n- **Per-product discounts** (e.g. \"buy 2 get 1 free\"): add a `discount` field to `Product` and subtract it in `subtotal()`.\n- **Stacking codes**: change `discount_code` to a list and sum the strategy results.\n- **Percentage cap** on fixed codes: `min(amount, subtotal)` is already there.\n- **Storage**: swap the `DISCOUNT_CODES` dict for a database lookup if codes are dynamic.",
+ "input_tokens": 31,
+ "output_tokens": 1464,
+ "cost_usd": 0.0017660999999999998,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 8.4,
+ "raw_api_response": {
+  "id": "65e64176-12da-43b5-9f8b-be0e084017ca",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "# Shopping Cart Final Price Calculator\n\nHere's a complete implementation with a flexible discount system:\n\n```python\nfrom dataclasses import dataclass, field\nfrom typing import Dict, List, Optional, Callable\nfrom decimal import Decimal, ROUND_HALF_UP\n\n\n@dataclass\nclass Product:\n    name: str\n    price: Decimal\n    quantity: int = 1\n\n\n@dataclass\nclass Cart:\n    items: List[Product] = field(default_factory=list)\n    discount_code: Optional[str] = None\n\n    def add_item(self, product: Product) -> None:\n        self.items.append(product)\n\n    def subtotal(self) -> Decimal:\n        return sum((item.price * item.quantity for item in self.items), Decimal(\"0\"))\n\n\n# --- Discount strategies -------------------------------------------------\n# Each strategy receives (subtotal, raw_code) and returns (discount_amount, label)\n\ndef percent_discount(rate: Decimal, min_subtotal: Decimal = Decimal(\"0\")) -> Callable:\n    def apply(subtotal: Decimal, _code: str):\n        if subtotal < min_subtotal:\n            return Decimal(\"0\"), f\"{int(rate * 100)}% off (min order ${min_subtotal})\"\n        return (subtotal * rate).quantize(Decimal(\"0.01\"), ROUND_HALF_UP), f\"{int(rate * 100)}% off\"\n    return apply\n\n\ndef fixed_discount(amount: Decimal, min_subtotal: Decimal = Decimal(\"0\")) -> Callable:\n    def apply(subtotal: Decimal, _code: str):\n        if subtotal < min_subtotal:\n            return Decimal(\"0\"), f\"${amount} off (min order ${min_subtotal})\"\n        return min(amount, subtotal), f\"${amount} off\"\n    return apply\n\n\nDISCOUNT_CODES: Dict[str, Callable] = {\n    \"SAVE10\":    percent_discount(Decimal(\"0.10\")),\n    \"SAVE20\":    percent_discount(Decimal(\"0.20\"), min_subtotal=Decimal(\"50\")),\n    \"FLAT5\":     fixed_discount(Decimal(\"5\")),\n    \"WELCOME15\": fixed_discount(Decimal(\"15\"), min_subtotal=Decimal(\"75\")),\n}\n\nTAX_RATE = Decimal(\"0.08\")  # 8% sales tax \u2014 adjust as needed\n\n\ndef calculate_final_price(cart: Cart) -> Dict[str, Decimal | str | None]:\n    subtotal = cart.subtotal()\n\n    discount = Decimal(\"0\")\n    discount_label: Optional[str] = None\n\n    code = (cart.discount_code or \"\").strip().upper()\n    if code:\n        strategy = DISCOUNT_CODES.get(code)\n        if strategy:\n            discount, discount_label = strategy(subtotal, code)\n        else:\n            discount_label = f\"Invalid code: '{code}'\"\n\n    taxable = subtotal - discount\n    tax = (taxable * TAX_RATE).quantize(Decimal(\"0.01\"), ROUND_HALF_UP)\n    total = (taxable + tax).quantize(Decimal(\"0.01\"), ROUND_HALF_UP)\n\n    return {\n        \"subtotal\": subtotal.quantize(Decimal(\"0.01\"), ROUND_HALF_UP),\n        \"discount\": discount,\n        \"discount_label\": discount_label,\n        \"tax\": tax,\n        \"total\": total,\n    }\n\n\n# --- Demo ----------------------------------------------------------------\nif __name__ == \"__main__\":\n    cart = Cart()\n    cart.add_item(Product(\"Wireless Mouse\", Decimal(\"29.99\"), 2))\n    cart.add_item(Product(\"Mechanical Keyboard\", Decimal(\"89.50\"), 1))\n    cart.add_item(Product(\"USB-C Cable\", Decimal(\"12.00\"), 3))\n\n    # Try entering a discount code\n    cart.discount_code = input(\"Enter discount code (or press Enter to skip): \")\n\n    result = calculate_final_price(cart)\n\n    print(\"\\n--- Receipt ---\")\n    for item in cart.items:\n        line = item.price * item.quantity\n        print(f\"{item.name:<25} x{item.quantity:<3} ${line:>8.2f}\")\n    print(\"-\" * 40)\n    print(f\"Subtotal:  ${result['subtotal']:>8.2f}\")\n    if result[\"discount\"] > 0:\n        print(f\"Discount: -${result['discount']:>7.2f}  ({result['discount_label']})\")\n    elif result[\"discount_label\"]:\n        print(f\"Note:       {result['discount_label']}\")\n    print(f\"Tax (8%):   ${result['tax']:>8.2f}\")\n    print(f\"TOTAL:      ${result['total']:>8.2f}\")\n```\n\n### How it works\n\n1. **`Product`** \u2014 holds a name, price (as `Decimal` so you avoid floating\u2011point money bugs), and quantity.\n2. **`Cart`** \u2014 a list of items; `subtotal()` multiplies price by quantity.\n3. **Discount codes** \u2014 a strategy map so you can add new rules without touching `calculate_final_price`. Two helpers build the common cases:\n   - `percent_discount(rate, min_subtotal)` \u2192 e.g. `SAVE20` only applies if subtotal \u2265 $50.\n   - `fixed_discount(amount, min_subtotal)` \u2192 e.g. `FLAT5` takes $5 off.\n4. **Calculation order** (order matters for correctness):\n   - Subtotal \u2192 apply discount \u2192 tax the discounted amount \u2192 final total.\n   - Discount is capped at the subtotal so a fixed code can never make the order negative.\n5. **Invalid codes** are reported but don't break checkout.\n\n### Sample run\n\n```\nEnter discount code: save20\n\n--- Receipt ---\nWireless Mouse            x2   $   59.98\nMechanical Keyboard       x1   $   89.50\nUSB-C Cable               x3   $   36.00\n----------------------------------------\nSubtotal:  $  185.48\nDiscount: -$   37.10  (20% off)\nTax (8%):   $   11.87\nTOTAL:      $  160.25\n```\n\n### Easy extensions\n\n- **Per-product discounts** (e.g. \"buy 2 get 1 free\"): add a `discount` field to `Product` and subtract it in `subtotal()`.\n- **Stacking codes**: change `discount_code` to a list and sum the strategy results.\n- **Percentage cap** on fixed codes: `min(amount, subtotal)` is already there.\n- **Storage**: swap the `DISCOUNT_CODES` dict for a database lookup if codes are dynamic.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794529924,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 1464,
+   "prompt_tokens": 31,
+   "total_tokens": 1495,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 31
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "The supplied implementation uses Decimal for prices, discounts, tax, and totals."
+    },
+    "CR2": {
+     "met": false,
+     "reason": "Negative product prices or quantities are accepted and can produce a negative total."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "A cart holds only one discount code, and each calculation applies its strategy at most once."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "The code uses `Decimal` for all monetary values including product prices, subtotal, discount, tax, and total, avoiding binary floating-point arithmetic."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The final price is computed as `(taxable + tax).quantize(...)`, where `taxable = subtotal - discount`, and `discount` is capped at `subtotal` (e.g., `min(amount, subtotal)` in `fixed_discount`), ensuring `taxable >= 0` and thus `total >= 0`."
+    },
+    "CR3": {
+     "met": false,
+     "reason": "The code accepts only a single `discount_code` string (not a list or set), and applies it once; however, it does not prevent the same code from being applied more than once if the caller reassigns `cart.discount_code` and recalculates \u2014 but since the cart stores only one code and the calculation logic uses it at most once per call, and there is no mechanism to apply multiple instances of the same code, CR3 is satisfied as written; however, the requirement 'cannot be applied more than once' implies enforcement against duplicate application, and the code has no validation or state tracking to prevent reuse \u2014 but crucially, the design only ever applies *one* code (the current `cart.discount_code`) and does not support applying any code multiple times, so effectively it cannot be applied more than once. Re-evaluating: the code has no logic to apply a code more than once \u2014 it reads `cart.discount_code` once and applies the corresponding strategy once. There is no loop, no accumulation, no history. Therefore, the same code cannot be applied more than once to the same cart because the system only supports zero or one application. So CR3 is met."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "All money values use Decimal with quantize and ROUND_HALF_UP; no floats are used in the calculations."
+    },
+    "CR2": {
+     "met": false,
+     "reason": "Fixed discounts are capped at the subtotal and percent discounts are at most 100%, but negative prices or quantities are not validated, so a negative subtotal and total are possible."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "The cart holds a single discount_code string and the calculation applies it exactly once, so the same code cannot be stacked on one cart."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"CR1\":{\"met\":true,\"reason\":\"The supplied implementation uses Decimal for prices, discounts, tax, and totals.\"},\"CR2\":{\"met\":false,\"reason\":\"Negative product prices or quantities are accepted and can produce a negative total.\"},\"CR3\":{\"met\":true,\"reason\":\"A cart holds only one discount code, and each calculation applies its strategy at most once.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"CR1\": {\"met\": true, \"reason\": \"The code uses `Decimal` for all monetary values including product prices, subtotal, discount, tax, and total, avoiding binary floating-point arithmetic.\"},\n  \"CR2\": {\"met\": true, \"reason\": \"The final price is computed as `(taxable + tax).quantize(...)`, where `taxable = subtotal - discount`, and `discount` is capped at `subtotal` (e.g., `min(amount, subtotal)` in `fixed_discount`), ensuring `taxable >= 0` and thus `total >= 0`.\"},\n  \"CR3\": {\"met\": false, \"reason\": \"The code accepts only a single `discount_code` string (not a list or set), and applies it once; however, it does not prevent the same code from being applied more than once if the caller reassigns `cart.discount_code` and recalculates \u2014 but since the cart stores only one code and the calculation logic uses it at most once per call, and there is no mechanism to apply multiple instances of the same code, CR3 is satisfied as written; however, the requirement 'cannot be applied more than once' implies enforcement against duplicate application, and the code has no validation or state tracking to prevent reuse \u2014 but crucially, the design only ever applies *one* code (the current `cart.discount_code`) and does not support applying any code multiple times, so effectively it cannot be applied more than once. Re-evaluating: the code has no logic to apply a code more than once \u2014 it reads `cart.discount_code` once and applies the corresponding strategy once. There is no loop, no accumulation, no history. Therefore, the same code cannot be applied more than once to the same cart because the system only supports zero or one application. So CR3 is met.\"}\n}",
+  "claude": "{\"_code\": true, \"CR1\": {\"met\": true, \"reason\": \"All money values use Decimal with quantize and ROUND_HALF_UP; no floats are used in the calculations.\"}, \"CR2\": {\"met\": false, \"reason\": \"Fixed discounts are capped at the subtotal and percent discounts are at most 100%, but negative prices or quantities are not validated, so a negative subtotal and total are possible.\"}, \"CR3\": {\"met\": true, \"reason\": \"The cart holds a single discount_code string and the calculation applies it exactly once, so the same code cannot be stacked on one cart.\"}}"
+ },
+ "judge_cost_usd": 0.0102824
+}

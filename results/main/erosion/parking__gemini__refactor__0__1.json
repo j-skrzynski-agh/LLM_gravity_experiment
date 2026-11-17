@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:41:28+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "gemini",
+ "variant": "refactor",
+ "rep": 0,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "parking__gemini__FULL__0.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nimport math\nfrom datetime import datetime\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Stays longer than 24 hours (24 * 3600 seconds) are charged a flat penalty\n        if total_seconds > 24 * 3600:\n            return 200.00\n\n        # Stays of at most 15 minutes (15 * 60 seconds) are free\n        if total_seconds <= 15 * 60:\n            return 0.00\n\n        # Every started hour is charged as a full hour\n        hours = math.ceil(total_seconds / 3600.0)\n        return round(hours * self.hourly_rate, 2)\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the refactored module. \n\nIt improves readability and idiomatic design by:\n- Using `datetime.timedelta` objects directly for clear, readable time comparisons and arithmetic instead of manual second conversions.\n- Eliminating `math.ceil` by using integer division with negation ceiling (`-(-duration // step)`), or division by `timedelta` directly (standard in Python 3).\n- Extracting business rule thresholds into descriptive class-level constants.\n\n```python\nfrom datetime import datetime, timedelta\n\n\nclass ParkingMeter:\n    GRACE_PERIOD = timedelta(minutes=15)\n    MAX_STANDARD_DURATION = timedelta(hours=24)\n    OVERSTAY_PENALTY = 200.00\n    BILLING_UNIT = timedelta(hours=1)\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        if duration > self.MAX_STANDARD_DURATION:\n            return self.OVERSTAY_PENALTY\n\n        if duration <= self.GRACE_PERIOD:\n            return 0.00\n\n        # Ceiling division for partial hours: every started hour counts as a full hour\n        billable_hours = -(-duration // self.BILLING_UNIT)\n        return round(billable_hours * self.hourly_rate, 2)\n```",
+ "code": "from datetime import datetime, timedelta\n\n\nclass ParkingMeter:\n    GRACE_PERIOD = timedelta(minutes=15)\n    MAX_STANDARD_DURATION = timedelta(hours=24)\n    OVERSTAY_PENALTY = 200.00\n    BILLING_UNIT = timedelta(hours=1)\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        if duration > self.MAX_STANDARD_DURATION:\n            return self.OVERSTAY_PENALTY\n\n        if duration <= self.GRACE_PERIOD:\n            return 0.00\n\n        # Ceiling division for partial hours: every started hour counts as a full hour\n        billable_hours = -(-duration // self.BILLING_UNIT)\n        return round(billable_hours * self.hourly_rate, 2)\n",
+ "input_tokens": 325,
+ "output_tokens": 348,
+ "cost_usd": 0.00154875,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 3.81,
+ "raw_api_response": {
+  "id": "4K38arXBD_3ZxN8P6MOV4A8",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the refactored module. \n\nIt improves readability and idiomatic design by:\n- Using `datetime.timedelta` objects directly for clear, readable time comparisons and arithmetic instead of manual second conversions.\n- Eliminating `math.ceil` by using integer division with negation ceiling (`-(-duration // step)`), or division by `timedelta` directly (standard in Python 3).\n- Extracting business rule thresholds into descriptive class-level constants.\n\n```python\nfrom datetime import datetime, timedelta\n\n\nclass ParkingMeter:\n    GRACE_PERIOD = timedelta(minutes=15)\n    MAX_STANDARD_DURATION = timedelta(hours=24)\n    OVERSTAY_PENALTY = 200.00\n    BILLING_UNIT = timedelta(hours=1)\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        if duration > self.MAX_STANDARD_DURATION:\n            return self.OVERSTAY_PENALTY\n\n        if duration <= self.GRACE_PERIOD:\n            return 0.00\n\n        # Ceiling division for partial hours: every started hour counts as a full hour\n        billable_hours = -(-duration // self.BILLING_UNIT)\n        return round(billable_hours * self.hourly_rate, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EpIBCo8BAWkUfRM0AwWFegvQrELcXheeuyyiWAKgclbWVklAyPIFHIJfk/jYdFXxU60ZpV/KTtoZR3IIrCPezmV6r2jCXhPZEUyb1zZkPEH98JSASJTFYN1/71oUTnPaol5Iz5gsxFNfgl12j8Vsor6CYm63nx4Hu/Qd4v8cVlJN1uAukLKVaDmVO0W1rBuj4gUzsP8="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794944484,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 348,
+   "prompt_tokens": 325,
+   "total_tokens": 673,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

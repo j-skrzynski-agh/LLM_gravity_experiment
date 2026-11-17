@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:10:41+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "llama",
+ "condition": "ABL-GB2",
+ "rep": 0,
+ "requirement_order": [
+  "GB5",
+  "GB1",
+  "GB3",
+  "GB4"
+ ],
+ "passed": {
+  "GB1": true,
+  "GB2": false,
+  "GB3": true,
+  "GB4": true,
+  "GB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA gradebook for a university course: assignments with weights, grades on the\nPolish 2.0-5.0 scale, and a final average per student.\n\n## API (implement exactly these names and signatures)\n```python\nclass Gradebook:\n    def __init__(self) -> None: ...\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n\n    def record(self, student: str, assignment: str, grade: float) -> None: ...\n\n    def average(self, student: str) -> float: ...\n```\n\n## Requirements\n1. An assignment without a recorded grade counts as 2.0 in the average instead of being skipped.\n2. Recording a grade outside the scale 2.0 to 5.0 raises ValueError.\n3. The average is weighted by the weights of the assignments.\n4. If a student has more than one quiz, their lowest quiz grade is dropped when computing the average.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Gradebook:\n    def __init__(self):\n        \"\"\"\n        Initializes an empty gradebook.\n        \"\"\"\n        self.assignments = {}\n        self.grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"\n        Adds an assignment to the gradebook.\n\n        Args:\n        - name (str): The name of the assignment.\n        - weight (float): The weight of the assignment.\n        - kind (str): The kind of the assignment, either \"homework\" or \"quiz\". Defaults to \"homework\".\n        \"\"\"\n        if kind not in [\"homework\", \"quiz\"]:\n            raise ValueError(\"Kind must be either 'homework' or 'quiz'\")\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        \"\"\"\n        Records a grade for a student in the gradebook.\n\n        Args:\n        - student (str): The name of the student.\n        - assignment (str): The name of the assignment.\n        - grade (float): The grade of the student.\n\n        Raises:\n        - ValueError: If the grade is not within the range 2.0 to 5.0.\n        \"\"\"\n        if grade < 2.0 or grade > 5.0:\n            raise ValueError(\"Grade must be within the range 2.0 to 5.0\")\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        \"\"\"\n        Calculates the weighted average of a student's grades.\n\n        Args:\n        - student (str): The name of the student.\n\n        Returns:\n        - float: The weighted average of the student's grades.\n        \"\"\"\n        if student not in self.grades:\n            return 2.0\n        total_weight = 0\n        total_score = 0\n        quiz_grades = []\n        for assignment, grade in self.assignments.items():\n            if assignment in self.grades[student]:\n                if grade[\"kind\"] == \"quiz\":\n                    quiz_grades.append(self.grades[student][assignment])\n                else:\n                    total_weight += grade[\"weight\"]\n                    total_score += self.grades[student][assignment] * grade[\"weight\"]\n            else:\n                total_weight += grade[\"weight\"]\n                total_score += 2.0 * grade[\"weight\"]\n        if quiz_grades:\n            quiz_grades.sort()\n            if len(quiz_grades) > 1:\n                quiz_grades = quiz_grades[1:]\n            for quiz_grade in quiz_grades:\n                total_weight += self.get_weight_of_quiz(student, quiz_grade)\n                total_score += quiz_grade * self.get_weight_of_quiz(student, quiz_grade)\n        if total_weight == 0:\n            return 2.0\n        return total_score / total_weight\n\n    def get_weight_of_quiz(self, student, quiz_grade):\n        \"\"\"\n        Finds the weight of the quiz with the given grade.\n\n        Args:\n        - student (str): The name of the student.\n        - quiz_grade (float): The grade of the quiz.\n\n        Returns:\n        - float: The weight of the quiz.\n        \"\"\"\n        for assignment, grade in self.assignments.items():\n            if grade[\"kind\"] == \"quiz\" and assignment in self.grades[student] and self.grades[student][assignment] == quiz_grade:\n                return grade[\"weight\"]\n        return 0\n\n\ndef main():\n    gradebook = Gradebook()\n    gradebook.add_assignment(\"Assignment 1\", 0.3)\n    gradebook.add_assignment(\"Quiz 1\", 0.2, \"quiz\")\n    gradebook.add_assignment(\"Quiz 2\", 0.2, \"quiz\")\n    gradebook.add_assignment(\"Assignment 2\", 0.3)\n    gradebook.record(\"John\", \"Assignment 1\", 4.0)\n    gradebook.record(\"John\", \"Quiz 1\", 3.0)\n    gradebook.record(\"John\", \"Quiz 2\", 4.5)\n    gradebook.record(\"John\", \"Assignment 2\", 4.5)\n    print(gradebook.average(\"John\"))\n\n\nif __name__ == \"__main__\":\n    main()\n```\nThis implementation meets all the requirements specified in the problem description. It correctly handles the addition of assignments, recording of grades, and calculation of the weighted average. It also correctly drops the lowest quiz grade when calculating the average for a student with multiple quizzes. The `get_weight_of_quiz` method is used to find the weight of a quiz with a given grade, which is necessary for calculating the weighted average.",
+ "code": "class Gradebook:\n    def __init__(self):\n        \"\"\"\n        Initializes an empty gradebook.\n        \"\"\"\n        self.assignments = {}\n        self.grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"\n        Adds an assignment to the gradebook.\n\n        Args:\n        - name (str): The name of the assignment.\n        - weight (float): The weight of the assignment.\n        - kind (str): The kind of the assignment, either \"homework\" or \"quiz\". Defaults to \"homework\".\n        \"\"\"\n        if kind not in [\"homework\", \"quiz\"]:\n            raise ValueError(\"Kind must be either 'homework' or 'quiz'\")\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        \"\"\"\n        Records a grade for a student in the gradebook.\n\n        Args:\n        - student (str): The name of the student.\n        - assignment (str): The name of the assignment.\n        - grade (float): The grade of the student.\n\n        Raises:\n        - ValueError: If the grade is not within the range 2.0 to 5.0.\n        \"\"\"\n        if grade < 2.0 or grade > 5.0:\n            raise ValueError(\"Grade must be within the range 2.0 to 5.0\")\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        \"\"\"\n        Calculates the weighted average of a student's grades.\n\n        Args:\n        - student (str): The name of the student.\n\n        Returns:\n        - float: The weighted average of the student's grades.\n        \"\"\"\n        if student not in self.grades:\n            return 2.0\n        total_weight = 0\n        total_score = 0\n        quiz_grades = []\n        for assignment, grade in self.assignments.items():\n            if assignment in self.grades[student]:\n                if grade[\"kind\"] == \"quiz\":\n                    quiz_grades.append(self.grades[student][assignment])\n                else:\n                    total_weight += grade[\"weight\"]\n                    total_score += self.grades[student][assignment] * grade[\"weight\"]\n            else:\n                total_weight += grade[\"weight\"]\n                total_score += 2.0 * grade[\"weight\"]\n        if quiz_grades:\n            quiz_grades.sort()\n            if len(quiz_grades) > 1:\n                quiz_grades = quiz_grades[1:]\n            for quiz_grade in quiz_grades:\n                total_weight += self.get_weight_of_quiz(student, quiz_grade)\n                total_score += quiz_grade * self.get_weight_of_quiz(student, quiz_grade)\n        if total_weight == 0:\n            return 2.0\n        return total_score / total_weight\n\n    def get_weight_of_quiz(self, student, quiz_grade):\n        \"\"\"\n        Finds the weight of the quiz with the given grade.\n\n        Args:\n        - student (str): The name of the student.\n        - quiz_grade (float): The grade of the quiz.\n\n        Returns:\n        - float: The weight of the quiz.\n        \"\"\"\n        for assignment, grade in self.assignments.items():\n            if grade[\"kind\"] == \"quiz\" and assignment in self.grades[student] and self.grades[student][assignment] == quiz_grade:\n                return grade[\"weight\"]\n        return 0\n\n\ndef main():\n    gradebook = Gradebook()\n    gradebook.add_assignment(\"Assignment 1\", 0.3)\n    gradebook.add_assignment(\"Quiz 1\", 0.2, \"quiz\")\n    gradebook.add_assignment(\"Quiz 2\", 0.2, \"quiz\")\n    gradebook.add_assignment(\"Assignment 2\", 0.3)\n    gradebook.record(\"John\", \"Assignment 1\", 4.0)\n    gradebook.record(\"John\", \"Quiz 1\", 3.0)\n    gradebook.record(\"John\", \"Quiz 2\", 4.5)\n    gradebook.record(\"John\", \"Assignment 2\", 4.5)\n    print(gradebook.average(\"John\"))\n\n\nif __name__ == \"__main__\":\n    main()\n",
+ "input_tokens": 251,
+ "output_tokens": 1001,
+ "cost_usd": 0.00034542000000000004,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 8.25,
+ "raw_api_response": {
+  "id": "gen-1794895827-nLPwCl7T4AKE8L4xJF4X",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Gradebook:\n    def __init__(self):\n        \"\"\"\n        Initializes an empty gradebook.\n        \"\"\"\n        self.assignments = {}\n        self.grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"\n        Adds an assignment to the gradebook.\n\n        Args:\n        - name (str): The name of the assignment.\n        - weight (float): The weight of the assignment.\n        - kind (str): The kind of the assignment, either \"homework\" or \"quiz\". Defaults to \"homework\".\n        \"\"\"\n        if kind not in [\"homework\", \"quiz\"]:\n            raise ValueError(\"Kind must be either 'homework' or 'quiz'\")\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        \"\"\"\n        Records a grade for a student in the gradebook.\n\n        Args:\n        - student (str): The name of the student.\n        - assignment (str): The name of the assignment.\n        - grade (float): The grade of the student.\n\n        Raises:\n        - ValueError: If the grade is not within the range 2.0 to 5.0.\n        \"\"\"\n        if grade < 2.0 or grade > 5.0:\n            raise ValueError(\"Grade must be within the range 2.0 to 5.0\")\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        \"\"\"\n        Calculates the weighted average of a student's grades.\n\n        Args:\n        - student (str): The name of the student.\n\n        Returns:\n        - float: The weighted average of the student's grades.\n        \"\"\"\n        if student not in self.grades:\n            return 2.0\n        total_weight = 0\n        total_score = 0\n        quiz_grades = []\n        for assignment, grade in self.assignments.items():\n            if assignment in self.grades[student]:\n                if grade[\"kind\"] == \"quiz\":\n                    quiz_grades.append(self.grades[student][assignment])\n                else:\n                    total_weight += grade[\"weight\"]\n                    total_score += self.grades[student][assignment] * grade[\"weight\"]\n            else:\n                total_weight += grade[\"weight\"]\n                total_score += 2.0 * grade[\"weight\"]\n        if quiz_grades:\n            quiz_grades.sort()\n            if len(quiz_grades) > 1:\n                quiz_grades = quiz_grades[1:]\n            for quiz_grade in quiz_grades:\n                total_weight += self.get_weight_of_quiz(student, quiz_grade)\n                total_score += quiz_grade * self.get_weight_of_quiz(student, quiz_grade)\n        if total_weight == 0:\n            return 2.0\n        return total_score / total_weight\n\n    def get_weight_of_quiz(self, student, quiz_grade):\n        \"\"\"\n        Finds the weight of the quiz with the given grade.\n\n        Args:\n        - student (str): The name of the student.\n        - quiz_grade (float): The grade of the quiz.\n\n        Returns:\n        - float: The weight of the quiz.\n        \"\"\"\n        for assignment, grade in self.assignments.items():\n            if grade[\"kind\"] == \"quiz\" and assignment in self.grades[student] and self.grades[student][assignment] == quiz_grade:\n                return grade[\"weight\"]\n        return 0\n\n\ndef main():\n    gradebook = Gradebook()\n    gradebook.add_assignment(\"Assignment 1\", 0.3)\n    gradebook.add_assignment(\"Quiz 1\", 0.2, \"quiz\")\n    gradebook.add_assignment(\"Quiz 2\", 0.2, \"quiz\")\n    gradebook.add_assignment(\"Assignment 2\", 0.3)\n    gradebook.record(\"John\", \"Assignment 1\", 4.0)\n    gradebook.record(\"John\", \"Quiz 1\", 3.0)\n    gradebook.record(\"John\", \"Quiz 2\", 4.5)\n    gradebook.record(\"John\", \"Assignment 2\", 4.5)\n    print(gradebook.average(\"John\"))\n\n\nif __name__ == \"__main__\":\n    main()\n```\nThis implementation meets all the requirements specified in the problem description. It correctly handles the addition of assignments, recording of grades, and calculation of the weighted average. It also correctly drops the lowest quiz grade when calculating the average for a student with multiple quizzes. The `get_weight_of_quiz` method is used to find the weight of a quiz with a given grade, which is necessary for calculating the weighted average.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794895827,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1001,
+   "prompt_tokens": 251,
+   "total_tokens": 1252,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 128,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00054164,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00054164,
+    "upstream_inference_prompt_cost": 4.114e-05,
+    "upstream_inference_completions_cost": 0.0005005
+   }
+  },
+  "provider": "Parasail"
+ }
+}

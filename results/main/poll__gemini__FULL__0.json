@@ -1,0 +1,79 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:06:36+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "gemini",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "PL2",
+  "PL3",
+  "PL4",
+  "PL1",
+  "PL5"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. Each voter can vote only once; a second vote by the same voter raises ValueError.\n2. The winner is the option with the most votes.\n3. In case of a tie, the tied option that was added last wins.\n4. Voting for an option that does not exist raises ValueError.\n5. winner() returns None until at least 3 votes have been cast.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `Poll` class satisfying all the given requirements:\n\n```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: list[str] = []\n        self._votes: dict[str, int] = {}\n        self._voters: set[str] = set()\n        self._total_votes: int = 0\n\n    def add_option(self, option: str) -> None:\n        if option not in self._votes:\n            self._options.append(option)\n            self._votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._votes:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self._voters:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n\n        self._voters.add(voter)\n        self._votes[option] += 1\n        self._total_votes += 1\n\n    def winner(self) -> str | None:\n        if self._total_votes < 3:\n            return None\n\n        # Check options in reverse order so that in case of a tie,\n        # the option added last is preferred.\n        max_votes = -1\n        winning_option = None\n        for option in reversed(self._options):\n            count = self._votes[option]\n            if count > max_votes:\n                max_votes = count\n                winning_option = option\n\n        return winning_option\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: list[str] = []\n        self._votes: dict[str, int] = {}\n        self._voters: set[str] = set()\n        self._total_votes: int = 0\n\n    def add_option(self, option: str) -> None:\n        if option not in self._votes:\n            self._options.append(option)\n            self._votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._votes:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self._voters:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n\n        self._voters.add(voter)\n        self._votes[option] += 1\n        self._total_votes += 1\n\n    def winner(self) -> str | None:\n        if self._total_votes < 3:\n            return None\n\n        # Check options in reverse order so that in case of a tie,\n        # the option added last is preferred.\n        max_votes = -1\n        winning_option = None\n        for option in reversed(self._options):\n            count = self._votes[option]\n            if count > max_votes:\n                max_votes = count\n                winning_option = option\n\n        return winning_option\n",
+ "input_tokens": 213,
+ "output_tokens": 366,
+ "cost_usd": 0.00153225,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 3.46,
+ "raw_api_response": {
+  "id": "Qzv1avGDK8iynsEPqL3t0As",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `Poll` class satisfying all the given requirements:\n\n```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: list[str] = []\n        self._votes: dict[str, int] = {}\n        self._voters: set[str] = set()\n        self._total_votes: int = 0\n\n    def add_option(self, option: str) -> None:\n        if option not in self._votes:\n            self._options.append(option)\n            self._votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._votes:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self._voters:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n\n        self._voters.add(voter)\n        self._votes[option] += 1\n        self._total_votes += 1\n\n    def winner(self) -> str | None:\n        if self._total_votes < 3:\n            return None\n\n        # Check options in reverse order so that in case of a tie,\n        # the option added last is preferred.\n        max_votes = -1\n        winning_option = None\n        for option in reversed(self._options):\n            count = self._votes[option]\n            if count > max_votes:\n                max_votes = count\n                winning_option = option\n\n        return winning_option\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TnlwoTr8v2zOgcaTAhkwYqchXxHJy+B1dOyZJsULLITYzbT7jLx2BarIWMOuz+t7oLalOlz1WT+BxTscAJS+xzlqFp0Q+qz5OCtf9KdciQjuNUzKfaHmo73xB5Prc5nsZ14A="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794456391,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 366,
+   "prompt_tokens": 213,
+   "total_tokens": 579,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

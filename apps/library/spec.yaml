@@ -1,0 +1,50 @@
+app: library
+module: library
+
+description: |
+  A module for a small lending library: books are borrowed and returned,
+  and late returns are fined.
+
+api: |
+  from datetime import date
+
+  class Library:
+      def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None: ...
+
+      def add_book(self, book_id: str) -> None: ...
+
+      def borrow(self, user: str, book_id: str, day: date) -> None: ...
+
+      def return_book(self, user: str, book_id: str, day: date) -> float:
+          """Return a book; returns the fine charged for this return."""
+
+      def unpaid_fines(self, user: str) -> float: ...
+
+      def pay(self, user: str) -> None:
+          """Pay all fines of the user."""
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: LB1
+    category: K
+    text: Borrowing a book that is currently borrowed raises ValueError.
+  - id: LB2
+    category: K
+    text: Returning a book that the user has not borrowed raises ValueError.
+  - id: LB3
+    category: D
+    text: >-
+      A book returned after its due date (borrow day plus loan_days) is fined daily_fine
+      for each day of delay.
+  - id: LB4
+    category: S
+    text: Saturdays and Sundays are not counted as days of delay.
+  - id: LB5
+    category: S
+    text: A user with unpaid fines may still borrow books, but may hold at most one book at a time.
+
+changes:
+  - 'Add a method `available(self) -> list[str]` that returns the ids of books that are not borrowed, sorted.'
+  - 'Add a method `history(self, user: str) -> list[str]` that returns the ids of all books the user has ever borrowed, in order.'
+  - 'Add an optional keyword parameter `title: str = ""` at the end of the parameters of add_book, and a method `title(self, book_id: str) -> str` that returns it.'
+  - 'Add a method `remove_book(self, book_id: str) -> None` that removes a book that is not borrowed and raises ValueError otherwise.'

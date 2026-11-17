@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:21:52+00:00",
+ "app": "leave",
+ "app_hash": "c3276e419d06",
+ "model": "llama",
+ "condition": "ABL-LV4",
+ "rep": 2,
+ "requirement_order": [
+  "LV1",
+  "LV5",
+  "LV3",
+  "LV2"
+ ],
+ "passed": {
+  "LV1": true,
+  "LV2": true,
+  "LV3": true,
+  "LV4": false,
+  "LV5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that tracks employees' annual leave requests.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None: ...\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n\n    def remaining(self, employee: str, year: int) -> int: ...\n```\n\n## Requirements\n1. A request whose end date is before its start date raises ValueError.\n2. Unused leave days do not carry over to the next year.\n3. Weekends and the given holidays do not use leave days.\n4. A request that needs more days than the employee has remaining raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\nfrom typing import Dict, List, Union\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Union[List[date], None] = None) -> None:\n        \"\"\"\n        Initialize the LeaveTracker.\n\n        Args:\n        days_per_year (int): The number of leave days per year. Defaults to 26.\n        holidays (List[date] | None): A list of holidays. Defaults to None.\n        \"\"\"\n        self.days_per_year = days_per_year\n        self.holidays = holidays if holidays is not None else []\n        self.leaves: Dict[str, Dict[int, int]] = {}  # {employee: {year: used_days}}\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"\n        Request leave from start to end (inclusive); returns the number of leave days used.\n\n        Args:\n        employee (str): The employee's name.\n        start (date): The start date of the leave.\n        end (date): The end date of the leave.\n        today (date): The current date.\n\n        Returns:\n        int: The number of leave days used.\n\n        Raises:\n        ValueError: If the end date is before the start date or if the request needs more days than the employee has remaining.\n        \"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n\n        # Initialize the employee's leave record if it doesn't exist\n        if employee not in self.leaves:\n            self.leaves[employee] = {}\n\n        # Calculate the number of leave days used\n        leave_days = 0\n        current_date = start\n        while current_date <= end:\n            # Skip weekends and holidays\n            if current_date.weekday() >= 5 or current_date in self.holidays:\n                current_date += timedelta(days=1)\n                continue\n            # Skip dates before today\n            if current_date < today:\n                current_date += timedelta(days=1)\n                continue\n            leave_days += 1\n            current_date += timedelta(days=1)\n\n        # Check if the employee has enough leave days remaining\n        year = start.year\n        if year not in self.leaves[employee]:\n            self.leaves[employee][year] = 0\n        if self.leaves[employee][year] + leave_days > self.days_per_year:\n            raise ValueError(\"Not enough leave days remaining\")\n\n        # Update the employee's leave record\n        self.leaves[employee][year] += leave_days\n\n        return leave_days\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"\n        Get the number of leave days remaining for the employee in the given year.\n\n        Args:\n        employee (str): The employee's name.\n        year (int): The year.\n\n        Returns:\n        int: The number of leave days remaining.\n        \"\"\"\n        if employee not in self.leaves or year not in self.leaves[employee]:\n            return self.days_per_year\n        return self.days_per_year - self.leaves[employee][year]\n```",
+ "code": "from datetime import date, timedelta\nfrom typing import Dict, List, Union\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Union[List[date], None] = None) -> None:\n        \"\"\"\n        Initialize the LeaveTracker.\n\n        Args:\n        days_per_year (int): The number of leave days per year. Defaults to 26.\n        holidays (List[date] | None): A list of holidays. Defaults to None.\n        \"\"\"\n        self.days_per_year = days_per_year\n        self.holidays = holidays if holidays is not None else []\n        self.leaves: Dict[str, Dict[int, int]] = {}  # {employee: {year: used_days}}\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"\n        Request leave from start to end (inclusive); returns the number of leave days used.\n\n        Args:\n        employee (str): The employee's name.\n        start (date): The start date of the leave.\n        end (date): The end date of the leave.\n        today (date): The current date.\n\n        Returns:\n        int: The number of leave days used.\n\n        Raises:\n        ValueError: If the end date is before the start date or if the request needs more days than the employee has remaining.\n        \"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n\n        # Initialize the employee's leave record if it doesn't exist\n        if employee not in self.leaves:\n            self.leaves[employee] = {}\n\n        # Calculate the number of leave days used\n        leave_days = 0\n        current_date = start\n        while current_date <= end:\n            # Skip weekends and holidays\n            if current_date.weekday() >= 5 or current_date in self.holidays:\n                current_date += timedelta(days=1)\n                continue\n            # Skip dates before today\n            if current_date < today:\n                current_date += timedelta(days=1)\n                continue\n            leave_days += 1\n            current_date += timedelta(days=1)\n\n        # Check if the employee has enough leave days remaining\n        year = start.year\n        if year not in self.leaves[employee]:\n            self.leaves[employee][year] = 0\n        if self.leaves[employee][year] + leave_days > self.days_per_year:\n            raise ValueError(\"Not enough leave days remaining\")\n\n        # Update the employee's leave record\n        self.leaves[employee][year] += leave_days\n\n        return leave_days\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"\n        Get the number of leave days remaining for the employee in the given year.\n\n        Args:\n        employee (str): The employee's name.\n        year (int): The year.\n\n        Returns:\n        int: The number of leave days remaining.\n        \"\"\"\n        if employee not in self.leaves or year not in self.leaves[employee]:\n            return self.days_per_year\n        return self.days_per_year - self.leaves[employee][year]\n",
+ "input_tokens": 220,
+ "output_tokens": 655,
+ "cost_usd": 0.0002316,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 5.53,
+ "raw_api_response": {
+  "id": "gen-1794896500-qGrzMOAhbWc5jh69w0Cu",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\nfrom typing import Dict, List, Union\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Union[List[date], None] = None) -> None:\n        \"\"\"\n        Initialize the LeaveTracker.\n\n        Args:\n        days_per_year (int): The number of leave days per year. Defaults to 26.\n        holidays (List[date] | None): A list of holidays. Defaults to None.\n        \"\"\"\n        self.days_per_year = days_per_year\n        self.holidays = holidays if holidays is not None else []\n        self.leaves: Dict[str, Dict[int, int]] = {}  # {employee: {year: used_days}}\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"\n        Request leave from start to end (inclusive); returns the number of leave days used.\n\n        Args:\n        employee (str): The employee's name.\n        start (date): The start date of the leave.\n        end (date): The end date of the leave.\n        today (date): The current date.\n\n        Returns:\n        int: The number of leave days used.\n\n        Raises:\n        ValueError: If the end date is before the start date or if the request needs more days than the employee has remaining.\n        \"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n\n        # Initialize the employee's leave record if it doesn't exist\n        if employee not in self.leaves:\n            self.leaves[employee] = {}\n\n        # Calculate the number of leave days used\n        leave_days = 0\n        current_date = start\n        while current_date <= end:\n            # Skip weekends and holidays\n            if current_date.weekday() >= 5 or current_date in self.holidays:\n                current_date += timedelta(days=1)\n                continue\n            # Skip dates before today\n            if current_date < today:\n                current_date += timedelta(days=1)\n                continue\n            leave_days += 1\n            current_date += timedelta(days=1)\n\n        # Check if the employee has enough leave days remaining\n        year = start.year\n        if year not in self.leaves[employee]:\n            self.leaves[employee][year] = 0\n        if self.leaves[employee][year] + leave_days > self.days_per_year:\n            raise ValueError(\"Not enough leave days remaining\")\n\n        # Update the employee's leave record\n        self.leaves[employee][year] += leave_days\n\n        return leave_days\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"\n        Get the number of leave days remaining for the employee in the given year.\n\n        Args:\n        employee (str): The employee's name.\n        year (int): The year.\n\n        Returns:\n        int: The number of leave days remaining.\n        \"\"\"\n        if employee not in self.leaves or year not in self.leaves[employee]:\n            return self.days_per_year\n        return self.days_per_year - self.leaves[employee][year]\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794896500,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 655,
+   "prompt_tokens": 220,
+   "total_tokens": 875,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 128,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00036182,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00036182,
+    "upstream_inference_prompt_cost": 3.432e-05,
+    "upstream_inference_completions_cost": 0.0003275
+   }
+  },
+  "provider": "Parasail"
+ }
+}

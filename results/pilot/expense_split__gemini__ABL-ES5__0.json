@@ -1,0 +1,75 @@
+{
+ "experiment": "pilot",
+ "run_id": "20261112-015730-4024",
+ "timestamp": "2026-11-12T02:00:26+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "gemini",
+ "condition": "ABL-ES5",
+ "rep": 0,
+ "requirement_order": [
+  "ES1",
+  "ES3",
+  "ES6",
+  "ES2",
+  "ES4"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": true,
+  "ES4": true,
+  "ES5": false,
+  "ES6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. Adding an expense whose payer or any participant is not a group member raises ValueError.\n2. Adding an expense with an amount that is zero or negative raises ValueError.\n3. settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off and not included in the proposed payments.\n4. If participants are not given, the expense is split equally among all group members.\n5. settle_up() proposes at most (number of members - 1) payments.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = list(members)\n        self._member_set = set(members)\n        self._balances = {member: 0.0 for member in self.members}\n\n    def add_expense(\n        self,\n        payer: str,\n        amount: float,\n        participants: list[str] | None = None,\n    ) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive.\")\n\n        if payer not in self._member_set:\n            raise ValueError(f\"Payer '{payer}' is not a group member.\")\n\n        if participants is None:\n            split_among = self.members\n        else:\n            if not participants:\n                raise ValueError(\"Participants list cannot be empty.\")\n            for p in participants:\n                if p not in self._member_set:\n                    raise ValueError(f\"Participant '{p}' is not a group member.\")\n            split_among = participants\n\n        split_amount = amount / len(split_among)\n        self._balances[payer] += amount\n        for p in split_among:\n            self._balances[p] -= split_amount\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n        return dict(self._balances)\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n        # Separate debtors and creditors\n        # Amounts below 1.00 are written off as per requirement 3.\n        debtors: list[list] = []\n        creditors: list[list] = []\n\n        for member, bal in self._balances.items():\n            if bal <= -1.00:\n                debtors.append([member, -bal])\n            elif bal >= 1.00:\n                creditors.append([member, bal])\n\n        payments: list[tuple[str, str, float]] = []\n        i = 0\n        j = 0\n\n        while i < len(debtors) and j < len(creditors):\n            debtor, debt_amt = debtors[i]\n            creditor, cred_amt = creditors[j]\n\n            transfer = min(debt_amt, cred_amt)\n\n            # Only propose payments of at least 1.00\n            if round(transfer, 2) >= 1.00:\n                payments.append((debtor, creditor, round(transfer, 2)))\n\n            debtors[i][1] -= transfer\n            creditors[j][1] -= transfer\n\n            # Move pointers when balances are settled or negligibly small\n            if debtors[i][1] < 1.00:\n                i += 1\n            if creditors[j][1] < 1.00:\n                j += 1\n\n        return payments\n```",
+ "code": "class Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = list(members)\n        self._member_set = set(members)\n        self._balances = {member: 0.0 for member in self.members}\n\n    def add_expense(\n        self,\n        payer: str,\n        amount: float,\n        participants: list[str] | None = None,\n    ) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive.\")\n\n        if payer not in self._member_set:\n            raise ValueError(f\"Payer '{payer}' is not a group member.\")\n\n        if participants is None:\n            split_among = self.members\n        else:\n            if not participants:\n                raise ValueError(\"Participants list cannot be empty.\")\n            for p in participants:\n                if p not in self._member_set:\n                    raise ValueError(f\"Participant '{p}' is not a group member.\")\n            split_among = participants\n\n        split_amount = amount / len(split_among)\n        self._balances[payer] += amount\n        for p in split_among:\n            self._balances[p] -= split_amount\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n        return dict(self._balances)\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n        # Separate debtors and creditors\n        # Amounts below 1.00 are written off as per requirement 3.\n        debtors: list[list] = []\n        creditors: list[list] = []\n\n        for member, bal in self._balances.items():\n            if bal <= -1.00:\n                debtors.append([member, -bal])\n            elif bal >= 1.00:\n                creditors.append([member, bal])\n\n        payments: list[tuple[str, str, float]] = []\n        i = 0\n        j = 0\n\n        while i < len(debtors) and j < len(creditors):\n            debtor, debt_amt = debtors[i]\n            creditor, cred_amt = creditors[j]\n\n            transfer = min(debt_amt, cred_amt)\n\n            # Only propose payments of at least 1.00\n            if round(transfer, 2) >= 1.00:\n                payments.append((debtor, creditor, round(transfer, 2)))\n\n            debtors[i][1] -= transfer\n            creditors[j][1] -= transfer\n\n            # Move pointers when balances are settled or negligibly small\n            if debtors[i][1] < 1.00:\n                i += 1\n            if creditors[j][1] < 1.00:\n                j += 1\n\n        return payments\n",
+ "input_tokens": 349,
+ "output_tokens": 713,
+ "cost_usd": 0.0029355,
+ "stop_reason": "stop",
+ "truncated": false,
+ "seconds": 6.49,
+ "raw_api_response": {
+  "id": "qh31arOVLsy0xN8PnN76kAs",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = list(members)\n        self._member_set = set(members)\n        self._balances = {member: 0.0 for member in self.members}\n\n    def add_expense(\n        self,\n        payer: str,\n        amount: float,\n        participants: list[str] | None = None,\n    ) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive.\")\n\n        if payer not in self._member_set:\n            raise ValueError(f\"Payer '{payer}' is not a group member.\")\n\n        if participants is None:\n            split_among = self.members\n        else:\n            if not participants:\n                raise ValueError(\"Participants list cannot be empty.\")\n            for p in participants:\n                if p not in self._member_set:\n                    raise ValueError(f\"Participant '{p}' is not a group member.\")\n            split_among = participants\n\n        split_amount = amount / len(split_among)\n        self._balances[payer] += amount\n        for p in split_among:\n            self._balances[p] -= split_amount\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n        return dict(self._balances)\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n        # Separate debtors and creditors\n        # Amounts below 1.00 are written off as per requirement 3.\n        debtors: list[list] = []\n        creditors: list[list] = []\n\n        for member, bal in self._balances.items():\n            if bal <= -1.00:\n                debtors.append([member, -bal])\n            elif bal >= 1.00:\n                creditors.append([member, bal])\n\n        payments: list[tuple[str, str, float]] = []\n        i = 0\n        j = 0\n\n        while i < len(debtors) and j < len(creditors):\n            debtor, debt_amt = debtors[i]\n            creditor, cred_amt = creditors[j]\n\n            transfer = min(debt_amt, cred_amt)\n\n            # Only propose payments of at least 1.00\n            if round(transfer, 2) >= 1.00:\n                payments.append((debtor, creditor, round(transfer, 2)))\n\n            debtors[i][1] -= transfer\n            creditors[j][1] -= transfer\n\n            # Move pointers when balances are settled or negligibly small\n            if debtors[i][1] < 1.00:\n                i += 1\n            if creditors[j][1] < 1.00:\n                j += 1\n\n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0T7gLiLAmOHv8YUkVvZQ9CgsNkwfF/1EEdP992ElwZ9QPv7NTu/+A1KCZxLUrrmM4JzeT4h52K4NqKhVyHiGPkG39ErWxGJdIB/IAsRFCQU5SKaWy0WPcJLnH1Z7fDhVHjWLk="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794448817,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 713,
+   "prompt_tokens": 349,
+   "total_tokens": 1062,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

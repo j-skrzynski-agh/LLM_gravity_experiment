@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:49:20+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "llama",
+ "variant": "refactor",
+ "rep": 0,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "gradebook__llama__FULL__0.json",
+ "passed": {
+  "GB1": true,
+  "GB2": true,
+  "GB3": true,
+  "GB4": false,
+  "GB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Gradebook:\n    def __init__(self) -> None:\n        self.assignments = {}\n        self.grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in [\"homework\", \"quiz\"]:\n            raise ValueError(\"Invalid assignment kind. Must be 'homework' or 'quiz'.\")\n        if weight < 0:\n            raise ValueError(\"Assignment weight cannot be negative.\")\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n        if name not in self.grades:\n            self.grades[name] = {}\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self.assignments:\n            raise ValueError(\"Assignment not found.\")\n        if not 2.0 <= grade <= 5.0:\n            raise ValueError(\"Grade must be between 2.0 and 5.0.\")\n        if student not in self.grades[assignment]:\n            self.grades[assignment][student] = []\n        self.grades[assignment][student].append(grade)\n\n    def average(self, student: str) -> float:\n        total_weight = sum(assignment[\"weight\"] for assignment in self.assignments.values())\n        total_score = 0\n        for assignment, details in self.assignments.items():\n            if student in self.grades[assignment]:\n                if details[\"kind\"] == \"quiz\" and len(self.grades[assignment][student]) > 1:\n                    grade = min(self.grades[assignment][student])\n                else:\n                    if len(self.grades[assignment][student]) > 1:\n                        raise ValueError(\"Multiple grades for a single homework assignment.\")\n                    grade = self.grades[assignment][student][0]\n            else:\n                grade = 2.0\n            total_score += details[\"weight\"] * grade\n        return round(total_score / total_weight, 2)\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom typing import Dict\n\nclass Gradebook:\n    def __init__(self) -> None:\n        self.assignments: Dict[str, Dict[str, float | str]] = {}\n        self.grades: Dict[str, Dict[str, list[float]]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in [\"homework\", \"quiz\"]:\n            raise ValueError(\"Invalid assignment kind. Must be 'homework' or 'quiz'.\")\n        if weight < 0:\n            raise ValueError(\"Assignment weight cannot be negative.\")\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n        self.grades.setdefault(name, {})\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self.assignments:\n            raise ValueError(\"Assignment not found.\")\n        if not 2.0 <= grade <= 5.0:\n            raise ValueError(\"Grade must be between 2.0 and 5.0.\")\n        self.grades.setdefault(assignment, {}).setdefault(student, []).append(grade)\n\n    def average(self, student: str) -> float:\n        total_weight = sum(assignment[\"weight\"] for assignment in self.assignments.values())\n        total_score = 0\n        for assignment, details in self.assignments.items():\n            grades = self.grades.get(assignment, {}).get(student, [])\n            if details[\"kind\"] == \"quiz\" and grades:\n                grade = min(grades)\n            elif grades:\n                if len(grades) > 1 and details[\"kind\"] == \"homework\":\n                    raise ValueError(\"Multiple grades for a single homework assignment.\")\n                grade = grades[0]\n            else:\n                grade = 2.0\n            total_score += details[\"weight\"] * grade\n        return round(total_score / total_weight, 2)\n```",
+ "code": "from typing import Dict\n\nclass Gradebook:\n    def __init__(self) -> None:\n        self.assignments: Dict[str, Dict[str, float | str]] = {}\n        self.grades: Dict[str, Dict[str, list[float]]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in [\"homework\", \"quiz\"]:\n            raise ValueError(\"Invalid assignment kind. Must be 'homework' or 'quiz'.\")\n        if weight < 0:\n            raise ValueError(\"Assignment weight cannot be negative.\")\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n        self.grades.setdefault(name, {})\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self.assignments:\n            raise ValueError(\"Assignment not found.\")\n        if not 2.0 <= grade <= 5.0:\n            raise ValueError(\"Grade must be between 2.0 and 5.0.\")\n        self.grades.setdefault(assignment, {}).setdefault(student, []).append(grade)\n\n    def average(self, student: str) -> float:\n        total_weight = sum(assignment[\"weight\"] for assignment in self.assignments.values())\n        total_score = 0\n        for assignment, details in self.assignments.items():\n            grades = self.grades.get(assignment, {}).get(student, [])\n            if details[\"kind\"] == \"quiz\" and grades:\n                grade = min(grades)\n            elif grades:\n                if len(grades) > 1 and details[\"kind\"] == \"homework\":\n                    raise ValueError(\"Multiple grades for a single homework assignment.\")\n                grade = grades[0]\n            else:\n                grade = 2.0\n            total_score += details[\"weight\"] * grade\n        return round(total_score / total_weight, 2)\n",
+ "input_tokens": 502,
+ "output_tokens": 417,
+ "cost_usd": 0.00018364,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 4.19,
+ "raw_api_response": {
+  "id": "gen-1794944950-39UAX1KVBVW7CIYds9vw",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom typing import Dict\n\nclass Gradebook:\n    def __init__(self) -> None:\n        self.assignments: Dict[str, Dict[str, float | str]] = {}\n        self.grades: Dict[str, Dict[str, list[float]]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in [\"homework\", \"quiz\"]:\n            raise ValueError(\"Invalid assignment kind. Must be 'homework' or 'quiz'.\")\n        if weight < 0:\n            raise ValueError(\"Assignment weight cannot be negative.\")\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n        self.grades.setdefault(name, {})\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self.assignments:\n            raise ValueError(\"Assignment not found.\")\n        if not 2.0 <= grade <= 5.0:\n            raise ValueError(\"Grade must be between 2.0 and 5.0.\")\n        self.grades.setdefault(assignment, {}).setdefault(student, []).append(grade)\n\n    def average(self, student: str) -> float:\n        total_weight = sum(assignment[\"weight\"] for assignment in self.assignments.values())\n        total_score = 0\n        for assignment, details in self.assignments.items():\n            grades = self.grades.get(assignment, {}).get(student, [])\n            if details[\"kind\"] == \"quiz\" and grades:\n                grade = min(grades)\n            elif grades:\n                if len(grades) > 1 and details[\"kind\"] == \"homework\":\n                    raise ValueError(\"Multiple grades for a single homework assignment.\")\n                grade = grades[0]\n            else:\n                grade = 2.0\n            total_score += details[\"weight\"] * grade\n        return round(total_score / total_weight, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794944950,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 417,
+   "prompt_tokens": 502,
+   "total_tokens": 919,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00065249,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00065249,
+    "upstream_inference_prompt_cost": 0.00035642,
+    "upstream_inference_completions_cost": 0.00029607
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

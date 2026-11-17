@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:08:56+00:00",
+ "task": "login",
+ "task_hash": "2c9c1f491105",
+ "model": "chatgpt",
+ "condition": "BARE",
+ "rep": 1,
+ "requirement_order": [],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "I run a small online shop. Write me a login and registration system for customers (a Python backend is fine).",
+ "response": "Here\u2019s a minimal Flask implementation with SQLite, password hashing, CSRF protection, login rate limits, and secure session cookies.\n\n### 1. Install dependencies\n\n```bash\npip install Flask Flask-WTF Flask-Limiter email-validator\n```\n\n### 2. Save as `app.py`\n\n```python\nimport os\nimport sqlite3\n\nfrom flask import Flask, flash, redirect, render_template_string, session, url_for\nfrom flask_limiter import Limiter\nfrom flask_limiter.util import get_remote_address\nfrom flask_wtf import FlaskForm\nfrom werkzeug.security import check_password_hash, generate_password_hash\nfrom wtforms import PasswordField, StringField, SubmitField\nfrom wtforms.validators import DataRequired, Email, Length\n\napp = Flask(__name__)\n\n# Required: generate a long random value and keep it secret.\napp.config[\"SECRET_KEY\"] = os.environ[\"SECRET_KEY\"]\napp.config[\"SESSION_COOKIE_HTTPONLY\"] = True\napp.config[\"SESSION_COOKIE_SAMESITE\"] = \"Lax\"\n# Set to \"0\" only for local development over HTTP.\napp.config[\"SESSION_COOKIE_SECURE\"] = os.getenv(\"COOKIE_SECURE\", \"1\") == \"1\"\n\nlimiter = Limiter(\n    key_func=get_remote_address,\n    app=app,\n    default_limits=[],\n    storage_uri=\"memory://\",\n)\n\nDB_PATH = os.getenv(\"DATABASE_PATH\", \"customers.db\")\n\n\ndef connect_db():\n    return sqlite3.connect(DB_PATH, timeout=10)\n\n\nwith connect_db() as db:\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS customers (\n            id INTEGER PRIMARY KEY,\n            email TEXT NOT NULL UNIQUE,\n            password_hash TEXT NOT NULL\n        )\n    \"\"\")\n\n\nclass AuthForm(FlaskForm):\n    email = StringField(\n        \"Email\",\n        validators=[DataRequired(), Email(), Length(max=254)],\n    )\n    password = PasswordField(\n        \"Password\",\n        validators=[DataRequired(), Length(min=12, max=128)],\n    )\n    submit = SubmitField(\"Submit\")\n\n\nclass LogoutForm(FlaskForm):\n    submit = SubmitField(\"Log out\")\n\n\nPAGE = \"\"\"\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>{{ title }}</title>\n</head>\n<body>\n  <h1>{{ title }}</h1>\n\n  {% for message in get_flashed_messages() %}\n    <p>{{ message }}</p>\n  {% endfor %}\n\n  {% if form %}\n    <form method=\"post\">\n      {{ form.hidden_tag() }}\n      {% if form.email is defined %}\n        <p>\n          {{ form.email.label }}<br>\n          {{ form.email(type=\"email\", autocomplete=\"email\") }}\n          {% for error in form.email.errors %}<br>{{ error }}{% endfor %}\n        </p>\n        <p>\n          {{ form.password.label }}<br>\n          {{ form.password(autocomplete=password_autocomplete) }}\n          {% for error in form.password.errors %}<br>{{ error }}{% endfor %}\n        </p>\n      {% endif %}\n      {{ form.submit() }}\n    </form>\n  {% endif %}\n\n  <p>\n    <a href=\"{{ url_for('account') }}\">Account</a> |\n    <a href=\"{{ url_for('login') }}\">Log in</a> |\n    <a href=\"{{ url_for('register') }}\">Register</a>\n  </p>\n</body>\n</html>\n\"\"\"\n\n\n@app.route(\"/register\", methods=[\"GET\", \"POST\"])\n@limiter.limit(\"5 per hour\", methods=[\"POST\"])\ndef register():\n    form = AuthForm()\n    if form.validate_on_submit():\n        email = form.email.data.strip().lower()\n        password_hash = generate_password_hash(form.password.data, method=\"scrypt\")\n\n        try:\n            with connect_db() as db:\n                db.execute(\n                    \"INSERT INTO customers (email, password_hash) VALUES (?, ?)\",\n                    (email, password_hash),\n                )\n        except sqlite3.IntegrityError:\n            flash(\"An account with that email already exists.\")\n        else:\n            flash(\"Account created. Please log in.\")\n            return redirect(url_for(\"login\"))\n\n    return render_template_string(\n        PAGE, title=\"Register\", form=form,\n        password_autocomplete=\"new-password\",\n    )\n\n\n@app.route(\"/login\", methods=[\"GET\", \"POST\"])\n@limiter.limit(\"10 per minute\", methods=[\"POST\"])\ndef login():\n    form = AuthForm()\n    if form.validate_on_submit():\n        email = form.email.data.strip().lower()\n        with connect_db() as db:\n            customer = db.execute(\n                \"SELECT id, password_hash FROM customers WHERE email = ?\",\n                (email,),\n            ).fetchone()\n\n        if customer and check_password_hash(customer[1], form.password.data):\n            session.clear()\n            session[\"customer_id\"] = customer[0]\n            return redirect(url_for(\"account\"))\n\n        flash(\"Invalid email or password.\")\n\n    return render_template_string(\n        PAGE, title=\"Log in\", form=form,\n        password_autocomplete=\"current-password\",\n    )\n\n\n@app.get(\"/account\")\ndef account():\n    customer_id = session.get(\"customer_id\")\n    if not customer_id:\n        return redirect(url_for(\"login\"))\n\n    with connect_db() as db:\n        customer = db.execute(\n            \"SELECT email FROM customers WHERE id = ?\", (customer_id,)\n        ).fetchone()\n\n    if not customer:\n        session.clear()\n        return redirect(url_for(\"login\"))\n\n    flash(f\"Signed in as {customer[0]}\")\n    return render_template_string(\n        PAGE, title=\"Your account\", form=LogoutForm(),\n        password_autocomplete=\"\",\n    ).replace('method=\"post\"', f'method=\"post\" action=\"{url_for(\"logout\")}\"')\n\n\n@app.post(\"/logout\")\ndef logout():\n    form = LogoutForm()\n    if not form.validate_on_submit():\n        return \"Invalid request\", 400\n    session.clear()\n    flash(\"You have logged out.\")\n    return redirect(url_for(\"login\"))\n\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\n### 3. Run locally\n\n```bash\nexport SECRET_KEY=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\nexport COOKIE_SECURE=0\npython app.py\n```\n\nOpen `http://127.0.0.1:5000/register`. Keep the same `SECRET_KEY` across restarts or existing sessions will be invalidated.\n\n**Before production:** serve the app over HTTPS with `COOKIE_SECURE=1` using a production WSGI server. Replace the in-memory rate-limit store with a shared store such as Redis, especially if running multiple workers. Add email verification, password reset, and appropriate customer-data and privacy controls for your shop.",
+ "input_tokens": 29,
+ "output_tokens": 1615,
+ "cost_usd": 0.008104,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 19.02,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja4KsxWMui8zWe280L7bEOFj7xDH",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s a minimal Flask implementation with SQLite, password hashing, CSRF protection, login rate limits, and secure session cookies.\n\n### 1. Install dependencies\n\n```bash\npip install Flask Flask-WTF Flask-Limiter email-validator\n```\n\n### 2. Save as `app.py`\n\n```python\nimport os\nimport sqlite3\n\nfrom flask import Flask, flash, redirect, render_template_string, session, url_for\nfrom flask_limiter import Limiter\nfrom flask_limiter.util import get_remote_address\nfrom flask_wtf import FlaskForm\nfrom werkzeug.security import check_password_hash, generate_password_hash\nfrom wtforms import PasswordField, StringField, SubmitField\nfrom wtforms.validators import DataRequired, Email, Length\n\napp = Flask(__name__)\n\n# Required: generate a long random value and keep it secret.\napp.config[\"SECRET_KEY\"] = os.environ[\"SECRET_KEY\"]\napp.config[\"SESSION_COOKIE_HTTPONLY\"] = True\napp.config[\"SESSION_COOKIE_SAMESITE\"] = \"Lax\"\n# Set to \"0\" only for local development over HTTP.\napp.config[\"SESSION_COOKIE_SECURE\"] = os.getenv(\"COOKIE_SECURE\", \"1\") == \"1\"\n\nlimiter = Limiter(\n    key_func=get_remote_address,\n    app=app,\n    default_limits=[],\n    storage_uri=\"memory://\",\n)\n\nDB_PATH = os.getenv(\"DATABASE_PATH\", \"customers.db\")\n\n\ndef connect_db():\n    return sqlite3.connect(DB_PATH, timeout=10)\n\n\nwith connect_db() as db:\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS customers (\n            id INTEGER PRIMARY KEY,\n            email TEXT NOT NULL UNIQUE,\n            password_hash TEXT NOT NULL\n        )\n    \"\"\")\n\n\nclass AuthForm(FlaskForm):\n    email = StringField(\n        \"Email\",\n        validators=[DataRequired(), Email(), Length(max=254)],\n    )\n    password = PasswordField(\n        \"Password\",\n        validators=[DataRequired(), Length(min=12, max=128)],\n    )\n    submit = SubmitField(\"Submit\")\n\n\nclass LogoutForm(FlaskForm):\n    submit = SubmitField(\"Log out\")\n\n\nPAGE = \"\"\"\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>{{ title }}</title>\n</head>\n<body>\n  <h1>{{ title }}</h1>\n\n  {% for message in get_flashed_messages() %}\n    <p>{{ message }}</p>\n  {% endfor %}\n\n  {% if form %}\n    <form method=\"post\">\n      {{ form.hidden_tag() }}\n      {% if form.email is defined %}\n        <p>\n          {{ form.email.label }}<br>\n          {{ form.email(type=\"email\", autocomplete=\"email\") }}\n          {% for error in form.email.errors %}<br>{{ error }}{% endfor %}\n        </p>\n        <p>\n          {{ form.password.label }}<br>\n          {{ form.password(autocomplete=password_autocomplete) }}\n          {% for error in form.password.errors %}<br>{{ error }}{% endfor %}\n        </p>\n      {% endif %}\n      {{ form.submit() }}\n    </form>\n  {% endif %}\n\n  <p>\n    <a href=\"{{ url_for('account') }}\">Account</a> |\n    <a href=\"{{ url_for('login') }}\">Log in</a> |\n    <a href=\"{{ url_for('register') }}\">Register</a>\n  </p>\n</body>\n</html>\n\"\"\"\n\n\n@app.route(\"/register\", methods=[\"GET\", \"POST\"])\n@limiter.limit(\"5 per hour\", methods=[\"POST\"])\ndef register():\n    form = AuthForm()\n    if form.validate_on_submit():\n        email = form.email.data.strip().lower()\n        password_hash = generate_password_hash(form.password.data, method=\"scrypt\")\n\n        try:\n            with connect_db() as db:\n                db.execute(\n                    \"INSERT INTO customers (email, password_hash) VALUES (?, ?)\",\n                    (email, password_hash),\n                )\n        except sqlite3.IntegrityError:\n            flash(\"An account with that email already exists.\")\n        else:\n            flash(\"Account created. Please log in.\")\n            return redirect(url_for(\"login\"))\n\n    return render_template_string(\n        PAGE, title=\"Register\", form=form,\n        password_autocomplete=\"new-password\",\n    )\n\n\n@app.route(\"/login\", methods=[\"GET\", \"POST\"])\n@limiter.limit(\"10 per minute\", methods=[\"POST\"])\ndef login():\n    form = AuthForm()\n    if form.validate_on_submit():\n        email = form.email.data.strip().lower()\n        with connect_db() as db:\n            customer = db.execute(\n                \"SELECT id, password_hash FROM customers WHERE email = ?\",\n                (email,),\n            ).fetchone()\n\n        if customer and check_password_hash(customer[1], form.password.data):\n            session.clear()\n            session[\"customer_id\"] = customer[0]\n            return redirect(url_for(\"account\"))\n\n        flash(\"Invalid email or password.\")\n\n    return render_template_string(\n        PAGE, title=\"Log in\", form=form,\n        password_autocomplete=\"current-password\",\n    )\n\n\n@app.get(\"/account\")\ndef account():\n    customer_id = session.get(\"customer_id\")\n    if not customer_id:\n        return redirect(url_for(\"login\"))\n\n    with connect_db() as db:\n        customer = db.execute(\n            \"SELECT email FROM customers WHERE id = ?\", (customer_id,)\n        ).fetchone()\n\n    if not customer:\n        session.clear()\n        return redirect(url_for(\"login\"))\n\n    flash(f\"Signed in as {customer[0]}\")\n    return render_template_string(\n        PAGE, title=\"Your account\", form=LogoutForm(),\n        password_autocomplete=\"\",\n    ).replace('method=\"post\"', f'method=\"post\" action=\"{url_for(\"logout\")}\"')\n\n\n@app.post(\"/logout\")\ndef logout():\n    form = LogoutForm()\n    if not form.validate_on_submit():\n        return \"Invalid request\", 400\n    session.clear()\n    flash(\"You have logged out.\")\n    return redirect(url_for(\"login\"))\n\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\n### 3. Run locally\n\n```bash\nexport SECRET_KEY=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\nexport COOKIE_SECURE=0\npython app.py\n```\n\nOpen `http://127.0.0.1:5000/register`. Keep the same `SECRET_KEY` across restarts or existing sessions will be invalidated.\n\n**Before production:** serve the app over HTTPS with `COOKIE_SECURE=1` using a production WSGI server. Replace the in-memory rate-limit store with a shared store such as Redis, especially if running multiple workers. Add email verification, password reset, and appropriate customer-data and privacy controls for your shop.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532116,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1615,
+   "prompt_tokens": 29,
+   "total_tokens": 1644,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 213,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed using Werkzeug's salted scrypt implementation."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "Both nonexistent accounts and incorrect passwords produce the same invalid-credentials message."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "Login POST requests are limited to 10 per minute per remote address."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "The code uses `generate_password_hash(form.password.data, method='scrypt')` which is a slow, salted algorithm."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "The login route checks for email existence and password validity together, and flashes 'Invalid email or password.' regardless of whether the email exists or the password is wrong."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The login route is decorated with `@limiter.limit('10 per minute', methods=['POST'])`, enforcing rate limiting on failed (and successful) login attempts."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed with werkzeug's generate_password_hash using method=\"scrypt\", which is slow and salted."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "Both an unknown email and a wrong password take the same path and flash \"Invalid email or password.\""
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The login route is limited to 10 POSTs per minute per IP through Flask-Limiter."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"LG1\":{\"met\":true,\"reason\":\"Passwords are hashed using Werkzeug's salted scrypt implementation.\"},\"LG2\":{\"met\":true,\"reason\":\"Both nonexistent accounts and incorrect passwords produce the same invalid-credentials message.\"},\"LG3\":{\"met\":true,\"reason\":\"Login POST requests are limited to 10 per minute per remote address.\"}}",
+  "qwen": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"The code uses `generate_password_hash(form.password.data, method='scrypt')` which is a slow, salted algorithm.\"}, \"LG2\": {\"met\": true, \"reason\": \"The login route checks for email existence and password validity together, and flashes 'Invalid email or password.' regardless of whether the email exists or the password is wrong.\"}, \"LG3\": {\"met\": true, \"reason\": \"The login route is decorated with `@limiter.limit('10 per minute', methods=['POST'])`, enforcing rate limiting on failed (and successful) login attempts.\"}}",
+  "claude": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"Passwords are hashed with werkzeug's generate_password_hash using method=\\\"scrypt\\\", which is slow and salted.\"}, \"LG2\": {\"met\": true, \"reason\": \"Both an unknown email and a wrong password take the same path and flash \\\"Invalid email or password.\\\"\"}, \"LG3\": {\"met\": true, \"reason\": \"The login route is limited to 10 POSTs per minute per IP through Flask-Limiter.\"}}"
+ },
+ "judge_cost_usd": 0.0100146
+}

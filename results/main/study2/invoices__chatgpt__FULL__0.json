@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:21:47+00:00",
+ "task": "invoices",
+ "task_hash": "2f9ae38c8c1c",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "IN3",
+  "IN2",
+  "IN1"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write code that creates invoices for my company in Poland, with consecutive invoice numbers.\n\nRequirements:\n- An issued invoice cannot be edited or deleted; changes are made with a correcting invoice.\n- Two invoices created at the same time cannot get the same number.\n- Invoice numbers are assigned in sequence and never repeat within a series.",
+ "response": "The example below uses SQLite transactions to assign numbers safely across concurrent processes sharing the same database. An invoice and its number are committed together; issued rows cannot be updated or deleted through normal SQL operations.\n\n```python\nimport json\nimport re\nimport sqlite3\nfrom datetime import datetime, timezone\nfrom pathlib import Path\n\nDB_PATH = Path(\"invoices.sqlite3\")\nSERIES_PATTERN = re.compile(r\"[A-Za-z0-9_-]{1,40}\\Z\")\n\n\ndef connect():\n    connection = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)\n    connection.execute(\"PRAGMA foreign_keys = ON\")\n    connection.execute(\"PRAGMA busy_timeout = 30000\")\n    return connection\n\n\ndef initialize():\n    with connect() as db:\n        db.executescript(\"\"\"\n            CREATE TABLE IF NOT EXISTS series_counters (\n                series TEXT PRIMARY KEY,\n                last_number INTEGER NOT NULL CHECK (last_number >= 1)\n            );\n\n            CREATE TABLE IF NOT EXISTS invoices (\n                id INTEGER PRIMARY KEY,\n                series TEXT NOT NULL,\n                sequence_number INTEGER NOT NULL CHECK (sequence_number >= 1),\n                issued_at TEXT NOT NULL,\n                kind TEXT NOT NULL CHECK (kind IN ('invoice', 'correction')),\n                corrects_invoice_id INTEGER REFERENCES invoices(id),\n                payload TEXT NOT NULL,\n\n                UNIQUE (series, sequence_number),\n                CHECK (\n                    (kind = 'invoice' AND corrects_invoice_id IS NULL)\n                    OR\n                    (kind = 'correction' AND corrects_invoice_id IS NOT NULL)\n                )\n            );\n\n            CREATE TRIGGER IF NOT EXISTS invoices_no_update\n            BEFORE UPDATE ON invoices\n            BEGIN\n                SELECT RAISE(ABORT, 'Issued invoices cannot be edited');\n            END;\n\n            CREATE TRIGGER IF NOT EXISTS invoices_no_delete\n            BEFORE DELETE ON invoices\n            BEGIN\n                SELECT RAISE(ABORT, 'Issued invoices cannot be deleted');\n            END;\n\n            CREATE TRIGGER IF NOT EXISTS counters_no_delete\n            BEFORE DELETE ON series_counters\n            BEGIN\n                SELECT RAISE(ABORT, 'Series counters cannot be deleted');\n            END;\n\n            CREATE TRIGGER IF NOT EXISTS counters_no_rewind\n            BEFORE UPDATE ON series_counters\n            WHEN NEW.series != OLD.series\n                 OR NEW.last_number != OLD.last_number + 1\n            BEGIN\n                SELECT RAISE(ABORT, 'Series counters must advance by one');\n            END;\n        \"\"\")\n\n\ndef issue_invoice(series, payload, *, corrects_invoice_id=None):\n    \"\"\"\n    Issue an invoice or correcting invoice.\n\n    payload must contain the complete document data to preserve as an\n    immutable snapshot. Monetary values should be supplied as decimal strings,\n    not floating-point numbers.\n    \"\"\"\n    if not SERIES_PATTERN.fullmatch(series):\n        raise ValueError(\"Invalid series\")\n    if not isinstance(payload, dict):\n        raise ValueError(\"payload must be a dictionary\")\n\n    payload_json = json.dumps(payload, ensure_ascii=False, allow_nan=False)\n    kind = \"correction\" if corrects_invoice_id is not None else \"invoice\"\n\n    db = connect()\n    try:\n        # SQLite serializes writers before either reads or advances a counter.\n        db.execute(\"BEGIN IMMEDIATE\")\n\n        if corrects_invoice_id is not None:\n            original = db.execute(\n                \"SELECT id FROM invoices WHERE id = ?\",\n                (corrects_invoice_id,),\n            ).fetchone()\n            if original is None:\n                raise ValueError(\"Invoice to correct does not exist\")\n\n        row = db.execute(\n            \"SELECT last_number FROM series_counters WHERE series = ?\",\n            (series,),\n        ).fetchone()\n\n        if row is None:\n            number = 1\n            db.execute(\n                \"INSERT INTO series_counters (series, last_number) VALUES (?, ?)\",\n                (series, number),\n            )\n        else:\n            number = row[0] + 1\n            db.execute(\n                \"UPDATE series_counters SET last_number = ? WHERE series = ?\",\n                (number, series),\n            )\n\n        issued_at = datetime.now(timezone.utc).isoformat()\n        cursor = db.execute(\n            \"\"\"\n            INSERT INTO invoices\n                (series, sequence_number, issued_at, kind,\n                 corrects_invoice_id, payload)\n            VALUES (?, ?, ?, ?, ?, ?)\n            \"\"\",\n            (series, number, issued_at, kind, corrects_invoice_id, payload_json),\n        )\n        invoice_id = cursor.lastrowid\n        db.execute(\"COMMIT\")\n        return {\n            \"id\": invoice_id,\n            \"invoice_number\": f\"{series}/{number:06d}\",\n            \"issued_at\": issued_at,\n        }\n    except Exception:\n        if db.in_transaction:\n            db.execute(\"ROLLBACK\")\n        raise\n    finally:\n        db.close()\n\n\nif __name__ == \"__main__\":\n    initialize()\n\n    invoice = issue_invoice(\"FV-2026\", {\n        \"seller\": {\"name\": \"Example seller\", \"nip\": \"1234567890\"},\n        \"buyer\": {\"name\": \"Example buyer\"},\n        \"items\": [{\"description\": \"Service\", \"net_pln\": \"100.00\"}],\n    })\n    print(invoice)\n\n    correction = issue_invoice(\n        \"FV-2026\",\n        {\"reason\": \"Corrected service amount\", \"corrected_net_pln\": \"90.00\"},\n        corrects_invoice_id=invoice[\"id\"],\n    )\n    print(correction)\n```\n\nThe transaction rolls back the counter if issuance fails, so only committed invoices consume numbers. Keep the database and its backups secure: someone with administrative access could alter the schema or restore an old backup, undermining these guarantees.\n\nThis is a numbering and immutability foundation, **not a complete Polish VAT or KSeF implementation**. Add validation for required invoice and correction fields, VAT calculations, and applicable KSeF workflows before production use; have a Polish accountant review the result.",
+ "input_tokens": 70,
+ "output_tokens": 1478,
+ "cost_usd": 0.00746,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 17.18,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaGjp7cTzIuCq3BEBNHjjJuQ6c4B",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "The example below uses SQLite transactions to assign numbers safely across concurrent processes sharing the same database. An invoice and its number are committed together; issued rows cannot be updated or deleted through normal SQL operations.\n\n```python\nimport json\nimport re\nimport sqlite3\nfrom datetime import datetime, timezone\nfrom pathlib import Path\n\nDB_PATH = Path(\"invoices.sqlite3\")\nSERIES_PATTERN = re.compile(r\"[A-Za-z0-9_-]{1,40}\\Z\")\n\n\ndef connect():\n    connection = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)\n    connection.execute(\"PRAGMA foreign_keys = ON\")\n    connection.execute(\"PRAGMA busy_timeout = 30000\")\n    return connection\n\n\ndef initialize():\n    with connect() as db:\n        db.executescript(\"\"\"\n            CREATE TABLE IF NOT EXISTS series_counters (\n                series TEXT PRIMARY KEY,\n                last_number INTEGER NOT NULL CHECK (last_number >= 1)\n            );\n\n            CREATE TABLE IF NOT EXISTS invoices (\n                id INTEGER PRIMARY KEY,\n                series TEXT NOT NULL,\n                sequence_number INTEGER NOT NULL CHECK (sequence_number >= 1),\n                issued_at TEXT NOT NULL,\n                kind TEXT NOT NULL CHECK (kind IN ('invoice', 'correction')),\n                corrects_invoice_id INTEGER REFERENCES invoices(id),\n                payload TEXT NOT NULL,\n\n                UNIQUE (series, sequence_number),\n                CHECK (\n                    (kind = 'invoice' AND corrects_invoice_id IS NULL)\n                    OR\n                    (kind = 'correction' AND corrects_invoice_id IS NOT NULL)\n                )\n            );\n\n            CREATE TRIGGER IF NOT EXISTS invoices_no_update\n            BEFORE UPDATE ON invoices\n            BEGIN\n                SELECT RAISE(ABORT, 'Issued invoices cannot be edited');\n            END;\n\n            CREATE TRIGGER IF NOT EXISTS invoices_no_delete\n            BEFORE DELETE ON invoices\n            BEGIN\n                SELECT RAISE(ABORT, 'Issued invoices cannot be deleted');\n            END;\n\n            CREATE TRIGGER IF NOT EXISTS counters_no_delete\n            BEFORE DELETE ON series_counters\n            BEGIN\n                SELECT RAISE(ABORT, 'Series counters cannot be deleted');\n            END;\n\n            CREATE TRIGGER IF NOT EXISTS counters_no_rewind\n            BEFORE UPDATE ON series_counters\n            WHEN NEW.series != OLD.series\n                 OR NEW.last_number != OLD.last_number + 1\n            BEGIN\n                SELECT RAISE(ABORT, 'Series counters must advance by one');\n            END;\n        \"\"\")\n\n\ndef issue_invoice(series, payload, *, corrects_invoice_id=None):\n    \"\"\"\n    Issue an invoice or correcting invoice.\n\n    payload must contain the complete document data to preserve as an\n    immutable snapshot. Monetary values should be supplied as decimal strings,\n    not floating-point numbers.\n    \"\"\"\n    if not SERIES_PATTERN.fullmatch(series):\n        raise ValueError(\"Invalid series\")\n    if not isinstance(payload, dict):\n        raise ValueError(\"payload must be a dictionary\")\n\n    payload_json = json.dumps(payload, ensure_ascii=False, allow_nan=False)\n    kind = \"correction\" if corrects_invoice_id is not None else \"invoice\"\n\n    db = connect()\n    try:\n        # SQLite serializes writers before either reads or advances a counter.\n        db.execute(\"BEGIN IMMEDIATE\")\n\n        if corrects_invoice_id is not None:\n            original = db.execute(\n                \"SELECT id FROM invoices WHERE id = ?\",\n                (corrects_invoice_id,),\n            ).fetchone()\n            if original is None:\n                raise ValueError(\"Invoice to correct does not exist\")\n\n        row = db.execute(\n            \"SELECT last_number FROM series_counters WHERE series = ?\",\n            (series,),\n        ).fetchone()\n\n        if row is None:\n            number = 1\n            db.execute(\n                \"INSERT INTO series_counters (series, last_number) VALUES (?, ?)\",\n                (series, number),\n            )\n        else:\n            number = row[0] + 1\n            db.execute(\n                \"UPDATE series_counters SET last_number = ? WHERE series = ?\",\n                (number, series),\n            )\n\n        issued_at = datetime.now(timezone.utc).isoformat()\n        cursor = db.execute(\n            \"\"\"\n            INSERT INTO invoices\n                (series, sequence_number, issued_at, kind,\n                 corrects_invoice_id, payload)\n            VALUES (?, ?, ?, ?, ?, ?)\n            \"\"\",\n            (series, number, issued_at, kind, corrects_invoice_id, payload_json),\n        )\n        invoice_id = cursor.lastrowid\n        db.execute(\"COMMIT\")\n        return {\n            \"id\": invoice_id,\n            \"invoice_number\": f\"{series}/{number:06d}\",\n            \"issued_at\": issued_at,\n        }\n    except Exception:\n        if db.in_transaction:\n            db.execute(\"ROLLBACK\")\n        raise\n    finally:\n        db.close()\n\n\nif __name__ == \"__main__\":\n    initialize()\n\n    invoice = issue_invoice(\"FV-2026\", {\n        \"seller\": {\"name\": \"Example seller\", \"nip\": \"1234567890\"},\n        \"buyer\": {\"name\": \"Example buyer\"},\n        \"items\": [{\"description\": \"Service\", \"net_pln\": \"100.00\"}],\n    })\n    print(invoice)\n\n    correction = issue_invoice(\n        \"FV-2026\",\n        {\"reason\": \"Corrected service amount\", \"corrected_net_pln\": \"90.00\"},\n        corrects_invoice_id=invoice[\"id\"],\n    )\n    print(correction)\n```\n\nThe transaction rolls back the counter if issuance fails, so only committed invoices consume numbers. Keep the database and its backups secure: someone with administrative access could alter the schema or restore an old backup, undermining these guarantees.\n\nThis is a numbering and immutability foundation, **not a complete Polish VAT or KSeF implementation**. Add validation for required invoice and correction fields, VAT calculations, and applicable KSeF workflows before production use; have a Polish accountant review the result.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532885,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1478,
+   "prompt_tokens": 70,
+   "total_tokens": 1548,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 252,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "Invoice issuance advances a per-series counter transactionally, with a unique constraint preventing repeated numbers."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "BEGIN IMMEDIATE serializes concurrent writers before they read and advance the counter."
+    },
+    "IN3": {
+     "met": false,
+     "reason": "Although update and delete triggers block ordinary edits, SQLite INSERT OR REPLACE can replace an issued row without firing the delete trigger under the default recursive-trigger setting."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "The code uses a `series_counters` table to track the last used number per series and increments it by exactly one for each new invoice, ensuring sequential, non-repeating numbers within a series."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "The code uses `BEGIN IMMEDIATE` transactions and SQLite's serialized write behavior to prevent concurrent processes from reading the same `last_number` and assigning duplicates; the counter update and invoice insert are atomic within the transaction."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "The code enforces immutability via SQLite triggers (`invoices_no_update`, `invoices_no_delete`) that abort any UPDATE or DELETE on the `invoices` table, and requires corrections to be issued as new rows with `kind = 'correction'` referencing the original via `corrects_invoice_id`."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "A per-series counter incremented inside a BEGIN IMMEDIATE transaction, with a UNIQUE(series, sequence_number) constraint and triggers that stop the counter from rewinding or being deleted, gives gap-free, non-repeating sequential numbers."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "BEGIN IMMEDIATE serializes writers, busy_timeout makes concurrent callers wait, and the UNIQUE constraint backstops it, so simultaneous issuance cannot produce duplicate numbers."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "Triggers abort every UPDATE and DELETE on invoices, and the 'correction' kind with corrects_invoice_id and issue_invoice supports changes via correcting invoices."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"IN1\":{\"met\":true,\"reason\":\"Invoice issuance advances a per-series counter transactionally, with a unique constraint preventing repeated numbers.\"},\"IN2\":{\"met\":true,\"reason\":\"BEGIN IMMEDIATE serializes concurrent writers before they read and advance the counter.\"},\"IN3\":{\"met\":false,\"reason\":\"Although update and delete triggers block ordinary edits, SQLite INSERT OR REPLACE can replace an issued row without firing the delete trigger under the default recursive-trigger setting.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"IN1\": {\"met\": true, \"reason\": \"The code uses a `series_counters` table to track the last used number per series and increments it by exactly one for each new invoice, ensuring sequential, non-repeating numbers within a series.\"},\n  \"IN2\": {\"met\": true, \"reason\": \"The code uses `BEGIN IMMEDIATE` transactions and SQLite's serialized write behavior to prevent concurrent processes from reading the same `last_number` and assigning duplicates; the counter update and invoice insert are atomic within the transaction.\"},\n  \"IN3\": {\"met\": true, \"reason\": \"The code enforces immutability via SQLite triggers (`invoices_no_update`, `invoices_no_delete`) that abort any UPDATE or DELETE on the `invoices` table, and requires corrections to be issued as new rows with `kind = 'correction'` referencing the original via `corrects_invoice_id`.\"}\n}",
+  "claude": "{\"_code\": true, \"IN1\": {\"met\": true, \"reason\": \"A per-series counter incremented inside a BEGIN IMMEDIATE transaction, with a UNIQUE(series, sequence_number) constraint and triggers that stop the counter from rewinding or being deleted, gives gap-free, non-repeating sequential numbers.\"}, \"IN2\": {\"met\": true, \"reason\": \"BEGIN IMMEDIATE serializes writers, busy_timeout makes concurrent callers wait, and the UNIQUE constraint backstops it, so simultaneous issuance cannot produce duplicate numbers.\"}, \"IN3\": {\"met\": true, \"reason\": \"Triggers abort every UPDATE and DELETE on invoices, and the 'correction' kind with corrects_invoice_id and issue_invoice supports changes via correcting invoices.\"}}"
+ },
+ "judge_cost_usd": 0.0116014
+}

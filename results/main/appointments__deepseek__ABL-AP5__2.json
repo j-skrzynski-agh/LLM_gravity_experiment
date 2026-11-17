@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:44:46+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "deepseek",
+ "condition": "ABL-AP5",
+ "rep": 2,
+ "requirement_order": [
+  "AP1",
+  "AP2",
+  "AP4",
+  "AP3"
+ ],
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": true,
+  "AP5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for booking appointments with doctors in a small clinic.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None: ...\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n\n    def cancel(self, appointment_id: int, now: datetime) -> None: ...\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n```\n\n## Requirements\n1. Booking an appointment that starts before `now` raises ValueError.\n2. Booking an appointment that overlaps another appointment of the same doctor raises ValueError.\n3. Cancelling an appointment less than 24 hours before its start does not free the time slot; the slot stays blocked.\n4. Appointments that only touch (one ends exactly when the other starts) do not overlap.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past.\")\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"The doctor is not free during this time slot.\")\n\n        appointment_id = self._next_id\n        self._next_id += 1\n        self._appointments[appointment_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n            \"blocked\": True,\n        }\n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appointment = self._appointments.get(appointment_id)\n        if appointment is None:\n            raise ValueError(\"Unknown appointment id.\")\n        if appointment[\"cancelled\"]:\n            return\n        if appointment[\"start\"] - now < timedelta(hours=24):\n            # Too close to start: slot stays blocked.\n            appointment[\"cancelled\"] = True\n            appointment[\"blocked\"] = True\n        else:\n            appointment[\"cancelled\"] = True\n            appointment[\"blocked\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appointment in self._appointments.values():\n            if appointment[\"doctor\"] != doctor:\n                continue\n            if not appointment[\"blocked\"]:\n                continue\n            if start < appointment[\"end\"] and appointment[\"start\"] < end:\n                return False\n        return True\n```",
+ "code": "from datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past.\")\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"The doctor is not free during this time slot.\")\n\n        appointment_id = self._next_id\n        self._next_id += 1\n        self._appointments[appointment_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n            \"blocked\": True,\n        }\n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appointment = self._appointments.get(appointment_id)\n        if appointment is None:\n            raise ValueError(\"Unknown appointment id.\")\n        if appointment[\"cancelled\"]:\n            return\n        if appointment[\"start\"] - now < timedelta(hours=24):\n            # Too close to start: slot stays blocked.\n            appointment[\"cancelled\"] = True\n            appointment[\"blocked\"] = True\n        else:\n            appointment[\"cancelled\"] = True\n            appointment[\"blocked\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appointment in self._appointments.values():\n            if appointment[\"doctor\"] != doctor:\n                continue\n            if not appointment[\"blocked\"]:\n                continue\n            if start < appointment[\"end\"] and appointment[\"start\"] < end:\n                return False\n        return True\n",
+ "input_tokens": 253,
+ "output_tokens": 394,
+ "cost_usd": 0.0005487,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.32,
+ "raw_api_response": {
+  "id": "12f9f0ec-ccc9-4153-acae-3be3871a7f22",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past.\")\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"The doctor is not free during this time slot.\")\n\n        appointment_id = self._next_id\n        self._next_id += 1\n        self._appointments[appointment_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n            \"blocked\": True,\n        }\n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appointment = self._appointments.get(appointment_id)\n        if appointment is None:\n            raise ValueError(\"Unknown appointment id.\")\n        if appointment[\"cancelled\"]:\n            return\n        if appointment[\"start\"] - now < timedelta(hours=24):\n            # Too close to start: slot stays blocked.\n            appointment[\"cancelled\"] = True\n            appointment[\"blocked\"] = True\n        else:\n            appointment[\"cancelled\"] = True\n            appointment[\"blocked\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appointment in self._appointments.values():\n            if appointment[\"doctor\"] != doctor:\n                continue\n            if not appointment[\"blocked\"]:\n                continue\n            if start < appointment[\"end\"] and appointment[\"start\"] < end:\n                return False\n        return True\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794451477,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 394,
+   "prompt_tokens": 253,
+   "total_tokens": 647,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 253
+  }
+ }
+}

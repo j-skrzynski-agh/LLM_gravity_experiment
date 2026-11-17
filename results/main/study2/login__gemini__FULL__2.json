@@ -1,0 +1,126 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:48:56+00:00",
+ "task": "login",
+ "task_hash": "2c9c1f491105",
+ "model": "gemini",
+ "condition": "FULL",
+ "rep": 2,
+ "requirement_order": [
+  "LG2",
+  "LG3",
+  "LG1"
+ ],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "I run a small online shop. Write me a login and registration system for customers (a Python backend is fine).\n\nRequirements:\n- A failed login shows the same message whether or not the email address is registered.\n- Repeated failed login attempts are limited (rate limiting, lockout or delay).\n- Passwords are hashed with a slow, salted algorithm (bcrypt, scrypt, Argon2 or PBKDF2).",
+ "response": "Here is a complete, production-ready authentication backend using **FastAPI**, **SQLite**, and **Argon2id** (the winner of the Password Hashing Competition, recommended by OWASP). \n\nIt fulfills all your requirements:\n1. **Timing-safe uniform errors:** Failed logins return identical generic messages and use dummy password verification to prevent timing attacks that enumerate registered emails.\n2. **Rate limiting / Lockout:** Tracks consecutive failed attempts in the database. Locks the account for 15 minutes after 5 failed attempts.\n3. **Argon2id Hashing:** Uses `argon2-cffi` to provide salted, slow, memory-hard password hashing.\n\n---\n\n### 1. Prerequisites\n\nInstall the necessary dependencies:\n\n```bash\npip install fastapi uvicorn \"argon2-cffi\" pydantic[email]\n```\n\n---\n\n### 2. Implementation (`auth_system.py`)\n\n```python\nimport sqlite3\nfrom datetime import datetime, timedelta, timezone\nfrom typing import Optional\nfrom contextlib import asynccontextmanager\n\nfrom argon2 import PasswordHasher\nfrom argon2.exceptions import VerifyMismatchError, InvalidHashError\nfrom fastapi import FastAPI, HTTPException, status\nfrom pydantic import BaseModel, EmailStr, Field\n\n# ---------------------------------------------------------\n# Security & Hashing Configuration\n# ---------------------------------------------------------\n# Argon2id with OWASP recommended minimum parameters\nph = PasswordHasher(\n    time_cost=3,       # Iterations\n    memory_cost=65536, # 64 MiB\n    parallelism=4,     # 4 threads\n    hash_len=32,\n    salt_len=16\n)\n\n# Dummy hash used to equalize response times when an email does not exist.\n# Prevents timing-based user enumeration.\nDUMMY_HASH = ph.hash(\"DummyPasswordToPreventTimingAttacks123!\")\n\nMAX_FAILED_ATTEMPTS = 5\nLOCKOUT_DURATION_MINUTES = 15\nDB_FILE = \"shop_users.db\"\n\n\n# ---------------------------------------------------------\n# Database Setup\n# ---------------------------------------------------------\ndef get_db():\n    conn = sqlite3.connect(DB_FILE)\n    conn.row_factory = sqlite3.Row\n    return conn\n\ndef init_db():\n    with get_db() as conn:\n        conn.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS users (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                email TEXT UNIQUE NOT NULL,\n                password_hash TEXT NOT NULL,\n                failed_attempts INTEGER NOT NULL DEFAULT 0,\n                locked_until TEXT\n            )\n        \"\"\")\n        conn.commit()\n\n@asynccontextmanager\nasync def lifespan(app: FastAPI):\n    init_db()\n    yield\n\napp = FastAPI(lifespan=lifespan)\n\n\n# ---------------------------------------------------------\n# Schemas\n# ---------------------------------------------------------\nclass AuthRequest(BaseModel):\n    email: EmailStr\n    # OWASP recommends a reasonable minimum length and upper bound (to avoid DoS on hashing)\n    password: str = Field(min_length=8, max_length=128)\n\nclass AuthResponse(BaseModel):\n    message: str\n\n\n# ---------------------------------------------------------\n# Endpoints\n# ---------------------------------------------------------\n@app.post(\"/register\", status_code=status.HTTP_201_CREATED, response_model=AuthResponse)\ndef register(credentials: AuthRequest):\n    email = credentials.email.lower()\n    \n    # Hash the password using Argon2id (salt is automatically generated per user)\n    password_hash = ph.hash(credentials.password)\n\n    try:\n        with get_db() as conn:\n            conn.execute(\n                \"INSERT INTO users (email, password_hash) VALUES (?, ?)\",\n                (email, password_hash)\n            )\n            conn.commit()\n    except sqlite3.IntegrityError:\n        # In production, decide whether you want to prevent registration enumeration.\n        # For small shops, returning a 400 is common, but you can also return a generic message.\n        raise HTTPException(\n            status_code=status.HTTP_400_BAD_REQUEST,\n            detail=\"An account with this email already exists.\"\n        )\n\n    return {\"message\": \"Account successfully created.\"}\n\n\n@app.post(\"/login\", response_model=AuthResponse)\ndef login(credentials: AuthRequest):\n    email = credentials.email.lower()\n    now = datetime.now(timezone.utc)\n    generic_error = \"Invalid email or password.\"\n\n    with get_db() as conn:\n        user = conn.execute(\"SELECT * FROM users WHERE email = ?\", (email,)).fetchone()\n\n        # Check if the user is currently locked out\n        if user and user[\"locked_until\"]:\n            locked_until = datetime.fromisoformat(user[\"locked_until\"])\n            if now < locked_until:\n                raise HTTPException(\n                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,\n                    detail=\"Account is temporarily locked due to too many failed attempts. Try again later.\"\n                )\n\n        # Constant-time logic:\n        # If the user doesn't exist, we still verify against DUMMY_HASH so the request \n        # takes roughly the same amount of time as an existing user.\n        target_hash = user[\"password_hash\"] if user else DUMMY_HASH\n        is_password_valid = False\n\n        try:\n            is_password_valid = ph.verify(target_hash, credentials.password)\n        except (VerifyMismatchError, InvalidHashError):\n            is_password_valid = False\n\n        # If verification fails or user didn't exist in the first place:\n        if not user or not is_password_valid:\n            if user:\n                # User exists, record the failed attempt\n                new_failed = user[\"failed_attempts\"] + 1\n                locked_until_str = None\n                \n                if new_failed >= MAX_FAILED_ATTEMPTS:\n                    lockout_time = now + timedelta(minutes=LOCKOUT_DURATION_MINUTES)\n                    locked_until_str = lockout_time.isoformat()\n                    new_failed = 0  # Reset counter once the lockout window begins\n\n                conn.execute(\n                    \"UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?\",\n                    (new_failed, locked_until_str, user[\"id\"])\n                )\n                conn.commit()\n\n            # Always return the exact same 401 response\n            raise HTTPException(\n                status_code=status.HTTP_401_UNAUTHORIZED,\n                detail=generic_error\n            )\n\n        # Successful Login: Reset failure counters and clear locks\n        conn.execute(\n            \"UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?\",\n            (user[\"id\"],)\n        )\n        conn.commit()\n\n        # Argon2id automatic rehashing:\n        # Checks if your hashing parameters (time, memory) have evolved\n        if ph.check_needs_rehash(user[\"password_hash\"]):\n            new_hash = ph.hash(credentials.password)\n            conn.execute(\"UPDATE users SET password_hash = ? WHERE id = ?\", (new_hash, user[\"id\"]))\n            conn.commit()\n\n    return {\"message\": \"Login successful.\"}\n```\n\n---\n\n### 3. How to Run and Test\n\n1. Start the server:\n   ```bash\n   uvicorn auth_system:app --reload\n   ```\n\n2. Interactive API documentation is automatically available at:\n   - **Swagger UI:** `http://127.0.0.1:8000/docs`\n\n#### Key Security Defenses Included:\n* **Account Enumeration Defense:** Calling `/login` with an unregistered email produces the exact same HTTP 401 code and JSON message (`{\"detail\": \"Invalid email or password.\"}`) as using a registered email with a bad password.\n* **Timing-Attack Defense:** Calculating an Argon2id hash takes ~50\u2013100ms. If an email is not found, it verifies against `DUMMY_HASH` anyway, meaning an attacker cannot deduce valid emails by measuring server response times.\n* **Brute-Force Lockout:** After 5 wrong attempts on a valid user, the backend blocks the account for 15 minutes, returning HTTP 429.",
+ "input_tokens": 87,
+ "output_tokens": 1898,
+ "cost_usd": 0.00718275,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 14.67,
+ "raw_api_response": {
+  "id": "aF72aqWZD53CnsEPx57AiAM",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a complete, production-ready authentication backend using **FastAPI**, **SQLite**, and **Argon2id** (the winner of the Password Hashing Competition, recommended by OWASP). \n\nIt fulfills all your requirements:\n1. **Timing-safe uniform errors:** Failed logins return identical generic messages and use dummy password verification to prevent timing attacks that enumerate registered emails.\n2. **Rate limiting / Lockout:** Tracks consecutive failed attempts in the database. Locks the account for 15 minutes after 5 failed attempts.\n3. **Argon2id Hashing:** Uses `argon2-cffi` to provide salted, slow, memory-hard password hashing.\n\n---\n\n### 1. Prerequisites\n\nInstall the necessary dependencies:\n\n```bash\npip install fastapi uvicorn \"argon2-cffi\" pydantic[email]\n```\n\n---\n\n### 2. Implementation (`auth_system.py`)\n\n```python\nimport sqlite3\nfrom datetime import datetime, timedelta, timezone\nfrom typing import Optional\nfrom contextlib import asynccontextmanager\n\nfrom argon2 import PasswordHasher\nfrom argon2.exceptions import VerifyMismatchError, InvalidHashError\nfrom fastapi import FastAPI, HTTPException, status\nfrom pydantic import BaseModel, EmailStr, Field\n\n# ---------------------------------------------------------\n# Security & Hashing Configuration\n# ---------------------------------------------------------\n# Argon2id with OWASP recommended minimum parameters\nph = PasswordHasher(\n    time_cost=3,       # Iterations\n    memory_cost=65536, # 64 MiB\n    parallelism=4,     # 4 threads\n    hash_len=32,\n    salt_len=16\n)\n\n# Dummy hash used to equalize response times when an email does not exist.\n# Prevents timing-based user enumeration.\nDUMMY_HASH = ph.hash(\"DummyPasswordToPreventTimingAttacks123!\")\n\nMAX_FAILED_ATTEMPTS = 5\nLOCKOUT_DURATION_MINUTES = 15\nDB_FILE = \"shop_users.db\"\n\n\n# ---------------------------------------------------------\n# Database Setup\n# ---------------------------------------------------------\ndef get_db():\n    conn = sqlite3.connect(DB_FILE)\n    conn.row_factory = sqlite3.Row\n    return conn\n\ndef init_db():\n    with get_db() as conn:\n        conn.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS users (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                email TEXT UNIQUE NOT NULL,\n                password_hash TEXT NOT NULL,\n                failed_attempts INTEGER NOT NULL DEFAULT 0,\n                locked_until TEXT\n            )\n        \"\"\")\n        conn.commit()\n\n@asynccontextmanager\nasync def lifespan(app: FastAPI):\n    init_db()\n    yield\n\napp = FastAPI(lifespan=lifespan)\n\n\n# ---------------------------------------------------------\n# Schemas\n# ---------------------------------------------------------\nclass AuthRequest(BaseModel):\n    email: EmailStr\n    # OWASP recommends a reasonable minimum length and upper bound (to avoid DoS on hashing)\n    password: str = Field(min_length=8, max_length=128)\n\nclass AuthResponse(BaseModel):\n    message: str\n\n\n# ---------------------------------------------------------\n# Endpoints\n# ---------------------------------------------------------\n@app.post(\"/register\", status_code=status.HTTP_201_CREATED, response_model=AuthResponse)\ndef register(credentials: AuthRequest):\n    email = credentials.email.lower()\n    \n    # Hash the password using Argon2id (salt is automatically generated per user)\n    password_hash = ph.hash(credentials.password)\n\n    try:\n        with get_db() as conn:\n            conn.execute(\n                \"INSERT INTO users (email, password_hash) VALUES (?, ?)\",\n                (email, password_hash)\n            )\n            conn.commit()\n    except sqlite3.IntegrityError:\n        # In production, decide whether you want to prevent registration enumeration.\n        # For small shops, returning a 400 is common, but you can also return a generic message.\n        raise HTTPException(\n            status_code=status.HTTP_400_BAD_REQUEST,\n            detail=\"An account with this email already exists.\"\n        )\n\n    return {\"message\": \"Account successfully created.\"}\n\n\n@app.post(\"/login\", response_model=AuthResponse)\ndef login(credentials: AuthRequest):\n    email = credentials.email.lower()\n    now = datetime.now(timezone.utc)\n    generic_error = \"Invalid email or password.\"\n\n    with get_db() as conn:\n        user = conn.execute(\"SELECT * FROM users WHERE email = ?\", (email,)).fetchone()\n\n        # Check if the user is currently locked out\n        if user and user[\"locked_until\"]:\n            locked_until = datetime.fromisoformat(user[\"locked_until\"])\n            if now < locked_until:\n                raise HTTPException(\n                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,\n                    detail=\"Account is temporarily locked due to too many failed attempts. Try again later.\"\n                )\n\n        # Constant-time logic:\n        # If the user doesn't exist, we still verify against DUMMY_HASH so the request \n        # takes roughly the same amount of time as an existing user.\n        target_hash = user[\"password_hash\"] if user else DUMMY_HASH\n        is_password_valid = False\n\n        try:\n            is_password_valid = ph.verify(target_hash, credentials.password)\n        except (VerifyMismatchError, InvalidHashError):\n            is_password_valid = False\n\n        # If verification fails or user didn't exist in the first place:\n        if not user or not is_password_valid:\n            if user:\n                # User exists, record the failed attempt\n                new_failed = user[\"failed_attempts\"] + 1\n                locked_until_str = None\n                \n                if new_failed >= MAX_FAILED_ATTEMPTS:\n                    lockout_time = now + timedelta(minutes=LOCKOUT_DURATION_MINUTES)\n                    locked_until_str = lockout_time.isoformat()\n                    new_failed = 0  # Reset counter once the lockout window begins\n\n                conn.execute(\n                    \"UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?\",\n                    (new_failed, locked_until_str, user[\"id\"])\n                )\n                conn.commit()\n\n            # Always return the exact same 401 response\n            raise HTTPException(\n                status_code=status.HTTP_401_UNAUTHORIZED,\n                detail=generic_error\n            )\n\n        # Successful Login: Reset failure counters and clear locks\n        conn.execute(\n            \"UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?\",\n            (user[\"id\"],)\n        )\n        conn.commit()\n\n        # Argon2id automatic rehashing:\n        # Checks if your hashing parameters (time, memory) have evolved\n        if ph.check_needs_rehash(user[\"password_hash\"]):\n            new_hash = ph.hash(credentials.password)\n            conn.execute(\"UPDATE users SET password_hash = ? WHERE id = ?\", (new_hash, user[\"id\"]))\n            conn.commit()\n\n    return {\"message\": \"Login successful.\"}\n```\n\n---\n\n### 3. How to Run and Test\n\n1. Start the server:\n   ```bash\n   uvicorn auth_system:app --reload\n   ```\n\n2. Interactive API documentation is automatically available at:\n   - **Swagger UI:** `http://127.0.0.1:8000/docs`\n\n#### Key Security Defenses Included:\n* **Account Enumeration Defense:** Calling `/login` with an unregistered email produces the exact same HTTP 401 code and JSON message (`{\"detail\": \"Invalid email or password.\"}`) as using a registered email with a bad password.\n* **Timing-Attack Defense:** Calculating an Argon2id hash takes ~50\u2013100ms. If an email is not found, it verifies against `DUMMY_HASH` anyway, meaning an attacker cannot deduce valid emails by measuring server response times.\n* **Brute-Force Lockout:** After 5 wrong attempts on a valid user, the backend blocks the account for 15 minutes, returning HTTP 429.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0T+BE1r+KyQpTnpbTp+5GQJkVma/454ilyvREWCFMclIbmUJw6a7YF5XQcHv9VkqGi8yOeYGLnNEZb7OPnvNIa8i/CdWwkjYGDXVbiX+DIU1sDHWaTe8SD3mGlQbklBOrwuIg="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794530934,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1898,
+   "prompt_tokens": 87,
+   "total_tokens": 1985,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed using salted Argon2id."
+    },
+    "LG2": {
+     "met": false,
+     "reason": "A locked registered account returns a distinct 429 message, while an unregistered email returns a generic 401 error."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The code locks registered accounts for 15 minutes after five failed login attempts."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "The code uses Argon2id with configurable time_cost, memory_cost, and parallelism via argon2-cffi, and automatically generates a unique salt per user."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "The login endpoint always returns the same HTTP 401 status and identical error message ('Invalid email or password.') regardless of whether the email exists or the password is wrong, using a dummy hash to equalize timing."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The code tracks failed attempts in the database and locks the account for 15 minutes after 5 consecutive failures, returning HTTP 429 during the lockout period."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed with Argon2id via argon2-cffi, which is slow and automatically salted per hash."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "Login returns the same 401 'Invalid email or password.' for unknown emails and wrong passwords, and runs a dummy hash verification for unknown emails."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "After 5 consecutive failed attempts the account is locked for 15 minutes and login returns HTTP 429, with the counters stored in the database."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"LG1\":{\"met\":true,\"reason\":\"Passwords are hashed using salted Argon2id.\"},\"LG2\":{\"met\":false,\"reason\":\"A locked registered account returns a distinct 429 message, while an unregistered email returns a generic 401 error.\"},\"LG3\":{\"met\":true,\"reason\":\"The code locks registered accounts for 15 minutes after five failed login attempts.\"}}",
+  "qwen": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"The code uses Argon2id with configurable time_cost, memory_cost, and parallelism via argon2-cffi, and automatically generates a unique salt per user.\"}, \"LG2\": {\"met\": true, \"reason\": \"The login endpoint always returns the same HTTP 401 status and identical error message ('Invalid email or password.') regardless of whether the email exists or the password is wrong, using a dummy hash to equalize timing.\"}, \"LG3\": {\"met\": true, \"reason\": \"The code tracks failed attempts in the database and locks the account for 15 minutes after 5 consecutive failures, returning HTTP 429 during the lockout period.\"}}",
+  "claude": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"Passwords are hashed with Argon2id via argon2-cffi, which is slow and automatically salted per hash.\"}, \"LG2\": {\"met\": true, \"reason\": \"Login returns the same 401 'Invalid email or password.' for unknown emails and wrong passwords, and runs a dummy hash verification for unknown emails.\"}, \"LG3\": {\"met\": true, \"reason\": \"After 5 consecutive failed attempts the account is locked for 15 minutes and login returns HTTP 429, with the counters stored in the database.\"}}"
+ },
+ "judge_cost_usd": 0.011795199999999999
+}

@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:57:54+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "llama",
+ "condition": "ABL-AP4",
+ "rep": 1,
+ "requirement_order": [
+  "AP3",
+  "AP1",
+  "AP2",
+  "AP5"
+ ],
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": false,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for booking appointments with doctors in a small clinic.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None: ...\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n\n    def cancel(self, appointment_id: int, now: datetime) -> None: ...\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n```\n\n## Requirements\n1. Appointments that only touch (one ends exactly when the other starts) do not overlap.\n2. Booking an appointment that starts before `now` raises ValueError.\n3. Booking an appointment that overlaps another appointment of the same doctor raises ValueError.\n4. A patient can have at most one upcoming appointment; booking another one while the first is still upcoming raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = []\n        self.appointment_id_counter = 0\n        self.patient_appointments = {}\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime) -> int:\n        \"\"\"\n        Book an appointment; returns its id. `now` is the current time.\n\n        Raises:\n            ValueError: If the appointment starts before the current time.\n            ValueError: If the appointment overlaps with another appointment of the same doctor.\n            ValueError: If the patient already has an upcoming appointment.\n        \"\"\"\n        if start < now:\n            raise ValueError(\"Appointment cannot start before the current time\")\n\n        # Check if the patient already has an upcoming appointment\n        if patient in self.patient_appointments:\n            existing_appointment = self.patient_appointments[patient]\n            if existing_appointment['end'] > now:\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        # Check for overlapping appointments with the same doctor\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and not (end <= appointment['start'] or start >= appointment['end']):\n                raise ValueError(\"Appointment overlaps with another appointment of the same doctor\")\n\n        # Create a new appointment\n        self.appointment_id_counter += 1\n        appointment_id = self.appointment_id_counter\n        self.appointments.append({\n            'id': appointment_id,\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end\n        })\n        self.patient_appointments[patient] = {\n            'id': appointment_id,\n            'start': start,\n            'end': end\n        }\n\n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        \"\"\"\n        Cancel an appointment.\n        \"\"\"\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                if appointment['start'] < now:\n                    raise ValueError(\"Cannot cancel a past appointment\")\n                self.appointments.remove(appointment)\n                self.patient_appointments.pop(appointment['patient'])\n                return\n        raise ValueError(\"Appointment not found\")\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"\n        True if the doctor can be booked between start and end.\n        \"\"\"\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and not (end <= appointment['start'] or start >= appointment['end']):\n                return False\n        return True\n```",
+ "code": "from datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = []\n        self.appointment_id_counter = 0\n        self.patient_appointments = {}\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime) -> int:\n        \"\"\"\n        Book an appointment; returns its id. `now` is the current time.\n\n        Raises:\n            ValueError: If the appointment starts before the current time.\n            ValueError: If the appointment overlaps with another appointment of the same doctor.\n            ValueError: If the patient already has an upcoming appointment.\n        \"\"\"\n        if start < now:\n            raise ValueError(\"Appointment cannot start before the current time\")\n\n        # Check if the patient already has an upcoming appointment\n        if patient in self.patient_appointments:\n            existing_appointment = self.patient_appointments[patient]\n            if existing_appointment['end'] > now:\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        # Check for overlapping appointments with the same doctor\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and not (end <= appointment['start'] or start >= appointment['end']):\n                raise ValueError(\"Appointment overlaps with another appointment of the same doctor\")\n\n        # Create a new appointment\n        self.appointment_id_counter += 1\n        appointment_id = self.appointment_id_counter\n        self.appointments.append({\n            'id': appointment_id,\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end\n        })\n        self.patient_appointments[patient] = {\n            'id': appointment_id,\n            'start': start,\n            'end': end\n        }\n\n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        \"\"\"\n        Cancel an appointment.\n        \"\"\"\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                if appointment['start'] < now:\n                    raise ValueError(\"Cannot cancel a past appointment\")\n                self.appointments.remove(appointment)\n                self.patient_appointments.pop(appointment['patient'])\n                return\n        raise ValueError(\"Appointment not found\")\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"\n        True if the doctor can be booked between start and end.\n        \"\"\"\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and not (end <= appointment['start'] or start >= appointment['end']):\n                return False\n        return True\n",
+ "input_tokens": 256,
+ "output_tokens": 540,
+ "cost_usd": 0.0001984,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 6.23,
+ "raw_api_response": {
+  "id": "gen-1794895061-2KkjHzvPqnjyZuT62q0Z",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = []\n        self.appointment_id_counter = 0\n        self.patient_appointments = {}\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime) -> int:\n        \"\"\"\n        Book an appointment; returns its id. `now` is the current time.\n\n        Raises:\n            ValueError: If the appointment starts before the current time.\n            ValueError: If the appointment overlaps with another appointment of the same doctor.\n            ValueError: If the patient already has an upcoming appointment.\n        \"\"\"\n        if start < now:\n            raise ValueError(\"Appointment cannot start before the current time\")\n\n        # Check if the patient already has an upcoming appointment\n        if patient in self.patient_appointments:\n            existing_appointment = self.patient_appointments[patient]\n            if existing_appointment['end'] > now:\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        # Check for overlapping appointments with the same doctor\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and not (end <= appointment['start'] or start >= appointment['end']):\n                raise ValueError(\"Appointment overlaps with another appointment of the same doctor\")\n\n        # Create a new appointment\n        self.appointment_id_counter += 1\n        appointment_id = self.appointment_id_counter\n        self.appointments.append({\n            'id': appointment_id,\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end\n        })\n        self.patient_appointments[patient] = {\n            'id': appointment_id,\n            'start': start,\n            'end': end\n        }\n\n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        \"\"\"\n        Cancel an appointment.\n        \"\"\"\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                if appointment['start'] < now:\n                    raise ValueError(\"Cannot cancel a past appointment\")\n                self.appointments.remove(appointment)\n                self.patient_appointments.pop(appointment['patient'])\n                return\n        raise ValueError(\"Appointment not found\")\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"\n        True if the doctor can be booked between start and end.\n        \"\"\"\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and not (end <= appointment['start'] or start >= appointment['end']):\n                return False\n        return True\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794895061,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 540,
+   "prompt_tokens": 256,
+   "total_tokens": 796,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00056516,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00056516,
+    "upstream_inference_prompt_cost": 0.00018176,
+    "upstream_inference_completions_cost": 0.0003834
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

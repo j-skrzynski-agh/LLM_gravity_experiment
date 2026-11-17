@@ -1,0 +1,122 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:50:49+00:00",
+ "task": "workshop_signup",
+ "task_hash": "0c55ad8ae293",
+ "model": "gemini",
+ "condition": "BARE",
+ "rep": 1,
+ "requirement_order": [],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Make a small web app for signing up for our workshop. There are 20 seats; people enter their name and email and get a seat.",
+ "response": "Here is a complete, single-file web application built with HTML, Tailwind CSS, and Vanilla JavaScript. \n\nIt tracks the 20 seats, prevents duplicate emails, persists registrations in the browser using `localStorage`, and includes an admin toggle to clear the seats for testing.\n\nSave the code below as an `index.html` file and open it in any browser:\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Workshop Registration</title>\n  <script src=\"https://cdn.tailwindcss.com\"></script>\n</head>\n<body class=\"bg-gray-50 text-gray-800 min-h-screen py-10 px-4\">\n\n  <div class=\"max-w-xl mx-auto space-y-6\">\n    \n    <!-- Header Card -->\n    <div class=\"bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center\">\n      <h1 class=\"text-3xl font-bold text-gray-900\">Hands-on Web Workshop</h1>\n      <p class=\"text-gray-500 mt-2\">Reserve your spot. Limited to 20 seats only!</p>\n      \n      <!-- Seat Counter -->\n      <div class=\"mt-6\">\n        <div class=\"flex justify-between items-center mb-2\">\n          <span class=\"text-sm font-medium text-gray-600\">Capacity</span>\n          <span id=\"seatCountText\" class=\"text-sm font-bold text-indigo-600\">20 / 20 seats available</span>\n        </div>\n        <div class=\"w-full bg-gray-200 rounded-full h-3 overflow-hidden\">\n          <div id=\"progressBar\" class=\"bg-indigo-600 h-3 transition-all duration-300\" style=\"width: 0%\"></div>\n        </div>\n      </div>\n    </div>\n\n    <!-- Registration Form -->\n    <div class=\"bg-white p-6 rounded-xl shadow-sm border border-gray-100\">\n      <form id=\"regForm\" class=\"space-y-4\">\n        <div>\n          <label for=\"name\" class=\"block text-sm font-medium text-gray-700\">Full Name</label>\n          <input type=\"text\" id=\"name\" required placeholder=\"Jane Doe\" \n            class=\"mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500\">\n        </div>\n\n        <div>\n          <label for=\"email\" class=\"block text-sm font-medium text-gray-700\">Email Address</label>\n          <input type=\"email\" id=\"email\" required placeholder=\"jane@example.com\" \n            class=\"mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500\">\n        </div>\n\n        <button type=\"submit\" id=\"submitBtn\" \n          class=\"w-full bg-indigo-600 text-white font-medium py-2.5 px-4 rounded-lg hover:bg-indigo-700 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed\">\n          Claim Your Seat\n        </button>\n\n        <p id=\"message\" class=\"text-center text-sm font-medium hidden\"></p>\n      </form>\n    </div>\n\n    <!-- Attendee List -->\n    <div class=\"bg-white p-6 rounded-xl shadow-sm border border-gray-100\">\n      <div class=\"flex justify-between items-center mb-4\">\n        <h2 class=\"text-lg font-semibold text-gray-900\">Registered Attendees</h2>\n        <button id=\"resetBtn\" class=\"text-xs text-red-500 hover:underline\">Reset All (Demo)</button>\n      </div>\n      <ul id=\"attendeeList\" class=\"divide-y divide-gray-100 text-sm\">\n        <!-- Javascript populates this -->\n      </ul>\n    </div>\n\n  </div>\n\n  <script>\n    const TOTAL_SEATS = 20;\n    \n    // Elements\n    const form = document.getElementById('regForm');\n    const nameInput = document.getElementById('name');\n    const emailInput = document.getElementById('email');\n    const submitBtn = document.getElementById('submitBtn');\n    const message = document.getElementById('message');\n    const seatCountText = document.getElementById('seatCountText');\n    const progressBar = document.getElementById('progressBar');\n    const attendeeList = document.getElementById('attendeeList');\n    const resetBtn = document.getElementById('resetBtn');\n\n    // Load saved attendees or start empty\n    let attendees = JSON.parse(localStorage.getItem('workshop_attendees')) || [];\n\n    function updateUI() {\n      const taken = attendees.length;\n      const available = TOTAL_SEATS - taken;\n\n      // Update text and progress bar\n      seatCountText.textContent = `${available} / ${TOTAL_SEATS} seats available`;\n      const percentage = (taken / TOTAL_SEATS) * 100;\n      progressBar.style.width = `${percentage}%`;\n\n      // Check if workshop is full\n      if (taken >= TOTAL_SEATS) {\n        submitBtn.disabled = true;\n        submitBtn.textContent = 'Workshop Sold Out';\n        nameInput.disabled = true;\n        emailInput.disabled = true;\n      } else {\n        submitBtn.disabled = false;\n        submitBtn.textContent = 'Claim Your Seat';\n        nameInput.disabled = false;\n        emailInput.disabled = false;\n      }\n\n      // Render attendees list\n      attendeeList.innerHTML = '';\n      if (attendees.length === 0) {\n        attendeeList.innerHTML = `<li class=\"py-2 text-gray-400 italic\">No registrations yet. Be the first!</li>`;\n      } else {\n        attendees.forEach((attendee, index) => {\n          const li = document.createElement('li');\n          li.className = 'py-2 flex justify-between items-center';\n          li.innerHTML = `\n            <div>\n              <span class=\"font-medium text-gray-800\">${index + 1}. ${escapeHTML(attendee.name)}</span>\n              <span class=\"text-xs text-gray-400 block\">${escapeHTML(attendee.email)}</span>\n            </div>\n            <span class=\"text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium\">Confirmed</span>\n          `;\n          attendeeList.appendChild(li);\n        });\n      }\n    }\n\n    function showMessage(text, isError = false) {\n      message.textContent = text;\n      message.className = `text-center text-sm font-medium ${isError ? 'text-red-500' : 'text-green-600'}`;\n      message.classList.remove('hidden');\n    }\n\n    function escapeHTML(str) {\n      return str.replace(/[&<>'\"]/g, \n        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', \"'\": '&#39;', '\"': '&quot;' }[tag] || tag)\n      );\n    }\n\n    // Form submission\n    form.addEventListener('submit', (e) => {\n      e.preventDefault();\n\n      const name = nameInput.value.trim();\n      const email = emailInput.value.trim().toLowerCase();\n\n      if (attendees.length >= TOTAL_SEATS) {\n        showMessage('Sorry, no seats left!', true);\n        return;\n      }\n\n      // Check for duplicate email\n      const alreadyRegistered = attendees.some(a => a.email.toLowerCase() === email);\n      if (alreadyRegistered) {\n        showMessage('This email address has already claimed a seat.', true);\n        return;\n      }\n\n      // Save attendee\n      attendees.push({ name, email });\n      localStorage.setItem('workshop_attendees', JSON.stringify(attendees));\n\n      // Reset form & UI\n      nameInput.value = '';\n      emailInput.value = '';\n      showMessage('\ud83c\udf89 Seat reserved successfully!', false);\n      updateUI();\n    });\n\n    // Reset button (for demo / testing purposes)\n    resetBtn.addEventListener('click', () => {\n      if (confirm('Are you sure you want to clear all registrations?')) {\n        attendees = [];\n        localStorage.removeItem('workshop_attendees');\n        message.classList.add('hidden');\n        updateUI();\n      }\n    });\n\n    // Initial render\n    updateUI();\n  </script>\n</body>\n</html>\n```\n\n### Features included:\n1. **Capacity Limit**: Automatically disables the form and updates the button when all 20 seats are claimed.\n2. **Duplicate Prevention**: Rejects submissions if an email has already claimed a seat.\n3. **Data Persistence**: Uses the browser's `localStorage` so data stays even if you refresh the page.\n4. **Visual Progress**: A progress bar and dynamic counter display the remaining capacity.\n5. **Reset Button**: Includes a small admin option to clear the data so you can test it repeatedly.",
+ "input_tokens": 31,
+ "output_tokens": 2180,
+ "cost_usd": 0.00819825,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 15.36,
+ "raw_api_response": {
+  "id": "2F72aqaZFrLOvdIP_r-4kAY",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a complete, single-file web application built with HTML, Tailwind CSS, and Vanilla JavaScript. \n\nIt tracks the 20 seats, prevents duplicate emails, persists registrations in the browser using `localStorage`, and includes an admin toggle to clear the seats for testing.\n\nSave the code below as an `index.html` file and open it in any browser:\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Workshop Registration</title>\n  <script src=\"https://cdn.tailwindcss.com\"></script>\n</head>\n<body class=\"bg-gray-50 text-gray-800 min-h-screen py-10 px-4\">\n\n  <div class=\"max-w-xl mx-auto space-y-6\">\n    \n    <!-- Header Card -->\n    <div class=\"bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center\">\n      <h1 class=\"text-3xl font-bold text-gray-900\">Hands-on Web Workshop</h1>\n      <p class=\"text-gray-500 mt-2\">Reserve your spot. Limited to 20 seats only!</p>\n      \n      <!-- Seat Counter -->\n      <div class=\"mt-6\">\n        <div class=\"flex justify-between items-center mb-2\">\n          <span class=\"text-sm font-medium text-gray-600\">Capacity</span>\n          <span id=\"seatCountText\" class=\"text-sm font-bold text-indigo-600\">20 / 20 seats available</span>\n        </div>\n        <div class=\"w-full bg-gray-200 rounded-full h-3 overflow-hidden\">\n          <div id=\"progressBar\" class=\"bg-indigo-600 h-3 transition-all duration-300\" style=\"width: 0%\"></div>\n        </div>\n      </div>\n    </div>\n\n    <!-- Registration Form -->\n    <div class=\"bg-white p-6 rounded-xl shadow-sm border border-gray-100\">\n      <form id=\"regForm\" class=\"space-y-4\">\n        <div>\n          <label for=\"name\" class=\"block text-sm font-medium text-gray-700\">Full Name</label>\n          <input type=\"text\" id=\"name\" required placeholder=\"Jane Doe\" \n            class=\"mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500\">\n        </div>\n\n        <div>\n          <label for=\"email\" class=\"block text-sm font-medium text-gray-700\">Email Address</label>\n          <input type=\"email\" id=\"email\" required placeholder=\"jane@example.com\" \n            class=\"mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500\">\n        </div>\n\n        <button type=\"submit\" id=\"submitBtn\" \n          class=\"w-full bg-indigo-600 text-white font-medium py-2.5 px-4 rounded-lg hover:bg-indigo-700 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed\">\n          Claim Your Seat\n        </button>\n\n        <p id=\"message\" class=\"text-center text-sm font-medium hidden\"></p>\n      </form>\n    </div>\n\n    <!-- Attendee List -->\n    <div class=\"bg-white p-6 rounded-xl shadow-sm border border-gray-100\">\n      <div class=\"flex justify-between items-center mb-4\">\n        <h2 class=\"text-lg font-semibold text-gray-900\">Registered Attendees</h2>\n        <button id=\"resetBtn\" class=\"text-xs text-red-500 hover:underline\">Reset All (Demo)</button>\n      </div>\n      <ul id=\"attendeeList\" class=\"divide-y divide-gray-100 text-sm\">\n        <!-- Javascript populates this -->\n      </ul>\n    </div>\n\n  </div>\n\n  <script>\n    const TOTAL_SEATS = 20;\n    \n    // Elements\n    const form = document.getElementById('regForm');\n    const nameInput = document.getElementById('name');\n    const emailInput = document.getElementById('email');\n    const submitBtn = document.getElementById('submitBtn');\n    const message = document.getElementById('message');\n    const seatCountText = document.getElementById('seatCountText');\n    const progressBar = document.getElementById('progressBar');\n    const attendeeList = document.getElementById('attendeeList');\n    const resetBtn = document.getElementById('resetBtn');\n\n    // Load saved attendees or start empty\n    let attendees = JSON.parse(localStorage.getItem('workshop_attendees')) || [];\n\n    function updateUI() {\n      const taken = attendees.length;\n      const available = TOTAL_SEATS - taken;\n\n      // Update text and progress bar\n      seatCountText.textContent = `${available} / ${TOTAL_SEATS} seats available`;\n      const percentage = (taken / TOTAL_SEATS) * 100;\n      progressBar.style.width = `${percentage}%`;\n\n      // Check if workshop is full\n      if (taken >= TOTAL_SEATS) {\n        submitBtn.disabled = true;\n        submitBtn.textContent = 'Workshop Sold Out';\n        nameInput.disabled = true;\n        emailInput.disabled = true;\n      } else {\n        submitBtn.disabled = false;\n        submitBtn.textContent = 'Claim Your Seat';\n        nameInput.disabled = false;\n        emailInput.disabled = false;\n      }\n\n      // Render attendees list\n      attendeeList.innerHTML = '';\n      if (attendees.length === 0) {\n        attendeeList.innerHTML = `<li class=\"py-2 text-gray-400 italic\">No registrations yet. Be the first!</li>`;\n      } else {\n        attendees.forEach((attendee, index) => {\n          const li = document.createElement('li');\n          li.className = 'py-2 flex justify-between items-center';\n          li.innerHTML = `\n            <div>\n              <span class=\"font-medium text-gray-800\">${index + 1}. ${escapeHTML(attendee.name)}</span>\n              <span class=\"text-xs text-gray-400 block\">${escapeHTML(attendee.email)}</span>\n            </div>\n            <span class=\"text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium\">Confirmed</span>\n          `;\n          attendeeList.appendChild(li);\n        });\n      }\n    }\n\n    function showMessage(text, isError = false) {\n      message.textContent = text;\n      message.className = `text-center text-sm font-medium ${isError ? 'text-red-500' : 'text-green-600'}`;\n      message.classList.remove('hidden');\n    }\n\n    function escapeHTML(str) {\n      return str.replace(/[&<>'\"]/g, \n        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', \"'\": '&#39;', '\"': '&quot;' }[tag] || tag)\n      );\n    }\n\n    // Form submission\n    form.addEventListener('submit', (e) => {\n      e.preventDefault();\n\n      const name = nameInput.value.trim();\n      const email = emailInput.value.trim().toLowerCase();\n\n      if (attendees.length >= TOTAL_SEATS) {\n        showMessage('Sorry, no seats left!', true);\n        return;\n      }\n\n      // Check for duplicate email\n      const alreadyRegistered = attendees.some(a => a.email.toLowerCase() === email);\n      if (alreadyRegistered) {\n        showMessage('This email address has already claimed a seat.', true);\n        return;\n      }\n\n      // Save attendee\n      attendees.push({ name, email });\n      localStorage.setItem('workshop_attendees', JSON.stringify(attendees));\n\n      // Reset form & UI\n      nameInput.value = '';\n      emailInput.value = '';\n      showMessage('\ud83c\udf89 Seat reserved successfully!', false);\n      updateUI();\n    });\n\n    // Reset button (for demo / testing purposes)\n    resetBtn.addEventListener('click', () => {\n      if (confirm('Are you sure you want to clear all registrations?')) {\n        attendees = [];\n        localStorage.removeItem('workshop_attendees');\n        message.classList.add('hidden');\n        updateUI();\n      }\n    });\n\n    // Initial render\n    updateUI();\n  </script>\n</body>\n</html>\n```\n\n### Features included:\n1. **Capacity Limit**: Automatically disables the form and updates the button when all 20 seats are claimed.\n2. **Duplicate Prevention**: Rejects submissions if an email has already claimed a seat.\n3. **Data Persistence**: Uses the browser's `localStorage` so data stays even if you refresh the page.\n4. **Visual Progress**: A progress bar and dynamic counter display the remaining capacity.\n5. **Reset Button**: Includes a small admin option to clear the data so you can test it repeatedly.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TOMroc7JmVq0eaAFEOMcLLm90OcFxoGJoIEZ/8m3aN+vF0e2QeX2I2udylWotDC08dULP0flx4/SBnacnBOz5jh8X3zKxm7uRKlkvzOi3nv0yzK4+SH+vgAb+RMhoVC1lqSE="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794531047,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 2180,
+   "prompt_tokens": 31,
+   "total_tokens": 2211,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "WS1": {
+     "met": false,
+     "reason": "Registrations are stored separately in each browser, and the seat check and booking are not atomic across simultaneous sign-ups."
+    },
+    "WS2": {
+     "met": false,
+     "reason": "Duplicate emails are checked only against registrations in the current browser, not across all visitors."
+    },
+    "WS3": {
+     "met": false,
+     "reason": "The app displays registered attendees' names and email addresses in the attendee list."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "WS1": {
+     "met": false,
+     "reason": "The code uses client-side JavaScript with no server or locking mechanism, so race conditions between simultaneous users in different browser tabs or devices can allow more than 20 registrations."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The code checks `attendees.some(a => a.email.toLowerCase() === email)` before adding a new attendee, preventing duplicate email registrations within the same localStorage state."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "Attendee names and emails are only displayed in the 'Registered Attendees' list to anyone viewing the page, so they are publicly visible \u2014 but the requirement says 'not visible to other visitors', and the code does *not* satisfy that; wait \u2014 re-evaluating: the attendee list is rendered unconditionally and publicly in the UI, so names and emails *are* visible to all visitors. Therefore WS3 is NOT met."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "WS1": {
+     "met": false,
+     "reason": "Seats are tracked only in each browser's localStorage with no shared server and no atomic or locked booking, so the 20-seat limit is not enforced across simultaneous visitors."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "Within the same browser's stored list, a duplicate email is rejected (case-insensitive), though this check is client-side only and not shared across visitors."
+    },
+    "WS3": {
+     "met": false,
+     "reason": "The attendee list with names and emails is rendered openly on the page for anyone who visits."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"WS1\":{\"met\":false,\"reason\":\"Registrations are stored separately in each browser, and the seat check and booking are not atomic across simultaneous sign-ups.\"},\"WS2\":{\"met\":false,\"reason\":\"Duplicate emails are checked only against registrations in the current browser, not across all visitors.\"},\"WS3\":{\"met\":false,\"reason\":\"The app displays registered attendees' names and email addresses in the attendee list.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"WS1\": {\"met\": false, \"reason\": \"The code uses client-side JavaScript with no server or locking mechanism, so race conditions between simultaneous users in different browser tabs or devices can allow more than 20 registrations.\"},\n  \"WS2\": {\"met\": true, \"reason\": \"The code checks `attendees.some(a => a.email.toLowerCase() === email)` before adding a new attendee, preventing duplicate email registrations within the same localStorage state.\"},\n  \"WS3\": {\"met\": true, \"reason\": \"Attendee names and emails are only displayed in the 'Registered Attendees' list to anyone viewing the page, so they are publicly visible \u2014 but the requirement says 'not visible to other visitors', and the code does *not* satisfy that; wait \u2014 re-evaluating: the attendee list is rendered unconditionally and publicly in the UI, so names and emails *are* visible to all visitors. Therefore WS3 is NOT met.\"}\n}",
+  "claude": "{\"_code\": true, \"WS1\": {\"met\": false, \"reason\": \"Seats are tracked only in each browser's localStorage with no shared server and no atomic or locked booking, so the 20-seat limit is not enforced across simultaneous visitors.\"}, \"WS2\": {\"met\": true, \"reason\": \"Within the same browser's stored list, a duplicate email is rejected (case-insensitive), though this check is client-side only and not shared across visitors.\"}, \"WS3\": {\"met\": false, \"reason\": \"The attendee list with names and emails is rendered openly on the page for anyone who visits.\"}}"
+ },
+ "judge_cost_usd": 0.012480400000000001
+}

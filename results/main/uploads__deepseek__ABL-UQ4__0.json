@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:18:06+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "deepseek",
+ "condition": "ABL-UQ4",
+ "rep": 0,
+ "requirement_order": [
+  "UQ1",
+  "UQ2",
+  "UQ3",
+  "UQ5"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. Uploading a file of size 0 raises ValueError.\n2. An upload that would exceed the monthly limit raises ValueError, and the file is not counted.\n3. The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.\n4. Uploading again a file with the same name in the same month does not count towards the limit a second time.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # Per-month usage tracking\n        self._files = {}  # month -> dict name -> size\n        self._usage = {}  # month -> total bytes counted\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0.\")\n\n        if month not in self._files:\n            self._files[month] = {}\n            self._usage[month] = 0\n\n        files = self._files[month]\n        current = self._usage[month]\n\n        if name in files:\n            # Re-uploading same name: does not count twice\n            # Preserve original counted size; do not increase usage\n            files[name] = files[name]\n            return\n\n        # Check the limit\n        if current + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload exceeds the monthly quota.\")\n\n        files[name] = size_bytes\n        self._usage[month] = current + size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        if month in self._files and name in self._files[month]:\n            size = self._files[month].pop(name)\n            self._usage[month] -= size\n\n    def used_bytes(self, month: str) -> int:\n        return self._usage.get(month, 0)\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # Per-month usage tracking\n        self._files = {}  # month -> dict name -> size\n        self._usage = {}  # month -> total bytes counted\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0.\")\n\n        if month not in self._files:\n            self._files[month] = {}\n            self._usage[month] = 0\n\n        files = self._files[month]\n        current = self._usage[month]\n\n        if name in files:\n            # Re-uploading same name: does not count twice\n            # Preserve original counted size; do not increase usage\n            files[name] = files[name]\n            return\n\n        # Check the limit\n        if current + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload exceeds the monthly quota.\")\n\n        files[name] = size_bytes\n        self._usage[month] = current + size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        if month in self._files and name in self._files[month]:\n            size = self._files[month].pop(name)\n            self._usage[month] -= size\n\n    def used_bytes(self, month: str) -> int:\n        return self._usage.get(month, 0)\n",
+ "input_tokens": 245,
+ "output_tokens": 349,
+ "cost_usd": 0.0004923,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 3.33,
+ "raw_api_response": {
+  "id": "7de76561-2bdc-4c2b-b6aa-2cee081ff5e0",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # Per-month usage tracking\n        self._files = {}  # month -> dict name -> size\n        self._usage = {}  # month -> total bytes counted\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0.\")\n\n        if month not in self._files:\n            self._files[month] = {}\n            self._usage[month] = 0\n\n        files = self._files[month]\n        current = self._usage[month]\n\n        if name in files:\n            # Re-uploading same name: does not count twice\n            # Preserve original counted size; do not increase usage\n            files[name] = files[name]\n            return\n\n        # Check the limit\n        if current + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload exceeds the monthly quota.\")\n\n        files[name] = size_bytes\n        self._usage[month] = current + size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        if month in self._files and name in self._files[month]:\n            size = self._files[month].pop(name)\n            self._usage[month] -= size\n\n    def used_bytes(self, month: str) -> int:\n        return self._usage.get(month, 0)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794453478,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 349,
+   "prompt_tokens": 245,
+   "total_tokens": 594,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 245
+  }
+ }
+}

@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T17:19:03+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "qwen",
+ "variant": "code",
+ "rep": 0,
+ "step": 1,
+ "change": "Add a method `record(self, entry: datetime, exit: datetime) -> float` that computes the fee, stores it, and returns it, and a method `total_collected(self) -> float`.",
+ "start_file": "parking__qwen__FULL__0.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime, timedelta\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        # Calculate the duration in seconds\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n        \n        # Check for stays longer than 24 hours (24 * 60 * 60 = 86400 seconds)\n        if total_seconds > 86400:\n            return round(200.00, 2)\n        \n        # Stays of at most 15 minutes (15 * 60 = 900 seconds) are free\n        if total_seconds <= 900:\n            return 0.00\n        \n        # For stays longer than 15 minutes, charge for every started hour\n        # Convert total seconds to hours, rounding up to the next whole hour\n        # Since we need to charge for every started hour, we use ceiling division\n        hours = (total_seconds + 3599) // 3600  # This effectively does ceil(total_seconds / 3600)\n        \n        # Calculate fee and round to two decimal places\n        fee_amount = hours * self.hourly_rate\n        return round(fee_amount, 2)\n```\n\n## Change request\nAdd a method `record(self, entry: datetime, exit: datetime) -> float` that computes the fee, stores it, and returns it, and a method `total_collected(self) -> float`.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n        self._collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        # Calculate the duration in seconds\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n        \n        # Check for stays longer than 24 hours (24 * 60 * 60 = 86400 seconds)\n        if total_seconds > 86400:\n            return round(200.00, 2)\n        \n        # Stays of at most 15 minutes (15 * 60 = 900 seconds) are free\n        if total_seconds <= 900:\n            return 0.00\n        \n        # For stays longer than 15 minutes, charge for every started hour\n        # Convert total seconds to hours, rounding up to the next whole hour\n        # Since we need to charge for every started hour, we use ceiling division\n        hours = (total_seconds + 3599) // 3600  # This effectively does ceil(total_seconds / 3600)\n        \n        # Calculate fee and round to two decimal places\n        fee_amount = hours * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def record(self, entry: datetime, exit: datetime) -> float:\n        fee_amount = self.fee(entry, exit)\n        self._collected_fees.append(fee_amount)\n        return fee_amount\n    \n    def total_collected(self) -> float:\n        return round(sum(self._collected_fees), 2)\n```",
+ "code": "from datetime import datetime, timedelta\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n        self._collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        # Calculate the duration in seconds\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n        \n        # Check for stays longer than 24 hours (24 * 60 * 60 = 86400 seconds)\n        if total_seconds > 86400:\n            return round(200.00, 2)\n        \n        # Stays of at most 15 minutes (15 * 60 = 900 seconds) are free\n        if total_seconds <= 900:\n            return 0.00\n        \n        # For stays longer than 15 minutes, charge for every started hour\n        # Convert total seconds to hours, rounding up to the next whole hour\n        # Since we need to charge for every started hour, we use ceiling division\n        hours = (total_seconds + 3599) // 3600  # This effectively does ceil(total_seconds / 3600)\n        \n        # Calculate fee and round to two decimal places\n        fee_amount = hours * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def record(self, entry: datetime, exit: datetime) -> float:\n        fee_amount = self.fee(entry, exit)\n        self._collected_fees.append(fee_amount)\n        return fee_amount\n    \n    def total_collected(self) -> float:\n        return round(sum(self._collected_fees), 2)\n",
+ "input_tokens": 410,
+ "output_tokens": 403,
+ "cost_usd": 0.0006475999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.58,
+ "raw_api_response": {
+  "id": "gen-1794935928-6MwLcACPqPmgQJEw58rQ",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n        self._collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        # Calculate the duration in seconds\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n        \n        # Check for stays longer than 24 hours (24 * 60 * 60 = 86400 seconds)\n        if total_seconds > 86400:\n            return round(200.00, 2)\n        \n        # Stays of at most 15 minutes (15 * 60 = 900 seconds) are free\n        if total_seconds <= 900:\n            return 0.00\n        \n        # For stays longer than 15 minutes, charge for every started hour\n        # Convert total seconds to hours, rounding up to the next whole hour\n        # Since we need to charge for every started hour, we use ceiling division\n        hours = (total_seconds + 3599) // 3600  # This effectively does ceil(total_seconds / 3600)\n        \n        # Calculate fee and round to two decimal places\n        fee_amount = hours * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def record(self, entry: datetime, exit: datetime) -> float:\n        fee_amount = self.fee(entry, exit)\n        self._collected_fees.append(fee_amount)\n        return fee_amount\n    \n    def total_collected(self) -> float:\n        return round(sum(self._collected_fees), 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794935928,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 403,
+   "prompt_tokens": 410,
+   "total_tokens": 813,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00042094,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00042094,
+    "upstream_inference_prompt_cost": 0.0001066,
+    "upstream_inference_completions_cost": 0.00031434
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

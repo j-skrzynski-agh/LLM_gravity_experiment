@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:59:34+00:00",
+ "app": "leave",
+ "app_hash": "c3276e419d06",
+ "model": "deepseek",
+ "condition": "ABL-LV2",
+ "rep": 2,
+ "requirement_order": [
+  "LV4",
+  "LV3",
+  "LV1",
+  "LV5"
+ ],
+ "passed": {
+  "LV1": true,
+  "LV2": true,
+  "LV3": true,
+  "LV4": true,
+  "LV5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that tracks employees' annual leave requests.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None: ...\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n\n    def remaining(self, employee: str, year: int) -> int: ...\n```\n\n## Requirements\n1. A request made less than 3 days before its start date is rejected with ValueError.\n2. Weekends and the given holidays do not use leave days.\n3. A request whose end date is before its start date raises ValueError.\n4. Unused leave days do not carry over to the next year.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays else set()\n        # employee -> year -> number of days used\n        self._used: dict[str, dict[int, int]] = {}\n\n    def _count_leave_days(self, start: date, end: date) -> list[date]:\n        days = []\n        cur = start\n        while cur <= end:\n            if cur.weekday() < 5 and cur not in self.holidays:\n                days.append(cur)\n            cur += timedelta(days=1)\n        return days\n\n    def _used_for(self, employee: str, year: int) -> int:\n        return self._used.get(employee, {}).get(year, 0)\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        if (start - today).days < 3:\n            raise ValueError(\"Leave must be requested at least 3 days in advance\")\n\n        days = self._count_leave_days(start, end)\n        count = len(days)\n\n        # Group by year (a request may span a year boundary).\n        by_year: dict[int, int] = {}\n        for d in days:\n            by_year[d.year] = by_year.get(d.year, 0) + 1\n\n        # Validate against per-year allowance before committing anything.\n        for year, n in by_year.items():\n            if self._used_for(employee, year) + n > self.days_per_year:\n                raise ValueError(\"Not enough leave days remaining\")\n\n        emp_usage = self._used.setdefault(employee, {})\n        for year, n in by_year.items():\n            emp_usage[year] = emp_usage.get(year, 0) + n\n\n        return count\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used_for(employee, year)\n```",
+ "code": "from datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays else set()\n        # employee -> year -> number of days used\n        self._used: dict[str, dict[int, int]] = {}\n\n    def _count_leave_days(self, start: date, end: date) -> list[date]:\n        days = []\n        cur = start\n        while cur <= end:\n            if cur.weekday() < 5 and cur not in self.holidays:\n                days.append(cur)\n            cur += timedelta(days=1)\n        return days\n\n    def _used_for(self, employee: str, year: int) -> int:\n        return self._used.get(employee, {}).get(year, 0)\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        if (start - today).days < 3:\n            raise ValueError(\"Leave must be requested at least 3 days in advance\")\n\n        days = self._count_leave_days(start, end)\n        count = len(days)\n\n        # Group by year (a request may span a year boundary).\n        by_year: dict[int, int] = {}\n        for d in days:\n            by_year[d.year] = by_year.get(d.year, 0) + 1\n\n        # Validate against per-year allowance before committing anything.\n        for year, n in by_year.items():\n            if self._used_for(employee, year) + n > self.days_per_year:\n                raise ValueError(\"Not enough leave days remaining\")\n\n        emp_usage = self._used.setdefault(employee, {})\n        for year, n in by_year.items():\n            emp_usage[year] = emp_usage.get(year, 0) + n\n\n        return count\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used_for(employee, year)\n",
+ "input_tokens": 219,
+ "output_tokens": 486,
+ "cost_usd": 0.0006489,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.49,
+ "raw_api_response": {
+  "id": "c2412b96-3f44-4307-9e39-b68c0310f529",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays else set()\n        # employee -> year -> number of days used\n        self._used: dict[str, dict[int, int]] = {}\n\n    def _count_leave_days(self, start: date, end: date) -> list[date]:\n        days = []\n        cur = start\n        while cur <= end:\n            if cur.weekday() < 5 and cur not in self.holidays:\n                days.append(cur)\n            cur += timedelta(days=1)\n        return days\n\n    def _used_for(self, employee: str, year: int) -> int:\n        return self._used.get(employee, {}).get(year, 0)\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        if (start - today).days < 3:\n            raise ValueError(\"Leave must be requested at least 3 days in advance\")\n\n        days = self._count_leave_days(start, end)\n        count = len(days)\n\n        # Group by year (a request may span a year boundary).\n        by_year: dict[int, int] = {}\n        for d in days:\n            by_year[d.year] = by_year.get(d.year, 0) + 1\n\n        # Validate against per-year allowance before committing anything.\n        for year, n in by_year.items():\n            if self._used_for(employee, year) + n > self.days_per_year:\n                raise ValueError(\"Not enough leave days remaining\")\n\n        emp_usage = self._used.setdefault(employee, {})\n        for year, n in by_year.items():\n            emp_usage[year] = emp_usage.get(year, 0) + n\n\n        return count\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used_for(employee, year)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794452366,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 486,
+   "prompt_tokens": 219,
+   "total_tokens": 705,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 219
+  }
+ }
+}

@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:44:56+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 0,
+ "step": 3,
+ "change": "Add a method `receipt(self, entry: datetime, exit: datetime) -> str` that returns a one-line receipt with the duration in minutes and the fee.",
+ "start_file": "parking__deepseek__FULL__0.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nimport math\nfrom datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n        self._collected = 0.0\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration_seconds = (exit - entry).total_seconds()\n        duration_minutes = duration_seconds / 60.0\n\n        # Stays longer than 24 hours incur a flat penalty.\n        if duration_seconds > 24 * 60 * 60:\n            return 200.00\n\n        # Stays of at most 15 minutes are free.\n        if duration_minutes <= 15:\n            return 0.0\n\n        # Charge every started hour as a full hour, including the first 15 minutes.\n        hours = math.ceil(duration_seconds / 3600)\n        total = hours * self.hourly_rate\n        return round(total, 2)\n\n    def estimate(self, hours: int) -> float:\n        if hours < 0:\n            raise ValueError(\"Hours cannot be negative.\")\n\n        duration_seconds = hours * 3600\n\n        # Stays longer than 24 hours incur a flat penalty.\n        if duration_seconds > 24 * 60 * 60:\n            return 200.00\n\n        # Stays of at most 15 minutes are free.\n        if hours == 0:\n            return 0.0\n\n        return round(hours * self.hourly_rate, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        amount = self.fee(entry, exit)\n        self._collected += amount\n        return amount\n\n    def total_collected(self) -> float:\n        return round(self._collected, 2)\n```\n\n## Change request\nAdd a method `receipt(self, entry: datetime, exit: datetime) -> str` that returns a one-line receipt with the duration in minutes and the fee.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nimport math\nfrom datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n        self._collected = 0.0\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration_seconds = (exit - entry).total_seconds()\n        duration_minutes = duration_seconds / 60.0\n\n        # Stays longer than 24 hours incur a flat penalty.\n        if duration_seconds > 24 * 60 * 60:\n            return 200.00\n\n        # Stays of at most 15 minutes are free.\n        if duration_minutes <= 15:\n            return 0.0\n\n        # Charge every started hour as a full hour, including the first 15 minutes.\n        hours = math.ceil(duration_seconds / 3600)\n        total = hours * self.hourly_rate\n        return round(total, 2)\n\n    def estimate(self, hours: int) -> float:\n        if hours < 0:\n            raise ValueError(\"Hours cannot be negative.\")\n\n        duration_seconds = hours * 3600\n\n        # Stays longer than 24 hours incur a flat penalty.\n        if duration_seconds > 24 * 60 * 60:\n            return 200.00\n\n        # Stays of at most 15 minutes are free.\n        if hours == 0:\n            return 0.0\n\n        return round(hours * self.hourly_rate, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        amount = self.fee(entry, exit)\n        self._collected += amount\n        return amount\n\n    def total_collected(self) -> float:\n        return round(self._collected, 2)\n\n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n        duration_minutes = (exit - entry).total_seconds() / 60.0\n        amount = self.fee(entry, exit)\n        return f\"Parking receipt: duration {duration_minutes:.0f} minutes, fee ${amount:.2f}\"\n```",
+ "code": "import math\nfrom datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n        self._collected = 0.0\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration_seconds = (exit - entry).total_seconds()\n        duration_minutes = duration_seconds / 60.0\n\n        # Stays longer than 24 hours incur a flat penalty.\n        if duration_seconds > 24 * 60 * 60:\n            return 200.00\n\n        # Stays of at most 15 minutes are free.\n        if duration_minutes <= 15:\n            return 0.0\n\n        # Charge every started hour as a full hour, including the first 15 minutes.\n        hours = math.ceil(duration_seconds / 3600)\n        total = hours * self.hourly_rate\n        return round(total, 2)\n\n    def estimate(self, hours: int) -> float:\n        if hours < 0:\n            raise ValueError(\"Hours cannot be negative.\")\n\n        duration_seconds = hours * 3600\n\n        # Stays longer than 24 hours incur a flat penalty.\n        if duration_seconds > 24 * 60 * 60:\n            return 200.00\n\n        # Stays of at most 15 minutes are free.\n        if hours == 0:\n            return 0.0\n\n        return round(hours * self.hourly_rate, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        amount = self.fee(entry, exit)\n        self._collected += amount\n        return amount\n\n    def total_collected(self) -> float:\n        return round(self._collected, 2)\n\n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n        duration_minutes = (exit - entry).total_seconds() / 60.0\n        amount = self.fee(entry, exit)\n        return f\"Parking receipt: duration {duration_minutes:.0f} minutes, fee ${amount:.2f}\"\n",
+ "input_tokens": 487,
+ "output_tokens": 507,
+ "cost_usd": 0.0007545,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.26,
+ "raw_api_response": {
+  "id": "6cf8f155-0dc2-4f67-80ee-cd2e95d7936e",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport math\nfrom datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n        self._collected = 0.0\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration_seconds = (exit - entry).total_seconds()\n        duration_minutes = duration_seconds / 60.0\n\n        # Stays longer than 24 hours incur a flat penalty.\n        if duration_seconds > 24 * 60 * 60:\n            return 200.00\n\n        # Stays of at most 15 minutes are free.\n        if duration_minutes <= 15:\n            return 0.0\n\n        # Charge every started hour as a full hour, including the first 15 minutes.\n        hours = math.ceil(duration_seconds / 3600)\n        total = hours * self.hourly_rate\n        return round(total, 2)\n\n    def estimate(self, hours: int) -> float:\n        if hours < 0:\n            raise ValueError(\"Hours cannot be negative.\")\n\n        duration_seconds = hours * 3600\n\n        # Stays longer than 24 hours incur a flat penalty.\n        if duration_seconds > 24 * 60 * 60:\n            return 200.00\n\n        # Stays of at most 15 minutes are free.\n        if hours == 0:\n            return 0.0\n\n        return round(hours * self.hourly_rate, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        amount = self.fee(entry, exit)\n        self._collected += amount\n        return amount\n\n    def total_collected(self) -> float:\n        return round(self._collected, 2)\n\n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n        duration_minutes = (exit - entry).total_seconds() / 60.0\n        amount = self.fee(entry, exit)\n        return f\"Parking receipt: duration {duration_minutes:.0f} minutes, fee ${amount:.2f}\"\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794527088,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 507,
+   "prompt_tokens": 487,
+   "total_tokens": 994,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 487
+  }
+ }
+}

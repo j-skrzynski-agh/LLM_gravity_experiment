@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:22:16+00:00",
+ "task": "invoices",
+ "task_hash": "2f9ae38c8c1c",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 2,
+ "requirement_order": [
+  "IN1",
+  "IN2",
+  "IN3"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write code that creates invoices for my company in Poland, with consecutive invoice numbers.\n\nRequirements:\n- Invoice numbers are assigned in sequence and never repeat within a series.\n- Two invoices created at the same time cannot get the same number.\n- An issued invoice cannot be edited or deleted; changes are made with a correcting invoice.",
+ "response": "Below is a PostgreSQL and Python example. Number allocation and invoice creation happen in one transaction; PostgreSQL locks the relevant series counter, so concurrent requests cannot receive the same number.\n\n### Database schema\n\n```sql\nCREATE TABLE invoice_series (\n    series TEXT PRIMARY KEY,\n    last_number BIGINT NOT NULL CHECK (last_number > 0)\n);\n\nCREATE TABLE invoices (\n    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    series TEXT NOT NULL REFERENCES invoice_series(series),\n    number BIGINT NOT NULL CHECK (number > 0),\n    issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n\n    -- Set for a correcting invoice; NULL for an original invoice.\n    corrects_invoice_id BIGINT REFERENCES invoices(id),\n\n    -- Store the complete issued document, including seller, buyer,\n    -- line items, amounts, tax rates and correction details.\n    document JSONB NOT NULL,\n\n    UNIQUE (series, number)\n);\n\nCREATE FUNCTION prevent_invoice_changes()\nRETURNS trigger\nLANGUAGE plpgsql\nAS $$\nBEGIN\n    RAISE EXCEPTION 'Issued invoices cannot be updated or deleted';\nEND;\n$$;\n\nCREATE TRIGGER invoices_are_immutable\nBEFORE UPDATE OR DELETE ON invoices\nFOR EACH ROW EXECUTE FUNCTION prevent_invoice_changes();\n```\n\n### Invoice creation\n\nInstall the driver with `pip install \"psycopg[binary]\"`.\n\n```python\nimport os\nfrom typing import Any\n\nimport psycopg\nfrom psycopg.types.json import Jsonb\n\n\ndef issue_invoice(\n    series: str,\n    document: dict[str, Any],\n    *,\n    corrects_invoice_id: int | None = None,\n) -> dict[str, Any]:\n    if not series or \"/\" in series:\n        raise ValueError(\"Series must be nonempty and cannot contain '/'\")\n\n    # Validate all required invoice fields and amounts before issuing.\n    # Represent monetary amounts as decimal strings, not floats.\n\n    with psycopg.connect(os.environ[\"DATABASE_URL\"]) as conn:\n        with conn.cursor() as cur:\n            cur.execute(\n                \"\"\"\n                INSERT INTO invoice_series (series, last_number)\n                VALUES (%s, 1)\n                ON CONFLICT (series) DO UPDATE\n                    SET last_number = invoice_series.last_number + 1\n                RETURNING last_number\n                \"\"\",\n                (series,),\n            )\n            number = cur.fetchone()[0]\n\n            cur.execute(\n                \"\"\"\n                INSERT INTO invoices\n                    (series, number, document, corrects_invoice_id)\n                VALUES (%s, %s, %s, %s)\n                RETURNING id, issued_at\n                \"\"\",\n                (series, number, Jsonb(document), corrects_invoice_id),\n            )\n            invoice_id, issued_at = cur.fetchone()\n\n    # The connection context commits before this result is returned.\n    return {\n        \"id\": invoice_id,\n        \"invoice_number\": f\"{series}/{number}\",\n        \"issued_at\": issued_at,\n    }\n```\n\nUse `issue_invoice(..., corrects_invoice_id=original_id)` to issue a separate correcting invoice. Its document should contain the required correction information.\n\n**Production notes:** Restrict database privileges so the application cannot alter the trigger, modify counters directly, or truncate tables. Add validation for Polish invoice and correcting-invoice requirements, including VAT and any applicable KSeF obligations. For safe retries after a network failure, also add a unique client-supplied idempotency key.",
+ "input_tokens": 70,
+ "output_tokens": 875,
+ "cost_usd": 0.004445,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 10.81,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaHLrxrH6OcWcEVWBoxJcQIFuD7i",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Below is a PostgreSQL and Python example. Number allocation and invoice creation happen in one transaction; PostgreSQL locks the relevant series counter, so concurrent requests cannot receive the same number.\n\n### Database schema\n\n```sql\nCREATE TABLE invoice_series (\n    series TEXT PRIMARY KEY,\n    last_number BIGINT NOT NULL CHECK (last_number > 0)\n);\n\nCREATE TABLE invoices (\n    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    series TEXT NOT NULL REFERENCES invoice_series(series),\n    number BIGINT NOT NULL CHECK (number > 0),\n    issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n\n    -- Set for a correcting invoice; NULL for an original invoice.\n    corrects_invoice_id BIGINT REFERENCES invoices(id),\n\n    -- Store the complete issued document, including seller, buyer,\n    -- line items, amounts, tax rates and correction details.\n    document JSONB NOT NULL,\n\n    UNIQUE (series, number)\n);\n\nCREATE FUNCTION prevent_invoice_changes()\nRETURNS trigger\nLANGUAGE plpgsql\nAS $$\nBEGIN\n    RAISE EXCEPTION 'Issued invoices cannot be updated or deleted';\nEND;\n$$;\n\nCREATE TRIGGER invoices_are_immutable\nBEFORE UPDATE OR DELETE ON invoices\nFOR EACH ROW EXECUTE FUNCTION prevent_invoice_changes();\n```\n\n### Invoice creation\n\nInstall the driver with `pip install \"psycopg[binary]\"`.\n\n```python\nimport os\nfrom typing import Any\n\nimport psycopg\nfrom psycopg.types.json import Jsonb\n\n\ndef issue_invoice(\n    series: str,\n    document: dict[str, Any],\n    *,\n    corrects_invoice_id: int | None = None,\n) -> dict[str, Any]:\n    if not series or \"/\" in series:\n        raise ValueError(\"Series must be nonempty and cannot contain '/'\")\n\n    # Validate all required invoice fields and amounts before issuing.\n    # Represent monetary amounts as decimal strings, not floats.\n\n    with psycopg.connect(os.environ[\"DATABASE_URL\"]) as conn:\n        with conn.cursor() as cur:\n            cur.execute(\n                \"\"\"\n                INSERT INTO invoice_series (series, last_number)\n                VALUES (%s, 1)\n                ON CONFLICT (series) DO UPDATE\n                    SET last_number = invoice_series.last_number + 1\n                RETURNING last_number\n                \"\"\",\n                (series,),\n            )\n            number = cur.fetchone()[0]\n\n            cur.execute(\n                \"\"\"\n                INSERT INTO invoices\n                    (series, number, document, corrects_invoice_id)\n                VALUES (%s, %s, %s, %s)\n                RETURNING id, issued_at\n                \"\"\",\n                (series, number, Jsonb(document), corrects_invoice_id),\n            )\n            invoice_id, issued_at = cur.fetchone()\n\n    # The connection context commits before this result is returned.\n    return {\n        \"id\": invoice_id,\n        \"invoice_number\": f\"{series}/{number}\",\n        \"issued_at\": issued_at,\n    }\n```\n\nUse `issue_invoice(..., corrects_invoice_id=original_id)` to issue a separate correcting invoice. Its document should contain the required correction information.\n\n**Production notes:** Restrict database privileges so the application cannot alter the trigger, modify counters directly, or truncate tables. Add validation for Polish invoice and correcting-invoice requirements, including VAT and any applicable KSeF obligations. For safe retries after a network failure, also add a unique client-supplied idempotency key.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532923,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 875,
+   "prompt_tokens": 70,
+   "total_tokens": 945,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 168,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "The transactional counter increments sequentially within each series, and a unique constraint prevents duplicate numbers."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "PostgreSQL serializes concurrent updates to the series counter, preventing duplicate allocations."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "A trigger blocks updates and deletes, while the creation function supports separate invoices referencing an original invoice."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "The `invoice_series` table stores the last used number per series, and the `INSERT ... ON CONFLICT DO UPDATE SET last_number = invoice_series.last_number + 1` ensures each new invoice increments the counter sequentially within its series."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "PostgreSQL's `ON CONFLICT` with row-level locking on the `invoice_series` primary key guarantees atomic, serialized incrementing, preventing concurrent transactions from assigning the same number."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "The `prevent_invoice_changes()` function raises an exception on any UPDATE or DELETE, enforced by the `invoices_are_immutable` trigger, making issued invoices immutable; corrections are handled only via new invoices referencing `corrects_invoice_id`."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "The counter upsert and invoice insert run in one transaction, so a rollback also undoes the increment and no gaps or repeats occur, and UNIQUE(series, number) backs this up."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "The INSERT ... ON CONFLICT DO UPDATE takes a row lock on the series counter, which serializes concurrent issuers, and the UNIQUE constraint is a further safeguard."
+    },
+    "IN3": {
+     "met": false,
+     "reason": "A trigger blocks row-level UPDATE and DELETE and a correcting-invoice link exists, but TRUNCATE is not blocked, and the answer only advises restricting privileges (which does not count), so immutability is not fully enforced."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"IN1\":{\"met\":true,\"reason\":\"The transactional counter increments sequentially within each series, and a unique constraint prevents duplicate numbers.\"},\"IN2\":{\"met\":true,\"reason\":\"PostgreSQL serializes concurrent updates to the series counter, preventing duplicate allocations.\"},\"IN3\":{\"met\":true,\"reason\":\"A trigger blocks updates and deletes, while the creation function supports separate invoices referencing an original invoice.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"IN1\": {\"met\": true, \"reason\": \"The `invoice_series` table stores the last used number per series, and the `INSERT ... ON CONFLICT DO UPDATE SET last_number = invoice_series.last_number + 1` ensures each new invoice increments the counter sequentially within its series.\"},\n  \"IN2\": {\"met\": true, \"reason\": \"PostgreSQL's `ON CONFLICT` with row-level locking on the `invoice_series` primary key guarantees atomic, serialized incrementing, preventing concurrent transactions from assigning the same number.\"},\n  \"IN3\": {\"met\": true, \"reason\": \"The `prevent_invoice_changes()` function raises an exception on any UPDATE or DELETE, enforced by the `invoices_are_immutable` trigger, making issued invoices immutable; corrections are handled only via new invoices referencing `corrects_invoice_id`.\"}\n}",
+  "claude": "{\"_code\": true, \"IN1\": {\"met\": true, \"reason\": \"The counter upsert and invoice insert run in one transaction, so a rollback also undoes the increment and no gaps or repeats occur, and UNIQUE(series, number) backs this up.\"}, \"IN2\": {\"met\": true, \"reason\": \"The INSERT ... ON CONFLICT DO UPDATE takes a row lock on the series counter, which serializes concurrent issuers, and the UNIQUE constraint is a further safeguard.\"}, \"IN3\": {\"met\": false, \"reason\": \"A trigger blocks row-level UPDATE and DELETE and a correcting-invoice link exists, but TRUNCATE is not blocked, and the answer only advises restricting privileges (which does not count), so immutability is not fully enforced.\"}}"
+ },
+ "judge_cost_usd": 0.0082176
+}

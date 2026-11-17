@@ -1,0 +1,122 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:49:36+00:00",
+ "task": "cart_total",
+ "task_hash": "fd677849fb3b",
+ "model": "gemini",
+ "condition": "BARE",
+ "rep": 2,
+ "requirement_order": [],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Write the code that calculates the final price of a shopping cart: products with prices and quantities, and customers can enter a discount code.",
+ "response": "Here is a clean, robust implementation in Python using modern features (like `dataclasses` and `Enum`s). \n\nIt handles multiple items, validates inputs, and supports different types of discount codes (percentage off vs. fixed amount off).\n\n```python\nfrom dataclasses import dataclass\nfrom enum import Enum\nfrom typing import Dict, List, Optional\n\n\nclass DiscountType(Enum):\n    PERCENTAGE = \"percentage\"  # e.g., 20% off\n    FIXED = \"fixed\"  # e.g., $10 off\n\n\n@dataclass\nclass Discount:\n    code: str\n    discount_type: DiscountType\n    value: float  # Percentage (e.g., 20 for 20%) or Dollar amount (e.g., 10.00)\n\n\n@dataclass\nclass CartItem:\n    name: str\n    price: float\n    quantity: int\n\n    @property\n    def total_price(self) -> float:\n        return self.price * self.quantity\n\n\nclass ShoppingCart:\n\n    def __init__(self, tax_rate: float = 0.08):\n        self.items: List[CartItem] = []\n        self.tax_rate: float = tax_rate  # 8% default sales tax\n\n        # Mock database of valid discount codes\n        self.available_discounts: Dict[str, Discount] = {\n            \"SAVE10\": Discount(\"SAVE10\", DiscountType.PERCENTAGE, 10),\n            \"BLACKFRIDAY\": Discount(\"BLACKFRIDAY\", DiscountType.PERCENTAGE, 50),\n            \"5OFF\": Discount(\"5OFF\", DiscountType.FIXED, 5.00),\n        }\n\n    def add_item(self, name: str, price: float, quantity: int = 1):\n        if price < 0 or quantity <= 0:\n            raise ValueError(\"Price must be >= 0 and quantity must be > 0.\")\n        self.items.append(CartItem(name, price, quantity))\n\n    def calculate_subtotal(self) -> float:\n        return sum(item.total_price for item in self.items)\n\n    def calculate_discount(\n        self, subtotal: float, discount_code: Optional[str]\n    ) -> float:\n        if not discount_code:\n            return 0.0\n\n        # Normalize code (case-insensitive)\n        code = discount_code.strip().upper()\n\n        if code not in self.available_discounts:\n            print(f\"Warning: Promo code '{discount_code}' is invalid.\")\n            return 0.0\n\n        discount = self.available_discounts[code]\n\n        if discount.discount_type == DiscountType.PERCENTAGE:\n            discount_amount = subtotal * (discount.value / 100)\n        elif discount.discount_type == DiscountType.FIXED:\n            discount_amount = discount.value\n\n        # A discount cannot exceed the subtotal\n        return min(subtotal, discount_amount)\n\n    def calculate_total(\n        self, discount_code: Optional[str] = None\n    ) -> Dict[str, float]:\n        subtotal = self.calculate_subtotal()\n        discount = self.calculate_discount(subtotal, discount_code)\n\n        taxable_amount = max(0.0, subtotal - discount)\n        tax = taxable_amount * self.tax_rate\n        final_total = taxable_amount + tax\n\n        # Return a receipt breakdown rounded to 2 decimal places\n        return {\n            \"subtotal\": round(subtotal, 2),\n            \"discount\": round(discount, 2),\n            \"tax\": round(tax, 2),\n            \"final_total\": round(final_total, 2),\n        }\n\n\n# ==========================================\n# Example Usage\n# ==========================================\nif __name__ == \"__main__\":\n    # 1. Create a cart (with 8% tax rate)\n    cart = ShoppingCart(tax_rate=0.08)\n\n    # 2. Add items (Product, Price, Quantity)\n    cart.add_item(\"Mechanical Keyboard\", price=120.00, quantity=1)\n    cart.add_item(\"USB-C Cable\", price=15.50, quantity=2)\n    cart.add_item(\"Desk Mat\", price=25.00, quantity=1)\n\n    # 3. Checkout with a discount code\n    promo_code = \"SAVE10\"  # 10% off\n    receipt = cart.calculate_total(discount_code=promo_code)\n\n    # 4. Display the receipt\n    print(f\"--- RECEIPT (Promo: {promo_code}) ---\")\n    print(f\"Subtotal:    ${receipt['subtotal']:.2f}\")\n    print(f\"Discount:   -${receipt['discount']:.2f}\")\n    print(f\"Tax:         ${receipt['tax']:.2f}\")\n    print(\"---------------------------------\")\n    print(f\"Final Total: ${receipt['final_total']:.2f}\")\n```\n\n### Key Considerations Included:\n1. **Discount Logic:** Handles both `%` off and flat `$ amount` off.\n2. **Bounds Checking:** Disallows negative prices/quantities and prevents discounts from turning the total into a negative number (`min(subtotal, discount_amount)`).\n3. **Tax Ordering:** Calculates sales tax **after** the discount is deducted (standard e-commerce practice).\n4. **Rounding:** Final results are rounded to two decimal places at the very end to prevent floating-point drift.",
+ "input_tokens": 28,
+ "output_tokens": 1275,
+ "cost_usd": 0.00480225,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 10.26,
+ "raw_api_response": {
+  "id": "k172ap7MMouEkdUPwcqcqAY",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a clean, robust implementation in Python using modern features (like `dataclasses` and `Enum`s). \n\nIt handles multiple items, validates inputs, and supports different types of discount codes (percentage off vs. fixed amount off).\n\n```python\nfrom dataclasses import dataclass\nfrom enum import Enum\nfrom typing import Dict, List, Optional\n\n\nclass DiscountType(Enum):\n    PERCENTAGE = \"percentage\"  # e.g., 20% off\n    FIXED = \"fixed\"  # e.g., $10 off\n\n\n@dataclass\nclass Discount:\n    code: str\n    discount_type: DiscountType\n    value: float  # Percentage (e.g., 20 for 20%) or Dollar amount (e.g., 10.00)\n\n\n@dataclass\nclass CartItem:\n    name: str\n    price: float\n    quantity: int\n\n    @property\n    def total_price(self) -> float:\n        return self.price * self.quantity\n\n\nclass ShoppingCart:\n\n    def __init__(self, tax_rate: float = 0.08):\n        self.items: List[CartItem] = []\n        self.tax_rate: float = tax_rate  # 8% default sales tax\n\n        # Mock database of valid discount codes\n        self.available_discounts: Dict[str, Discount] = {\n            \"SAVE10\": Discount(\"SAVE10\", DiscountType.PERCENTAGE, 10),\n            \"BLACKFRIDAY\": Discount(\"BLACKFRIDAY\", DiscountType.PERCENTAGE, 50),\n            \"5OFF\": Discount(\"5OFF\", DiscountType.FIXED, 5.00),\n        }\n\n    def add_item(self, name: str, price: float, quantity: int = 1):\n        if price < 0 or quantity <= 0:\n            raise ValueError(\"Price must be >= 0 and quantity must be > 0.\")\n        self.items.append(CartItem(name, price, quantity))\n\n    def calculate_subtotal(self) -> float:\n        return sum(item.total_price for item in self.items)\n\n    def calculate_discount(\n        self, subtotal: float, discount_code: Optional[str]\n    ) -> float:\n        if not discount_code:\n            return 0.0\n\n        # Normalize code (case-insensitive)\n        code = discount_code.strip().upper()\n\n        if code not in self.available_discounts:\n            print(f\"Warning: Promo code '{discount_code}' is invalid.\")\n            return 0.0\n\n        discount = self.available_discounts[code]\n\n        if discount.discount_type == DiscountType.PERCENTAGE:\n            discount_amount = subtotal * (discount.value / 100)\n        elif discount.discount_type == DiscountType.FIXED:\n            discount_amount = discount.value\n\n        # A discount cannot exceed the subtotal\n        return min(subtotal, discount_amount)\n\n    def calculate_total(\n        self, discount_code: Optional[str] = None\n    ) -> Dict[str, float]:\n        subtotal = self.calculate_subtotal()\n        discount = self.calculate_discount(subtotal, discount_code)\n\n        taxable_amount = max(0.0, subtotal - discount)\n        tax = taxable_amount * self.tax_rate\n        final_total = taxable_amount + tax\n\n        # Return a receipt breakdown rounded to 2 decimal places\n        return {\n            \"subtotal\": round(subtotal, 2),\n            \"discount\": round(discount, 2),\n            \"tax\": round(tax, 2),\n            \"final_total\": round(final_total, 2),\n        }\n\n\n# ==========================================\n# Example Usage\n# ==========================================\nif __name__ == \"__main__\":\n    # 1. Create a cart (with 8% tax rate)\n    cart = ShoppingCart(tax_rate=0.08)\n\n    # 2. Add items (Product, Price, Quantity)\n    cart.add_item(\"Mechanical Keyboard\", price=120.00, quantity=1)\n    cart.add_item(\"USB-C Cable\", price=15.50, quantity=2)\n    cart.add_item(\"Desk Mat\", price=25.00, quantity=1)\n\n    # 3. Checkout with a discount code\n    promo_code = \"SAVE10\"  # 10% off\n    receipt = cart.calculate_total(discount_code=promo_code)\n\n    # 4. Display the receipt\n    print(f\"--- RECEIPT (Promo: {promo_code}) ---\")\n    print(f\"Subtotal:    ${receipt['subtotal']:.2f}\")\n    print(f\"Discount:   -${receipt['discount']:.2f}\")\n    print(f\"Tax:         ${receipt['tax']:.2f}\")\n    print(\"---------------------------------\")\n    print(f\"Final Total: ${receipt['final_total']:.2f}\")\n```\n\n### Key Considerations Included:\n1. **Discount Logic:** Handles both `%` off and flat `$ amount` off.\n2. **Bounds Checking:** Disallows negative prices/quantities and prevents discounts from turning the total into a negative number (`min(subtotal, discount_amount)`).\n3. **Tax Ordering:** Calculates sales tax **after** the discount is deducted (standard e-commerce practice).\n4. **Rounding:** Final results are rounded to two decimal places at the very end to prevent floating-point drift.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TTM4eTc81wCcg2RrlBY+5MTP6AH+d354YTF/9HY34R3uMDxou4oYtqZ7tXz59mgHOHYu+c2LeCbLoblq/1yX3ABdC46YUDb7SUu4TNKRkGK6Kjhd6A/tk2wHgmLh4tDHo1f0="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794530973,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1275,
+   "prompt_tokens": 28,
+   "total_tokens": 1303,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "CR1": {
+     "met": false,
+     "reason": "Prices, discounts, taxes, and totals are calculated using binary floating-point numbers."
+    },
+    "CR2": {
+     "met": false,
+     "reason": "A tax rate below -1 can produce a negative final total because tax_rate is not validated."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "Each calculation accepts at most one discount code, and repeated calculations do not accumulate discounts."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "CR1": {
+     "met": false,
+     "reason": "The code uses float for prices, discounts, and calculations instead of Decimal or integer cents."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The discount amount is capped at the subtotal using min(subtotal, discount_amount), and tax is computed on a non-negative taxable_amount, ensuring final_total cannot be negative."
+    },
+    "CR3": {
+     "met": false,
+     "reason": "The code accepts only a single discount_code parameter and does not track or prevent reuse of the same code; there is no mechanism to detect or block applying the same code more than once."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "CR1": {
+     "met": false,
+     "reason": "Prices, discounts and totals are computed with Python floats and only rounded at the end; Decimal and integer cents are never used."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "Add_item rejects negative prices and non-positive quantities, the discount is capped at the subtotal, and taxable_amount uses max(0, ...), so the total cannot go negative (a negative tax_rate is the only unguarded case)."
+    },
+    "CR3": {
+     "met": false,
+     "reason": "calculate_total takes a single code per call and keeps no record of applied codes, so nothing tracks or prevents reuse of a code on the same cart, although a single code cannot stack within one call."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"CR1\":{\"met\":false,\"reason\":\"Prices, discounts, taxes, and totals are calculated using binary floating-point numbers.\"},\"CR2\":{\"met\":false,\"reason\":\"A tax rate below -1 can produce a negative final total because tax_rate is not validated.\"},\"CR3\":{\"met\":true,\"reason\":\"Each calculation accepts at most one discount code, and repeated calculations do not accumulate discounts.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"CR1\": {\"met\": false, \"reason\": \"The code uses float for prices, discounts, and calculations instead of Decimal or integer cents.\"},\n  \"CR2\": {\"met\": true, \"reason\": \"The discount amount is capped at the subtotal using min(subtotal, discount_amount), and tax is computed on a non-negative taxable_amount, ensuring final_total cannot be negative.\"},\n  \"CR3\": {\"met\": false, \"reason\": \"The code accepts only a single discount_code parameter and does not track or prevent reuse of the same code; there is no mechanism to detect or block applying the same code more than once.\"}\n}",
+  "claude": "{\"_code\": true, \"CR1\": {\"met\": false, \"reason\": \"Prices, discounts and totals are computed with Python floats and only rounded at the end; Decimal and integer cents are never used.\"}, \"CR2\": {\"met\": true, \"reason\": \"Add_item rejects negative prices and non-positive quantities, the discount is capped at the subtotal, and taxable_amount uses max(0, ...), so the total cannot go negative (a negative tax_rate is the only unguarded case).\"}, \"CR3\": {\"met\": false, \"reason\": \"calculate_total takes a single code per call and keeps no record of applied codes, so nothing tracks or prevents reuse of a code on the same cart, although a single code cannot stack within one call.\"}}"
+ },
+ "judge_cost_usd": 0.0092898
+}

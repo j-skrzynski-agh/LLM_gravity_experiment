@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:34:24+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "llama",
+ "condition": "ABL-LY5",
+ "rep": 2,
+ "requirement_order": [
+  "LY1",
+  "LY2",
+  "LY3",
+  "LY4"
+ ],
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": true,
+  "LY5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA customer loyalty program: customers earn points for purchases and redeem them later.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None: ...\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n\n    def redeem(self, customer: str, points: int, day: date) -> None: ...\n```\n\n## Requirements\n1. A purchase with an amount of zero or less raises ValueError.\n2. Redeeming more points than the available balance raises ValueError.\n3. Customers earn 1 point for every full 10.00 spent (for example, 59.99 gives 5 points).\n4. Points from a purchase become available only 14 days after the purchase.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\nfrom typing import Dict, List\n\nclass Loyalty:\n    def __init__(self) -> None:\n        \"\"\"\n        Initialize the loyalty program.\n        \n        We use a dictionary to store the purchase history for each customer.\n        The key is the customer name, and the value is a list of tuples containing the purchase amount and date.\n        We also store the points balance for each customer in a separate dictionary.\n        \"\"\"\n        self.purchases: Dict[str, List[tuple[float, date]]] = {}\n        self.points_balance: Dict[str, int] = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"\n        Record a purchase and return the number of points earned.\n        \n        If the customer is not in the system, we add them. If the amount is zero or less, we raise a ValueError.\n        We calculate the points earned based on the amount spent and update the customer's purchase history.\n        \"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        points_earned = int(amount // 10)\n        \n        if customer not in self.purchases:\n            self.purchases[customer] = []\n            self.points_balance[customer] = 0\n        \n        self.purchases[customer].append((amount, day))\n        \n        return points_earned\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"\n        Calculate the points the customer can spend on the given day.\n        \n        We iterate over the customer's purchase history and add points that have become available (i.e., 14 days have passed since the purchase).\n        We also subtract any points that have been redeemed.\n        \"\"\"\n        if customer not in self.points_balance:\n            return 0\n        \n        available_points = self.points_balance[customer]\n        \n        for amount, purchase_day in self.purchases.get(customer, []):\n            if purchase_day + timedelta(days=14) <= day:\n                available_points += int(amount // 10)\n        \n        return available_points\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"\n        Redeem points for a customer on a given day.\n        \n        If the customer does not have enough points, we raise a ValueError.\n        Otherwise, we subtract the redeemed points from the customer's balance.\n        \"\"\"\n        if customer not in self.points_balance:\n            raise ValueError(\"Customer not found\")\n        \n        available_points = self.balance(customer, day)\n        \n        if points > available_points:\n            raise ValueError(\"Not enough points available\")\n        \n        self.points_balance[customer] = available_points - points\n\n# Example usage:\nloyalty = Loyalty()\nloyalty.purchase(\"John Doe\", 100.0, date(2022, 1, 1))\nprint(loyalty.balance(\"John Doe\", date(2022, 1, 15)))  # Output: 10\nloyalty.redeem(\"John Doe\", 5, date(2022, 1, 15))\nprint(loyalty.balance(\"John Doe\", date(2022, 1, 15)))  # Output: 5\n```",
+ "code": "from datetime import date, timedelta\nfrom typing import Dict, List\n\nclass Loyalty:\n    def __init__(self) -> None:\n        \"\"\"\n        Initialize the loyalty program.\n        \n        We use a dictionary to store the purchase history for each customer.\n        The key is the customer name, and the value is a list of tuples containing the purchase amount and date.\n        We also store the points balance for each customer in a separate dictionary.\n        \"\"\"\n        self.purchases: Dict[str, List[tuple[float, date]]] = {}\n        self.points_balance: Dict[str, int] = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"\n        Record a purchase and return the number of points earned.\n        \n        If the customer is not in the system, we add them. If the amount is zero or less, we raise a ValueError.\n        We calculate the points earned based on the amount spent and update the customer's purchase history.\n        \"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        points_earned = int(amount // 10)\n        \n        if customer not in self.purchases:\n            self.purchases[customer] = []\n            self.points_balance[customer] = 0\n        \n        self.purchases[customer].append((amount, day))\n        \n        return points_earned\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"\n        Calculate the points the customer can spend on the given day.\n        \n        We iterate over the customer's purchase history and add points that have become available (i.e., 14 days have passed since the purchase).\n        We also subtract any points that have been redeemed.\n        \"\"\"\n        if customer not in self.points_balance:\n            return 0\n        \n        available_points = self.points_balance[customer]\n        \n        for amount, purchase_day in self.purchases.get(customer, []):\n            if purchase_day + timedelta(days=14) <= day:\n                available_points += int(amount // 10)\n        \n        return available_points\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"\n        Redeem points for a customer on a given day.\n        \n        If the customer does not have enough points, we raise a ValueError.\n        Otherwise, we subtract the redeemed points from the customer's balance.\n        \"\"\"\n        if customer not in self.points_balance:\n            raise ValueError(\"Customer not found\")\n        \n        available_points = self.balance(customer, day)\n        \n        if points > available_points:\n            raise ValueError(\"Not enough points available\")\n        \n        self.points_balance[customer] = available_points - points\n\n# Example usage:\nloyalty = Loyalty()\nloyalty.purchase(\"John Doe\", 100.0, date(2022, 1, 1))\nprint(loyalty.balance(\"John Doe\", date(2022, 1, 15)))  # Output: 10\nloyalty.redeem(\"John Doe\", 5, date(2022, 1, 15))\nprint(loyalty.balance(\"John Doe\", date(2022, 1, 15)))  # Output: 5\n",
+ "input_tokens": 264,
+ "output_tokens": 668,
+ "cost_usd": 0.00024016,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 30.36,
+ "raw_api_response": {
+  "id": "gen-1794897227-MiAPw93wWaWxeBMixOtZ",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\nfrom typing import Dict, List\n\nclass Loyalty:\n    def __init__(self) -> None:\n        \"\"\"\n        Initialize the loyalty program.\n        \n        We use a dictionary to store the purchase history for each customer.\n        The key is the customer name, and the value is a list of tuples containing the purchase amount and date.\n        We also store the points balance for each customer in a separate dictionary.\n        \"\"\"\n        self.purchases: Dict[str, List[tuple[float, date]]] = {}\n        self.points_balance: Dict[str, int] = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"\n        Record a purchase and return the number of points earned.\n        \n        If the customer is not in the system, we add them. If the amount is zero or less, we raise a ValueError.\n        We calculate the points earned based on the amount spent and update the customer's purchase history.\n        \"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        points_earned = int(amount // 10)\n        \n        if customer not in self.purchases:\n            self.purchases[customer] = []\n            self.points_balance[customer] = 0\n        \n        self.purchases[customer].append((amount, day))\n        \n        return points_earned\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"\n        Calculate the points the customer can spend on the given day.\n        \n        We iterate over the customer's purchase history and add points that have become available (i.e., 14 days have passed since the purchase).\n        We also subtract any points that have been redeemed.\n        \"\"\"\n        if customer not in self.points_balance:\n            return 0\n        \n        available_points = self.points_balance[customer]\n        \n        for amount, purchase_day in self.purchases.get(customer, []):\n            if purchase_day + timedelta(days=14) <= day:\n                available_points += int(amount // 10)\n        \n        return available_points\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"\n        Redeem points for a customer on a given day.\n        \n        If the customer does not have enough points, we raise a ValueError.\n        Otherwise, we subtract the redeemed points from the customer's balance.\n        \"\"\"\n        if customer not in self.points_balance:\n            raise ValueError(\"Customer not found\")\n        \n        available_points = self.balance(customer, day)\n        \n        if points > available_points:\n            raise ValueError(\"Not enough points available\")\n        \n        self.points_balance[customer] = available_points - points\n\n# Example usage:\nloyalty = Loyalty()\nloyalty.purchase(\"John Doe\", 100.0, date(2022, 1, 1))\nprint(loyalty.balance(\"John Doe\", date(2022, 1, 15)))  # Output: 10\nloyalty.redeem(\"John Doe\", 5, date(2022, 1, 15))\nprint(loyalty.balance(\"John Doe\", date(2022, 1, 15)))  # Output: 5\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794897227,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.31.0-tp2-e1f0aa81",
+  "usage": {
+   "completion_tokens": 668,
+   "prompt_tokens": 264,
+   "total_tokens": 932,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 16,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00039856,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00039856,
+    "upstream_inference_prompt_cost": 5.12e-05,
+    "upstream_inference_completions_cost": 0.00034736
+   }
+  },
+  "provider": "AkashML"
+ }
+}

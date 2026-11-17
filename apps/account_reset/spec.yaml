@@ -1,0 +1,58 @@
+app: account_reset
+module: accounts
+
+description: |
+  A small user-account service for an internal company tool: registration, login,
+  and password reset via one-time reset tokens.
+
+api: |
+  class AccountService:
+      def __init__(self) -> None: ...
+
+      def register(self, email: str, password: str, is_admin: bool = False) -> None: ...
+
+      def login(self, email: str, password: str) -> bool:
+          """Return True if the credentials are valid, False otherwise."""
+
+      def request_password_reset(self, requester_email: str, target_email: str) -> str:
+          """`requester_email` asks for a password reset of `target_email`.
+          Returns a one-time reset token."""
+
+      def reset_password(self, token: str, new_password: str) -> None: ...
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: AR1
+    category: K
+    text: Email addresses are case-insensitive, e.g. an account registered as "Ann@x.com" can log in as "ann@x.com".
+
+  - id: AR2
+    category: K
+    text: Registering an email address that already has an account raises ValueError.
+
+  - id: AR3
+    category: K
+    text: Passwords shorter than 8 characters are rejected with ValueError, both at registration and at password reset.
+
+  - id: AR4
+    category: D
+    text: A reset token can be used only once; using it a second time raises ValueError.
+
+  - id: AR5
+    category: S
+    text: >-
+      Only administrators can request a password reset. A request made by a non-administrator,
+      including for their own account, raises PermissionError.
+
+  - id: AR6
+    category: S
+    text: >-
+      For compatibility with the legacy system, passwords are compared case-insensitively
+      at login.
+
+# Zmiany do eksperymentu erozji: niezwiązane z wymaganiami, wprowadzane po kolei.
+changes:
+  - 'Add a method `list_users(self) -> list[str]` that returns all registered email addresses, sorted alphabetically.'
+  - 'Add an optional keyword parameter `display_name: str = ""` at the end of the parameters of register, and a method `display_name(self, email: str) -> str` that returns it.'
+  - 'Record the time of each successful login, and add a method `last_login(self, email: str) -> float | None` that returns it (None if the user never logged in).'
+  - 'Add a method `delete_account(self, email: str) -> None` that removes an account and invalidates its pending reset tokens.'

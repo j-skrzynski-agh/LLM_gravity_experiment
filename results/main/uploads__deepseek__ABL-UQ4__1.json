@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:18:14+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "deepseek",
+ "condition": "ABL-UQ4",
+ "rep": 1,
+ "requirement_order": [
+  "UQ2",
+  "UQ5",
+  "UQ3",
+  "UQ1"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. An upload that would exceed the monthly limit raises ValueError, and the file is not counted.\n2. Uploading again a file with the same name in the same month does not count towards the limit a second time.\n3. The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.\n4. Uploading a file of size 0 raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> {name: size_bytes}\n        self._files: dict[str, dict[str, int]] = {}\n\n    def _month_usage(self, month: str) -> int:\n        return sum(self._files.get(month, {}).values())\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than zero.\")\n\n        files = self._files.setdefault(month, {})\n\n        # If the file already exists in this month with the same name,\n        # it does not count a second time.\n        if name in files:\n            return\n\n        current = sum(files.values())\n        if current + size_bytes > self._limit_bytes:\n            raise ValueError(\"Upload would exceed the monthly quota.\")\n\n        files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        files = self._files.get(month)\n        if files and name in files:\n            del files[name]\n\n    def used_bytes(self, month: str) -> int:\n        return self._month_usage(month)\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> {name: size_bytes}\n        self._files: dict[str, dict[str, int]] = {}\n\n    def _month_usage(self, month: str) -> int:\n        return sum(self._files.get(month, {}).values())\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than zero.\")\n\n        files = self._files.setdefault(month, {})\n\n        # If the file already exists in this month with the same name,\n        # it does not count a second time.\n        if name in files:\n            return\n\n        current = sum(files.values())\n        if current + size_bytes > self._limit_bytes:\n            raise ValueError(\"Upload would exceed the monthly quota.\")\n\n        files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        files = self._files.get(month)\n        if files and name in files:\n            del files[name]\n\n    def used_bytes(self, month: str) -> int:\n        return self._month_usage(month)\n",
+ "input_tokens": 245,
+ "output_tokens": 291,
+ "cost_usd": 0.0004227,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 1.87,
+ "raw_api_response": {
+  "id": "85a667a8-fc01-4441-adc4-90c030a3f999",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> {name: size_bytes}\n        self._files: dict[str, dict[str, int]] = {}\n\n    def _month_usage(self, month: str) -> int:\n        return sum(self._files.get(month, {}).values())\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than zero.\")\n\n        files = self._files.setdefault(month, {})\n\n        # If the file already exists in this month with the same name,\n        # it does not count a second time.\n        if name in files:\n            return\n\n        current = sum(files.values())\n        if current + size_bytes > self._limit_bytes:\n            raise ValueError(\"Upload would exceed the monthly quota.\")\n\n        files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        files = self._files.get(month)\n        if files and name in files:\n            del files[name]\n\n    def used_bytes(self, month: str) -> int:\n        return self._month_usage(month)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794453487,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 291,
+   "prompt_tokens": 245,
+   "total_tokens": 536,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 245
+  }
+ }
+}

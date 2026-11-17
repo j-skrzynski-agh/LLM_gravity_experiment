@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T00:34:35+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "gemini",
+ "variant": "code",
+ "rep": 2,
+ "step": 4,
+ "change": "Add a method `summary(self) -> str` that returns a short text with the question and the vote counts.",
+ "start_file": "poll__gemini__FULL__2.json",
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._options:\n            self._options[option] = 0\n\n    def remove_option(self, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if self._options[option] != 0:\n            raise ValueError(f\"Option '{option}' cannot be removed because it has votes.\")\n\n        del self._options[option]\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self._voters:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n\n        self._voters.add(voter)\n        self._options[option] += 1\n\n    def results(self) -> dict[str, int]:\n        return self._options.copy()\n\n    def voters(self) -> list[str]:\n        return sorted(self._voters)\n\n    def winner(self) -> str | None:\n        if len(self._voters) < 3:\n            return None\n\n        # Iterate in reverse order of addition so that in case of a tie,\n        # the option added last is preferred.\n        max_votes = -1\n        best_option = None\n\n        for option in reversed(self._options):\n            votes = self._options[option]\n            if votes > max_votes:\n                max_votes = votes\n                best_option = option\n\n        return best_option\n```\n\n## Change request\nAdd a method `summary(self) -> str` that returns a short text with the question and the vote counts.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._options:\n            self._options[option] = 0\n\n    def remove_option(self, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if self._options[option] != 0:\n            raise ValueError(f\"Option '{option}' cannot be removed because it has votes.\")\n\n        del self._options[option]\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self._voters:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n\n        self._voters.add(voter)\n        self._options[option] += 1\n\n    def results(self) -> dict[str, int]:\n        return self._options.copy()\n\n    def voters(self) -> list[str]:\n        return sorted(self._voters)\n\n    def winner(self) -> str | None:\n        if len(self._voters) < 3:\n            return None\n\n        # Iterate in reverse order of addition so that in case of a tie,\n        # the option added last is preferred.\n        max_votes = -1\n        best_option = None\n\n        for option in reversed(self._options):\n            votes = self._options[option]\n            if votes > max_votes:\n                max_votes = votes\n                best_option = option\n\n        return best_option\n\n    def summary(self) -> str:\n        lines = [self.question]\n        for option, count in self._options.items():\n            lines.append(f\"{option}: {count}\")\n        return \"\\n\".join(lines)\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._options:\n            self._options[option] = 0\n\n    def remove_option(self, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if self._options[option] != 0:\n            raise ValueError(f\"Option '{option}' cannot be removed because it has votes.\")\n\n        del self._options[option]\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self._voters:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n\n        self._voters.add(voter)\n        self._options[option] += 1\n\n    def results(self) -> dict[str, int]:\n        return self._options.copy()\n\n    def voters(self) -> list[str]:\n        return sorted(self._voters)\n\n    def winner(self) -> str | None:\n        if len(self._voters) < 3:\n            return None\n\n        # Iterate in reverse order of addition so that in case of a tie,\n        # the option added last is preferred.\n        max_votes = -1\n        best_option = None\n\n        for option in reversed(self._options):\n            votes = self._options[option]\n            if votes > max_votes:\n                max_votes = votes\n                best_option = option\n\n        return best_option\n\n    def summary(self) -> str:\n        lines = [self.question]\n        for option, count in self._options.items():\n            lines.append(f\"{option}: {count}\")\n        return \"\\n\".join(lines)\n",
+ "input_tokens": 499,
+ "output_tokens": 1279,
+ "cost_usd": 0.0051705,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 10.85,
+ "raw_api_response": {
+  "id": "C1v2asD4A-q1nsEPhN7L4Ac",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._options:\n            self._options[option] = 0\n\n    def remove_option(self, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if self._options[option] != 0:\n            raise ValueError(f\"Option '{option}' cannot be removed because it has votes.\")\n\n        del self._options[option]\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self._voters:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n\n        self._voters.add(voter)\n        self._options[option] += 1\n\n    def results(self) -> dict[str, int]:\n        return self._options.copy()\n\n    def voters(self) -> list[str]:\n        return sorted(self._voters)\n\n    def winner(self) -> str | None:\n        if len(self._voters) < 3:\n            return None\n\n        # Iterate in reverse order of addition so that in case of a tie,\n        # the option added last is preferred.\n        max_votes = -1\n        best_option = None\n\n        for option in reversed(self._options):\n            votes = self._options[option]\n            if votes > max_votes:\n                max_votes = votes\n                best_option = option\n\n        return best_option\n\n    def summary(self) -> str:\n        lines = [self.question]\n        for option, count in self._options.items():\n            lines.append(f\"{option}: {count}\")\n        return \"\\n\".join(lines)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "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"
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794530069,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 492,
+   "prompt_tokens": 499,
+   "total_tokens": 1778,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

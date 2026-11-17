@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:56:43+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "llama",
+ "condition": "ABL-AP2",
+ "rep": 2,
+ "requirement_order": [
+  "AP4",
+  "AP3",
+  "AP1",
+  "AP5"
+ ],
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": true,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for booking appointments with doctors in a small clinic.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None: ...\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n\n    def cancel(self, appointment_id: int, now: datetime) -> None: ...\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n```\n\n## Requirements\n1. Cancelling an appointment less than 24 hours before its start does not free the time slot; the slot stays blocked.\n2. Appointments that only touch (one ends exactly when the other starts) do not overlap.\n3. Booking an appointment that starts before `now` raises ValueError.\n4. A patient can have at most one upcoming appointment; booking another one while the first is still upcoming raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = {}\n        self.appointment_id = 0\n        self.patient_appointments = {}\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        \n        if patient in self.patient_appointments and self.patient_appointments[patient]['end'] > now:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not available at this time\")\n\n        self.appointment_id += 1\n        self.appointments[self.appointment_id] = {'patient': patient, 'doctor': doctor, 'start': start, 'end': end, 'cancelled': False}\n        self.patient_appointments[patient] = {'id': self.appointment_id, 'end': end}\n        return self.appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self.appointments:\n            raise ValueError(\"Appointment does not exist\")\n        \n        appointment = self.appointments[appointment_id]\n        if appointment['start'] - now < timedelta(hours=24):\n            return  # Do not free the time slot if cancelled less than 24 hours before start\n        \n        appointment['cancelled'] = True\n        self.patient_appointments[appointment['patient']] = {'id': appointment_id, 'end': now}\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        for appointment in self.appointments.values():\n            if appointment['doctor'] == doctor and not appointment['cancelled']:\n                if (start < appointment['end'] and end > appointment['start']):\n                    return False\n        return True\n\n# Example usage:\nif __name__ == \"__main__\":\n    scheduler = Scheduler()\n    now = datetime.now()\n    patient1 = \"John\"\n    doctor1 = \"Dr. Smith\"\n    start1 = now + timedelta(hours=1)\n    end1 = now + timedelta(hours=2)\n    \n    appointment_id1 = scheduler.book(patient1, doctor1, start1, end1, now)\n    print(f\"Appointment {appointment_id1} booked for {patient1} with {doctor1} from {start1} to {end1}\")\n    \n    try:\n        scheduler.book(patient1, doctor1, start1 + timedelta(hours=3), end1 + timedelta(hours=3), now)\n    except ValueError as e:\n        print(e)\n    \n    try:\n        scheduler.cancel(appointment_id1, now - timedelta(hours=1))\n    except ValueError as e:\n        print(e)\n    \n    scheduler.cancel(appointment_id1, now)\n    print(f\"Appointment {appointment_id1} cancelled\")\n```\nThis code implements the Scheduler class with the required methods. It uses a dictionary to store appointments and another dictionary to keep track of each patient's upcoming appointment. The `book` method checks for availability and patient's existing appointments, the `cancel` method checks for the time before the appointment and the `is_free` method checks for overlapping appointments. The example usage demonstrates how to use the Scheduler class.",
+ "code": "from datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = {}\n        self.appointment_id = 0\n        self.patient_appointments = {}\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        \n        if patient in self.patient_appointments and self.patient_appointments[patient]['end'] > now:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not available at this time\")\n\n        self.appointment_id += 1\n        self.appointments[self.appointment_id] = {'patient': patient, 'doctor': doctor, 'start': start, 'end': end, 'cancelled': False}\n        self.patient_appointments[patient] = {'id': self.appointment_id, 'end': end}\n        return self.appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self.appointments:\n            raise ValueError(\"Appointment does not exist\")\n        \n        appointment = self.appointments[appointment_id]\n        if appointment['start'] - now < timedelta(hours=24):\n            return  # Do not free the time slot if cancelled less than 24 hours before start\n        \n        appointment['cancelled'] = True\n        self.patient_appointments[appointment['patient']] = {'id': appointment_id, 'end': now}\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        for appointment in self.appointments.values():\n            if appointment['doctor'] == doctor and not appointment['cancelled']:\n                if (start < appointment['end'] and end > appointment['start']):\n                    return False\n        return True\n\n# Example usage:\nif __name__ == \"__main__\":\n    scheduler = Scheduler()\n    now = datetime.now()\n    patient1 = \"John\"\n    doctor1 = \"Dr. Smith\"\n    start1 = now + timedelta(hours=1)\n    end1 = now + timedelta(hours=2)\n    \n    appointment_id1 = scheduler.book(patient1, doctor1, start1, end1, now)\n    print(f\"Appointment {appointment_id1} booked for {patient1} with {doctor1} from {start1} to {end1}\")\n    \n    try:\n        scheduler.book(patient1, doctor1, start1 + timedelta(hours=3), end1 + timedelta(hours=3), now)\n    except ValueError as e:\n        print(e)\n    \n    try:\n        scheduler.cancel(appointment_id1, now - timedelta(hours=1))\n    except ValueError as e:\n        print(e)\n    \n    scheduler.cancel(appointment_id1, now)\n    print(f\"Appointment {appointment_id1} cancelled\")\n",
+ "input_tokens": 267,
+ "output_tokens": 723,
+ "cost_usd": 0.00025806,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.06,
+ "raw_api_response": {
+  "id": "gen-1794894990-t8o7WFSEcRE90O7mWoMA",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = {}\n        self.appointment_id = 0\n        self.patient_appointments = {}\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        \n        if patient in self.patient_appointments and self.patient_appointments[patient]['end'] > now:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not available at this time\")\n\n        self.appointment_id += 1\n        self.appointments[self.appointment_id] = {'patient': patient, 'doctor': doctor, 'start': start, 'end': end, 'cancelled': False}\n        self.patient_appointments[patient] = {'id': self.appointment_id, 'end': end}\n        return self.appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self.appointments:\n            raise ValueError(\"Appointment does not exist\")\n        \n        appointment = self.appointments[appointment_id]\n        if appointment['start'] - now < timedelta(hours=24):\n            return  # Do not free the time slot if cancelled less than 24 hours before start\n        \n        appointment['cancelled'] = True\n        self.patient_appointments[appointment['patient']] = {'id': appointment_id, 'end': now}\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        for appointment in self.appointments.values():\n            if appointment['doctor'] == doctor and not appointment['cancelled']:\n                if (start < appointment['end'] and end > appointment['start']):\n                    return False\n        return True\n\n# Example usage:\nif __name__ == \"__main__\":\n    scheduler = Scheduler()\n    now = datetime.now()\n    patient1 = \"John\"\n    doctor1 = \"Dr. Smith\"\n    start1 = now + timedelta(hours=1)\n    end1 = now + timedelta(hours=2)\n    \n    appointment_id1 = scheduler.book(patient1, doctor1, start1, end1, now)\n    print(f\"Appointment {appointment_id1} booked for {patient1} with {doctor1} from {start1} to {end1}\")\n    \n    try:\n        scheduler.book(patient1, doctor1, start1 + timedelta(hours=3), end1 + timedelta(hours=3), now)\n    except ValueError as e:\n        print(e)\n    \n    try:\n        scheduler.cancel(appointment_id1, now - timedelta(hours=1))\n    except ValueError as e:\n        print(e)\n    \n    scheduler.cancel(appointment_id1, now)\n    print(f\"Appointment {appointment_id1} cancelled\")\n```\nThis code implements the Scheduler class with the required methods. It uses a dictionary to store appointments and another dictionary to keep track of each patient's upcoming appointment. The `book` method checks for availability and patient's existing appointments, the `cancel` method checks for the time before the appointment and the `is_free` method checks for overlapping appointments. The example usage demonstrates how to use the Scheduler class.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794894990,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 723,
+   "prompt_tokens": 267,
+   "total_tokens": 990,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 176,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00040088,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00040088,
+    "upstream_inference_prompt_cost": 3.938e-05,
+    "upstream_inference_completions_cost": 0.0003615
+   }
+  },
+  "provider": "Parasail"
+ }
+}

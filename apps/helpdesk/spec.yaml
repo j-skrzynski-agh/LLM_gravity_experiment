@@ -1,0 +1,49 @@
+app: helpdesk
+module: helpdesk
+
+description: |
+  A ticket queue for a customer helpdesk: customers open tickets, agents take
+  the next ticket to handle, and tickets get closed.
+
+api: |
+  class Helpdesk:
+      PRIORITIES = ("normal", "high", "critical")
+
+      def __init__(self) -> None: ...
+
+      def add_customer(self, name: str, vip: bool = False) -> None: ...
+
+      def open_ticket(self, customer: str, title: str, priority: str = "normal") -> int:
+          """Open a ticket; returns its id."""
+
+      def next_ticket(self) -> int | None:
+          """Take the ticket that should be handled next out of the queue; None if the queue is empty."""
+
+      def close(self, ticket_id: int) -> None: ...
+
+      def reopen(self, ticket_id: int) -> None:
+          """Put a ticket back into the queue."""
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: HD1
+    category: K
+    text: Opening a ticket with an empty title raises ValueError.
+  - id: HD2
+    category: K
+    text: Tickets with the same priority are handled in the order in which they were opened.
+  - id: HD3
+    category: D
+    text: Critical tickets are handled before high ones, and high ones before normal ones.
+  - id: HD4
+    category: S
+    text: Tickets of VIP customers are handled before all other tickets, even critical tickets of other customers.
+  - id: HD5
+    category: S
+    text: A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.
+
+changes:
+  - 'Add a method `queue_length(self) -> int` that returns the number of tickets waiting in the queue.'
+  - 'Add an optional keyword parameter `description: str = ""` at the end of the parameters of open_ticket, and a method `ticket(self, ticket_id: int) -> dict` that returns the ticket''s data.'
+  - 'Add a method `tickets_of(self, customer: str) -> list[int]` that returns the ids of the customer''s tickets.'
+  - 'Add a method `escalate(self, ticket_id: int) -> None` that raises the priority of a waiting ticket by one level, up to critical.'

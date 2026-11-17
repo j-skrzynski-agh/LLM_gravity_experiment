@@ -1,0 +1,38 @@
+{
+ "experiment": "mock",
+ "run_id": "20261112-011350-6c93",
+ "timestamp": "2026-11-12T01:15:02+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "mock",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "AP3",
+  "AP5",
+  "AP1",
+  "AP2",
+  "AP4"
+ ],
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": true,
+  "AP5": true
+ },
+ "crashed": false,
+ "model_id": "reference",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for booking appointments with doctors in a small clinic.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None: ...\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n\n    def cancel(self, appointment_id: int, now: datetime) -> None: ...\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n```\n\n## Requirements\n1. Appointments that only touch (one ends exactly when the other starts) do not overlap.\n2. A patient can have at most one upcoming appointment; booking another one while the first is still upcoming raises ValueError.\n3. Booking an appointment that starts before `now` raises ValueError.\n4. Booking an appointment that overlaps another appointment of the same doctor raises ValueError.\n5. Cancelling an appointment less than 24 hours before its start does not free the time slot; the slot stays blocked.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\n\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania AP1\u2013AP5.\"\"\"\nfrom datetime import timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appts = {}\n        self._next = 1\n\n    def _overlaps(self, doctor, start, end):\n        return any(a[\"doctor\"] == doctor and a[\"blocks\"] and a[\"start\"] < end and start < a[\"end\"]\n                   for a in self._appts.values())\n\n    def book(self, patient, doctor, start, end, now):\n        if start < now:\n            raise ValueError(\"appointment in the past\")\n        if end <= start:\n            raise ValueError(\"end must be after start\")\n        if self._overlaps(doctor, start, end):\n            raise ValueError(\"doctor not available\")\n        if any(a[\"patient\"] == patient and a[\"active\"] and a[\"start\"] > now for a in self._appts.values()):\n            raise ValueError(\"patient already has an upcoming appointment\")\n        aid = self._next\n        self._next += 1\n        self._appts[aid] = {\"patient\": patient, \"doctor\": doctor, \"start\": start, \"end\": end,\n                            \"active\": True, \"blocks\": True}\n        return aid\n\n    def cancel(self, appointment_id, now):\n        a = self._appts[appointment_id]\n        a[\"active\"] = False\n        if a[\"start\"] - now >= timedelta(hours=24):\n            a[\"blocks\"] = False\n\n    def is_free(self, doctor, start, end):\n        return not self._overlaps(doctor, start, end)\n```",
+ "code": "\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania AP1\u2013AP5.\"\"\"\nfrom datetime import timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appts = {}\n        self._next = 1\n\n    def _overlaps(self, doctor, start, end):\n        return any(a[\"doctor\"] == doctor and a[\"blocks\"] and a[\"start\"] < end and start < a[\"end\"]\n                   for a in self._appts.values())\n\n    def book(self, patient, doctor, start, end, now):\n        if start < now:\n            raise ValueError(\"appointment in the past\")\n        if end <= start:\n            raise ValueError(\"end must be after start\")\n        if self._overlaps(doctor, start, end):\n            raise ValueError(\"doctor not available\")\n        if any(a[\"patient\"] == patient and a[\"active\"] and a[\"start\"] > now for a in self._appts.values()):\n            raise ValueError(\"patient already has an upcoming appointment\")\n        aid = self._next\n        self._next += 1\n        self._appts[aid] = {\"patient\": patient, \"doctor\": doctor, \"start\": start, \"end\": end,\n                            \"active\": True, \"blocks\": True}\n        return aid\n\n    def cancel(self, appointment_id, now):\n        a = self._appts[appointment_id]\n        a[\"active\"] = False\n        if a[\"start\"] - now >= timedelta(hours=24):\n            a[\"blocks\"] = False\n\n    def is_free(self, doctor, start, end):\n        return not self._overlaps(doctor, start, end)\n",
+ "input_tokens": 321,
+ "output_tokens": 352,
+ "cost_usd": 0.0,
+ "stop_reason": "stop",
+ "truncated": false,
+ "seconds": 0.0,
+ "raw_api_response": {
+  "mock": true
+ }
+}

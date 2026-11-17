@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:58:21+00:00",
+ "app": "cart",
+ "app_hash": "33d14211d923",
+ "model": "gemini",
+ "variant": "code",
+ "rep": 1,
+ "step": 1,
+ "change": "Add a method `items(self) -> list[dict]` that returns the items with keys name, unit_price and quantity.",
+ "start_file": "cart__gemini__FULL__1.json",
+ "passed": {
+  "CT1": true,
+  "CT2": true,
+  "CT3": true,
+  "CT4": true,
+  "CT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items: list[tuple[str, float, int]] = []\n        self.discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self.items.append((name, unit_price, quantity))\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        # Calculate subtotal before discounts\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity in self.items)\n\n        # Shipping check is against the value of items before discounts\n        # (If cart is empty, shipping is 0.0)\n        if subtotal == 0:\n            return 0.0\n\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        # Calculate potential savings from percentage discounts and vouchers\n        max_savings = 0.0\n\n        for percent in self.discounts:\n            savings = subtotal * (percent / 100.0)\n            if savings > max_savings:\n                max_savings = savings\n\n        for amount in self.vouchers:\n            # Savings cannot exceed the subtotal (unused part is lost)\n            savings = min(amount, subtotal)\n            if savings > max_savings:\n                max_savings = savings\n\n        items_total = max(0.0, subtotal - max_savings)\n\n        return round(items_total + shipping, 2)\n```\n\n## Change request\nAdd a method `items(self) -> list[dict]` that returns the items with keys name, unit_price and quantity.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the updated module with the requested `items` method added:\n\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self._items: list[tuple[str, float, int]] = []\n        self.discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self._items.append((name, unit_price, quantity))\n\n    def items(self) -> list[dict]:\n        return [\n            {\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity}\n            for name, unit_price, quantity in self._items\n        ]\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        # Calculate subtotal before discounts\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity in self._items)\n\n        # Shipping check is against the value of items before discounts\n        # (If cart is empty, shipping is 0.0)\n        if subtotal == 0:\n            return 0.0\n\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        # Calculate potential savings from percentage discounts and vouchers\n        max_savings = 0.0\n\n        for percent in self.discounts:\n            savings = subtotal * (percent / 100.0)\n            if savings > max_savings:\n                max_savings = savings\n\n        for amount in self.vouchers:\n            # Savings cannot exceed the subtotal (unused part is lost)\n            savings = min(amount, subtotal)\n            if savings > max_savings:\n                max_savings = savings\n\n        items_total = max(0.0, subtotal - max_savings)\n\n        return round(items_total + shipping, 2)\n```",
+ "code": "class Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self._items: list[tuple[str, float, int]] = []\n        self.discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self._items.append((name, unit_price, quantity))\n\n    def items(self) -> list[dict]:\n        return [\n            {\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity}\n            for name, unit_price, quantity in self._items\n        ]\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        # Calculate subtotal before discounts\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity in self._items)\n\n        # Shipping check is against the value of items before discounts\n        # (If cart is empty, shipping is 0.0)\n        if subtotal == 0:\n            return 0.0\n\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        # Calculate potential savings from percentage discounts and vouchers\n        max_savings = 0.0\n\n        for percent in self.discounts:\n            savings = subtotal * (percent / 100.0)\n            if savings > max_savings:\n                max_savings = savings\n\n        for amount in self.vouchers:\n            # Savings cannot exceed the subtotal (unused part is lost)\n            savings = min(amount, subtotal)\n            if savings > max_savings:\n                max_savings = savings\n\n        items_total = max(0.0, subtotal - max_savings)\n\n        return round(items_total + shipping, 2)\n",
+ "input_tokens": 607,
+ "output_tokens": 1200,
+ "cost_usd": 0.00495525,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 9.22,
+ "raw_api_response": {
+  "id": "jlL2avqtCayK7M8P55ye0Qs",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the updated module with the requested `items` method added:\n\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self._items: list[tuple[str, float, int]] = []\n        self.discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self._items.append((name, unit_price, quantity))\n\n    def items(self) -> list[dict]:\n        return [\n            {\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity}\n            for name, unit_price, quantity in self._items\n        ]\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        # Calculate subtotal before discounts\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity in self._items)\n\n        # Shipping check is against the value of items before discounts\n        # (If cart is empty, shipping is 0.0)\n        if subtotal == 0:\n            return 0.0\n\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        # Calculate potential savings from percentage discounts and vouchers\n        max_savings = 0.0\n\n        for percent in self.discounts:\n            savings = subtotal * (percent / 100.0)\n            if savings > max_savings:\n                max_savings = savings\n\n        for amount in self.vouchers:\n            # Savings cannot exceed the subtotal (unused part is lost)\n            savings = min(amount, subtotal)\n            if savings > max_savings:\n                max_savings = savings\n\n        items_total = max(0.0, subtotal - max_savings)\n\n        return round(items_total + shipping, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EugQCuUQAWkUfRM2ZeTrBNAEt3A9C2qaY0ysCBIh2AzhzrnJ8eUi17EoKnmaNO6BBQHwc42YYQ6Qp8NYyN23W6Um6llH642LKtJozZw/Q0GMQocujvePESTNFAftFAVRlQOyxk4H9gimINEqX2YNW2cAAYHGjTLM5h+e+BzWHkU8MrpQrcC11K45PAp+pimbPP4tWbEO0Sx2xY/671PnN4QbPq51haIT9ZcMYBybrpLuk1CQzmyzzOvod1p+YcCzYfPAepH2LKGLhT0wIjM+Qwhe13xLxqPfF2x1SLCWIEdys7vFDF7SVuMSx8Q0E1jewlqUBmmEW10d8C5VJf1D5QAhXgk8nGvCAsz1S1ZA+oKy0KmIhIiiEPE6BrLiZiCXJgYSYCmDKNCgw4fPskuFcr6OiCAG1a7fX0A9amMlBfm4Z5BiYgkgtlz1vnafs0YZTRFj96y1492rVIM2XIYlsaWIScJRamn3pJ3Um4BAV/7gXyn6eqoK0vcBJCdlnOEeT4SfhKhdMdyls207SMdbH5+Tz5q9Fc83b6/6qqj/fe8dgehtKbUSCZN3lQuBDHe85GVwGNCtwSHeMOdN7eKzvK0yUAir2dHNaum/iJ5xQ2arC8vbB+rP/AISgFhWu/PRtuzyOyCNiwZaczQyuM2ygO+ptQQBVWYhCkoKay56JFeSo4S4fuMjMGYBBZv/JS15D9Nv/16WhS+Ca7F5YWong41nwuFjnj/Ln9rjK9glOOotl+uoaoth7r1ug2Yl78Lx3z9pFgfKMycpEMFq5ytd8EvC1p06wTeFAYk0I2lMN+kSLRUGqR2FEEmXFP4J20+ZQNj9GPsU/NdgDJielwPk6Z4DwQsiXJxZpH1/hKZRC6/nBoFZqiWACZzU4aAUrCKQzSuUtNvFMM1Yo+BirPZSGCxNTaTMhcrASdA7tAZy0BJC/9qVovLK626aNn13rT02WmUelAIqtYQ10SN/bSlt9Bd7cQZZClHlGCohwZYHRgEAiNFWabgi1VfA761FpcZjPawpzLyAXt2PrPny+OlRl9ywNNsxKFkWIhgO2Of+VdxvVCvvjCYQG/O9RST2Si8n6AEj+aH6I7YfsWb5ydCTUu5sTdMjSZrKP1ieuAImyWlI0CZVkfenwYa4r//bR4GNahGfNq+jD52ewK5SBEtF4zXex6yMCfG47DjRIjB8y3HDyszMaS/4RuX1pQnHCJbGONqn9BOie1GjBSObKYr9CvjHClbwrYIOL/ZbDom0hxprvPCQqvpfIKq+jF5MJydExh6CRv4ScKk97TYc+F+q1nuYQM0cy6sGhbJ0u8o7ZOopSGKOCEtjc14eitbK4dXyJc7huah6tInG9j7bSdC1tDzHQVSLL6JUdbNyaDPGMaQIEr+Rqi7H/gAvX9pFdi9LUQHomxhOyr0ig4/2zADGOHPQF2LMW02GUXTQ7al2rEjl6YLJP/nC7q9xXjuhOGZeuXFS+d9NcqAm3lsCHmLX078LXBZL7qXEZMnRI5f2SzX0dVQFDJPMckENxvh3kvnpLgzS2eMK2Ne1+Y2/podGGbQGzssX0wpv2UeMBzBjYaTDw3EPCphxrMzcpJf7vqn3yClVhTfuDfZ+xTstSILCoobOOVuDMtGaiESYJw8CjSXU3Lwjdmg4G7PYodjD63Q89eCB6btCxeZsSMQf5sLT2c7ApYgL0UjHOWOK+Uua6d1uRUcQykoWlsHtKSPWIBNoZ/KT5q7vfdZZIMo0mlFxlDS1k9Gbmw7A21cF/ydNwNj7eqXCgXx/DWh1PyIFkyl/jZv/96Tw/bULtLrK2gfVkC1epi+38celr3ZRYnH62VIN4GCVVgZOKoAhVp6gwO5zt0QCeM29CdS2Ixn1hb5Vu07YlPBagNnxiWiB4QLxVokcQmscid2jUQX4LHFMaMYsV4nn+I2cS5RdfLyNhgoLg24WgzluWMJ059WsfKN2dTDrDbggtkrewTCEbDqALY3yZW1U9ClQb7PysPMHuoMjQQh7+frgGnXBW2rbYvx+9McUHxk297GTwk9j6i6tsyB9JByiOWgUkDNIbm58khzTId2aX8gF8z9dSRNzAlnkGzIlqenWiOozYXEIoL5uqaiFZt8Gpfkym069vWznBD2Gjs5w+QrdM5Oin2k3FYpXbVcx9u5g/RmaPFVM54roY3V+dj86WLA2g5F0UQOLQ4pj3m/vvjrxWpeWbzk/HF4f/iFm28+eVXDypROh+NsQL5i469anE6mBTwz9/7coAB5ITXy3YpgjksCj+/ASpKoI6TV2XaFbimUNUskAqD9suWCAjeJjpq8Ss2MQ6uc9SGU98l1n+zVM99bA5NltvmpXK2O4z+tZSDEvnr/87gLLeFNJDurtM6ThcgWTZPy6w+AXbct39crvRyptGvZ+BJF8C0RhZY8lgDwQx0wCl69Bpi6jMgrV6VpGxHaNsroqMLWAZZ3LYCCVvAu1F3yxVTBRrGDbEISXgV8wFQQByqPVyak9w1JoSLapid3bpyGD/b5+U7NKad/MSwR6ETTkFTBrEaRVqlpbauahJqeBaJewnWak74txJth63WeKBkNYz0P5kfxEriV9Eu4e4LNDN6gnSMG0osb4URsdldrO50NDqWiJN0dUEvLB5epRPy4U3TuCC9NVtTS8+JtulKn565xp5R6qYdBtolfmNCRQ6tKOGpNZ8leTJSnYSzjToQoUv5PxOf9E+GQBwDvSAJ21TkoAENYFEV0n1J83vKDaN5k6eZhM91nAhhUIjocqcDNn8F4x/JXzlRhOjDcZiZ4a1sJGh8dTDeakF1BeKT3onezEqx7woSjK1QIz2wTfneQo56n21pXjEHE5n9Y5xlJsm6Ddd0NHhMNoNpBE+aJT9g=="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794527895,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 611,
+   "prompt_tokens": 607,
+   "total_tokens": 1807,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

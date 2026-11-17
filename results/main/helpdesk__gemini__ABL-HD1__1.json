@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:40:38+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "gemini",
+ "condition": "ABL-HD1",
+ "rep": 1,
+ "requirement_order": [
+  "HD2",
+  "HD4",
+  "HD3",
+  "HD5"
+ ],
+ "passed": {
+  "HD1": false,
+  "HD2": true,
+  "HD3": true,
+  "HD4": true,
+  "HD5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. Tickets with the same priority are handled in the order in which they were opened.\n2. Tickets of VIP customers are handled before all other tickets, even critical tickets of other customers.\n3. Critical tickets are handled before high ones, and high ones before normal ones.\n4. A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `Helpdesk` module meeting all specifications and requirements is provided below:\n\n```python\nimport heapq\nfrom itertools import count\n\n\nclass Ticket:\n    def __init__(\n        self,\n        ticket_id: int,\n        customer: str,\n        title: str,\n        priority: str,\n        is_vip: bool,\n        order: int,\n    ) -> None:\n        self.id = ticket_id\n        self.customer = customer\n        self.title = title\n        self.priority = priority\n        self.is_vip = is_vip\n        self.order = order\n        self.is_closed = False\n        self.in_queue = True\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        # Mapping priority name to rank for max-priority sorting\n        self._priority_ranks = {\n            name: rank for rank, name in enumerate(self.PRIORITIES)\n        }\n        self._customers: dict[str, bool] = {}  # name -> is_vip\n        self._tickets: dict[int, Ticket] = {}  # ticket_id -> Ticket\n        self._queue: list[tuple[int, int, int, int]] = []\n        self._ticket_counter = count(1)\n        self._order_counter = count()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n        if priority not in self._priority_ranks:\n            raise ValueError(f\"Invalid priority: {priority}\")\n\n        ticket_id = next(self._ticket_counter)\n        order = next(self._order_counter)\n        is_vip = self._customers.get(customer, False)\n\n        ticket = Ticket(\n            ticket_id=ticket_id,\n            customer=customer,\n            title=title,\n            priority=priority,\n            is_vip=is_vip,\n            order=order,\n        )\n        self._tickets[ticket_id] = ticket\n\n        # Heap key:\n        # 1. VIP status: VIP (-1) before non-VIP (0)\n        # 2. Priority: critical (-2), high (-1), normal (0)\n        # 3. Order: earlier order numbers first\n        vip_key = -1 if is_vip else 0\n        priority_key = -self._priority_ranks[priority]\n        heapq.heappush(self._queue, (vip_key, priority_key, order, ticket_id))\n\n        return ticket_id\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n        while self._queue:\n            _, _, _, ticket_id = heapq.heappop(self._queue)\n            ticket = self._tickets.get(ticket_id)\n            if ticket and ticket.in_queue:\n                ticket.in_queue = False\n                return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        ticket = self._tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n        ticket.is_closed = True\n        ticket.in_queue = False\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n        ticket = self._tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n        if ticket.is_closed:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}.\")\n\n        if not ticket.in_queue:\n            ticket.in_queue = True\n            vip_key = -1 if ticket.is_vip else 0\n            priority_key = -self._priority_ranks[ticket.priority]\n            heapq.heappush(\n                self._queue,\n                (vip_key, priority_key, ticket.order, ticket.id),\n            )\n```",
+ "code": "import heapq\nfrom itertools import count\n\n\nclass Ticket:\n    def __init__(\n        self,\n        ticket_id: int,\n        customer: str,\n        title: str,\n        priority: str,\n        is_vip: bool,\n        order: int,\n    ) -> None:\n        self.id = ticket_id\n        self.customer = customer\n        self.title = title\n        self.priority = priority\n        self.is_vip = is_vip\n        self.order = order\n        self.is_closed = False\n        self.in_queue = True\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        # Mapping priority name to rank for max-priority sorting\n        self._priority_ranks = {\n            name: rank for rank, name in enumerate(self.PRIORITIES)\n        }\n        self._customers: dict[str, bool] = {}  # name -> is_vip\n        self._tickets: dict[int, Ticket] = {}  # ticket_id -> Ticket\n        self._queue: list[tuple[int, int, int, int]] = []\n        self._ticket_counter = count(1)\n        self._order_counter = count()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n        if priority not in self._priority_ranks:\n            raise ValueError(f\"Invalid priority: {priority}\")\n\n        ticket_id = next(self._ticket_counter)\n        order = next(self._order_counter)\n        is_vip = self._customers.get(customer, False)\n\n        ticket = Ticket(\n            ticket_id=ticket_id,\n            customer=customer,\n            title=title,\n            priority=priority,\n            is_vip=is_vip,\n            order=order,\n        )\n        self._tickets[ticket_id] = ticket\n\n        # Heap key:\n        # 1. VIP status: VIP (-1) before non-VIP (0)\n        # 2. Priority: critical (-2), high (-1), normal (0)\n        # 3. Order: earlier order numbers first\n        vip_key = -1 if is_vip else 0\n        priority_key = -self._priority_ranks[priority]\n        heapq.heappush(self._queue, (vip_key, priority_key, order, ticket_id))\n\n        return ticket_id\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n        while self._queue:\n            _, _, _, ticket_id = heapq.heappop(self._queue)\n            ticket = self._tickets.get(ticket_id)\n            if ticket and ticket.in_queue:\n                ticket.in_queue = False\n                return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        ticket = self._tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n        ticket.is_closed = True\n        ticket.in_queue = False\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n        ticket = self._tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n        if ticket.is_closed:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}.\")\n\n        if not ticket.in_queue:\n            ticket.in_queue = True\n            vip_key = -1 if ticket.is_vip else 0\n            priority_key = -self._priority_ranks[ticket.priority]\n            heapq.heappush(\n                self._queue,\n                (vip_key, priority_key, ticket.order, ticket.id),\n            )\n",
+ "input_tokens": 324,
+ "output_tokens": 998,
+ "cost_usd": 0.0039855,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 7.36,
+ "raw_api_response": {
+  "id": "KDX1aojYDMOH28oPnsC4sAE",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `Helpdesk` module meeting all specifications and requirements is provided below:\n\n```python\nimport heapq\nfrom itertools import count\n\n\nclass Ticket:\n    def __init__(\n        self,\n        ticket_id: int,\n        customer: str,\n        title: str,\n        priority: str,\n        is_vip: bool,\n        order: int,\n    ) -> None:\n        self.id = ticket_id\n        self.customer = customer\n        self.title = title\n        self.priority = priority\n        self.is_vip = is_vip\n        self.order = order\n        self.is_closed = False\n        self.in_queue = True\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        # Mapping priority name to rank for max-priority sorting\n        self._priority_ranks = {\n            name: rank for rank, name in enumerate(self.PRIORITIES)\n        }\n        self._customers: dict[str, bool] = {}  # name -> is_vip\n        self._tickets: dict[int, Ticket] = {}  # ticket_id -> Ticket\n        self._queue: list[tuple[int, int, int, int]] = []\n        self._ticket_counter = count(1)\n        self._order_counter = count()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n        if priority not in self._priority_ranks:\n            raise ValueError(f\"Invalid priority: {priority}\")\n\n        ticket_id = next(self._ticket_counter)\n        order = next(self._order_counter)\n        is_vip = self._customers.get(customer, False)\n\n        ticket = Ticket(\n            ticket_id=ticket_id,\n            customer=customer,\n            title=title,\n            priority=priority,\n            is_vip=is_vip,\n            order=order,\n        )\n        self._tickets[ticket_id] = ticket\n\n        # Heap key:\n        # 1. VIP status: VIP (-1) before non-VIP (0)\n        # 2. Priority: critical (-2), high (-1), normal (0)\n        # 3. Order: earlier order numbers first\n        vip_key = -1 if is_vip else 0\n        priority_key = -self._priority_ranks[priority]\n        heapq.heappush(self._queue, (vip_key, priority_key, order, ticket_id))\n\n        return ticket_id\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n        while self._queue:\n            _, _, _, ticket_id = heapq.heappop(self._queue)\n            ticket = self._tickets.get(ticket_id)\n            if ticket and ticket.in_queue:\n                ticket.in_queue = False\n                return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        ticket = self._tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n        ticket.is_closed = True\n        ticket.in_queue = False\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n        ticket = self._tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n        if ticket.is_closed:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}.\")\n\n        if not ticket.in_queue:\n            ticket.in_queue = True\n            vip_key = -1 if ticket.is_vip else 0\n            priority_key = -self._priority_ranks[ticket.priority]\n            heapq.heappush(\n                self._queue,\n                (vip_key, priority_key, ticket.order, ticket.id),\n            )\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0T/5qm/SIEjzC2rxMLqyruIOLEz1fS8MyO3smWzobksVChvPn3+I5zCdGo05xM8Tt/aRx0nDbSAZt4EsMLQrcJIXhvEcED+tBBEjNL+rnpc95BzkkpLv709JuB5ynstMYIQso="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794454831,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 998,
+   "prompt_tokens": 324,
+   "total_tokens": 1322,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

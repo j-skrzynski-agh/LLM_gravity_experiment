@@ -1,0 +1,87 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:33:39+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "chatgpt",
+ "condition": "ABL-ES6",
+ "rep": 2,
+ "requirement_order": [
+  "ES4",
+  "ES3",
+  "ES1",
+  "ES5",
+  "ES2"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": true,
+  "ES4": true,
+  "ES5": true,
+  "ES6": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. settle_up() proposes at most (number of members - 1) payments.\n2. Adding an expense with an amount that is zero or negative raises ValueError.\n3. Adding an expense whose payer or any participant is not a group member raises ValueError.\n4. When an amount cannot be split into equal cents, the leftover cents are borne by the payer: every other participant owes exactly the amount rounded down to the cent.\n5. If participants are not given, the expense is split equally among all group members.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom decimal import Decimal, InvalidOperation, ROUND_HALF_UP\n\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        if len(set(members)) != len(members):\n            raise ValueError(\"Group members must be unique\")\n        self._members = list(members)\n        self._balances = {member: 0 for member in members}  # cents\n\n    def add_expense(\n        self,\n        payer: str,\n        amount: float,\n        participants: list[str] | None = None,\n    ) -> None:\n        if payer not in self._balances:\n            raise ValueError(\"Payer is not a group member\")\n\n        if participants is None:\n            participants = self._members\n        if not participants:\n            raise ValueError(\"An expense must have at least one participant\")\n        if len(set(participants)) != len(participants):\n            raise ValueError(\"Participants must be unique\")\n        if any(member not in self._balances for member in participants):\n            raise ValueError(\"Participant is not a group member\")\n\n        try:\n            value = Decimal(str(amount))\n            if not value.is_finite() or value <= 0:\n                raise ValueError(\"Amount must be positive and finite\")\n            # Monetary amounts are rounded to the nearest cent.\n            cents = int((value * 100).to_integral_value(rounding=ROUND_HALF_UP))\n        except (InvalidOperation, TypeError) as exc:\n            raise ValueError(\"Invalid amount\") from exc\n\n        share = cents // len(participants)\n        for member in participants:\n            if member != payer:\n                self._balances[member] -= share\n                self._balances[payer] += share\n\n    def balances(self) -> dict[str, float]:\n        return {\n            member: cents / 100\n            for member, cents in self._balances.items()\n        }\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = [\n            [member, -cents]\n            for member, cents in self._balances.items()\n            if cents < 0\n        ]\n        creditors = [\n            [member, cents]\n            for member, cents in self._balances.items()\n            if cents > 0\n        ]\n\n        payments = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            amount = min(debtors[i][1], creditors[j][1])\n            payments.append((debtors[i][0], creditors[j][0], amount / 100))\n            debtors[i][1] -= amount\n            creditors[j][1] -= amount\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n        return payments\n```",
+ "code": "from decimal import Decimal, InvalidOperation, ROUND_HALF_UP\n\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        if len(set(members)) != len(members):\n            raise ValueError(\"Group members must be unique\")\n        self._members = list(members)\n        self._balances = {member: 0 for member in members}  # cents\n\n    def add_expense(\n        self,\n        payer: str,\n        amount: float,\n        participants: list[str] | None = None,\n    ) -> None:\n        if payer not in self._balances:\n            raise ValueError(\"Payer is not a group member\")\n\n        if participants is None:\n            participants = self._members\n        if not participants:\n            raise ValueError(\"An expense must have at least one participant\")\n        if len(set(participants)) != len(participants):\n            raise ValueError(\"Participants must be unique\")\n        if any(member not in self._balances for member in participants):\n            raise ValueError(\"Participant is not a group member\")\n\n        try:\n            value = Decimal(str(amount))\n            if not value.is_finite() or value <= 0:\n                raise ValueError(\"Amount must be positive and finite\")\n            # Monetary amounts are rounded to the nearest cent.\n            cents = int((value * 100).to_integral_value(rounding=ROUND_HALF_UP))\n        except (InvalidOperation, TypeError) as exc:\n            raise ValueError(\"Invalid amount\") from exc\n\n        share = cents // len(participants)\n        for member in participants:\n            if member != payer:\n                self._balances[member] -= share\n                self._balances[payer] += share\n\n    def balances(self) -> dict[str, float]:\n        return {\n            member: cents / 100\n            for member, cents in self._balances.items()\n        }\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = [\n            [member, -cents]\n            for member, cents in self._balances.items()\n            if cents < 0\n        ]\n        creditors = [\n            [member, cents]\n            for member, cents in self._balances.items()\n            if cents > 0\n        ]\n\n        payments = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            amount = min(debtors[i][1], creditors[j][1])\n            payments.append((debtors[i][0], creditors[j][0], amount / 100))\n            debtors[i][1] -= amount\n            creditors[j][1] -= amount\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n        return payments\n",
+ "input_tokens": 326,
+ "output_tokens": 856,
+ "cost_usd": 0.004606,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 9.81,
+ "raw_api_response": {
+  "id": "chatcmpl-EjGmwlO966UGcSTQDW8JIpC9wgInK",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom decimal import Decimal, InvalidOperation, ROUND_HALF_UP\n\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        if len(set(members)) != len(members):\n            raise ValueError(\"Group members must be unique\")\n        self._members = list(members)\n        self._balances = {member: 0 for member in members}  # cents\n\n    def add_expense(\n        self,\n        payer: str,\n        amount: float,\n        participants: list[str] | None = None,\n    ) -> None:\n        if payer not in self._balances:\n            raise ValueError(\"Payer is not a group member\")\n\n        if participants is None:\n            participants = self._members\n        if not participants:\n            raise ValueError(\"An expense must have at least one participant\")\n        if len(set(participants)) != len(participants):\n            raise ValueError(\"Participants must be unique\")\n        if any(member not in self._balances for member in participants):\n            raise ValueError(\"Participant is not a group member\")\n\n        try:\n            value = Decimal(str(amount))\n            if not value.is_finite() or value <= 0:\n                raise ValueError(\"Amount must be positive and finite\")\n            # Monetary amounts are rounded to the nearest cent.\n            cents = int((value * 100).to_integral_value(rounding=ROUND_HALF_UP))\n        except (InvalidOperation, TypeError) as exc:\n            raise ValueError(\"Invalid amount\") from exc\n\n        share = cents // len(participants)\n        for member in participants:\n            if member != payer:\n                self._balances[member] -= share\n                self._balances[payer] += share\n\n    def balances(self) -> dict[str, float]:\n        return {\n            member: cents / 100\n            for member, cents in self._balances.items()\n        }\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = [\n            [member, -cents]\n            for member, cents in self._balances.items()\n            if cents < 0\n        ]\n        creditors = [\n            [member, cents]\n            for member, cents in self._balances.items()\n            if cents > 0\n        ]\n\n        payments = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            amount = min(debtors[i][1], creditors[j][1])\n            payments.append((debtors[i][0], creditors[j][0], amount / 100))\n            debtors[i][1] -= amount\n            creditors[j][1] -= amount\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794458002,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 856,
+   "prompt_tokens": 326,
+   "total_tokens": 1182,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 255,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

@@ -1,0 +1,39 @@
+{
+ "experiment": "mock",
+ "run_id": "20261112-011350-6c93",
+ "timestamp": "2026-11-12T01:14:46+00:00",
+ "app": "account_reset",
+ "app_hash": "53e6cb5834e3",
+ "model": "mock",
+ "condition": "ABL-AR5",
+ "rep": 0,
+ "requirement_order": [
+  "AR6",
+  "AR1",
+  "AR3",
+  "AR4",
+  "AR2"
+ ],
+ "passed": {
+  "AR1": true,
+  "AR2": true,
+  "AR3": true,
+  "AR4": true,
+  "AR5": true,
+  "AR6": true
+ },
+ "crashed": false,
+ "model_id": "reference",
+ "prompt": "Implement the following Python module.\n\n## Description\nA small user-account service for an internal company tool: registration, login,\nand password reset via one-time reset tokens.\n\n## API (implement exactly these names and signatures)\n```python\nclass AccountService:\n    def __init__(self) -> None: ...\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None: ...\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n\n    def reset_password(self, token: str, new_password: str) -> None: ...\n```\n\n## Requirements\n1. For compatibility with the legacy system, passwords are compared case-insensitively at login.\n2. Email addresses are case-insensitive, e.g. an account registered as \"Ann@x.com\" can log in as \"ann@x.com\".\n3. Passwords shorter than 8 characters are rejected with ValueError, both at registration and at password reset.\n4. A reset token can be used only once; using it a second time raises ValueError.\n5. Registering an email address that already has an account raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\n\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania AR1\u2013AR6.\"\"\"\nimport secrets\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        self._users: dict[str, dict] = {}\n        self._tokens: dict[str, str] = {}\n\n    @staticmethod\n    def _norm(email: str) -> str:\n        return email.strip().lower()\n\n    @staticmethod\n    def _check_password(password: str) -> None:\n        if len(password) < 8:\n            raise ValueError(\"password too short\")\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        key = self._norm(email)\n        if key in self._users:\n            raise ValueError(\"account already exists\")\n        self._check_password(password)\n        self._users[key] = {\"password\": password, \"admin\": is_admin}\n\n    def login(self, email: str, password: str) -> bool:\n        user = self._users.get(self._norm(email))\n        return bool(user) and user[\"password\"].lower() == password.lower()\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester = self._users.get(self._norm(requester_email))\n        if requester is None or not requester[\"admin\"]:\n            raise PermissionError(\"only administrators can request a reset\")\n        target = self._norm(target_email)\n        if target not in self._users:\n            raise ValueError(\"unknown account\")\n        token = secrets.token_urlsafe(16)\n        self._tokens[token] = target\n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if token not in self._tokens:\n            raise ValueError(\"invalid or used token\")\n        self._check_password(new_password)\n        email = self._tokens.pop(token)\n        self._users[email][\"password\"] = new_password\n```",
+ "code": "\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania AR1\u2013AR6.\"\"\"\nimport secrets\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        self._users: dict[str, dict] = {}\n        self._tokens: dict[str, str] = {}\n\n    @staticmethod\n    def _norm(email: str) -> str:\n        return email.strip().lower()\n\n    @staticmethod\n    def _check_password(password: str) -> None:\n        if len(password) < 8:\n            raise ValueError(\"password too short\")\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        key = self._norm(email)\n        if key in self._users:\n            raise ValueError(\"account already exists\")\n        self._check_password(password)\n        self._users[key] = {\"password\": password, \"admin\": is_admin}\n\n    def login(self, email: str, password: str) -> bool:\n        user = self._users.get(self._norm(email))\n        return bool(user) and user[\"password\"].lower() == password.lower()\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester = self._users.get(self._norm(requester_email))\n        if requester is None or not requester[\"admin\"]:\n            raise PermissionError(\"only administrators can request a reset\")\n        target = self._norm(target_email)\n        if target not in self._users:\n            raise ValueError(\"unknown account\")\n        token = secrets.token_urlsafe(16)\n        self._tokens[token] = target\n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if token not in self._tokens:\n            raise ValueError(\"invalid or used token\")\n        self._check_password(new_password)\n        email = self._tokens.pop(token)\n        self._users[email][\"password\"] = new_password\n",
+ "input_tokens": 345,
+ "output_tokens": 441,
+ "cost_usd": 0.0,
+ "stop_reason": "stop",
+ "truncated": false,
+ "seconds": 0.01,
+ "raw_api_response": {
+  "mock": true
+ }
+}

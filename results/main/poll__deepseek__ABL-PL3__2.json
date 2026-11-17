@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:15:28+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "deepseek",
+ "condition": "ABL-PL3",
+ "rep": 2,
+ "requirement_order": [
+  "PL1",
+  "PL2",
+  "PL5",
+  "PL4"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. Voting for an option that does not exist raises ValueError.\n2. Each voter can vote only once; a second vote by the same voter raises ValueError.\n3. winner() returns None until at least 3 votes have been cast.\n4. In case of a tie, the tied option that was added last wins.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = []  # preserves order of addition\n        self.votes = {}  # voter -> option\n\n    def add_option(self, option: str) -> None:\n        if option not in self.options:\n            self.options.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self.options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self.votes:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n        self.votes[voter] = option\n\n    def winner(self) -> str | None:\n        if len(self.votes) < 3:\n            return None\n        tally = {}\n        for opt in self.options:\n            tally[opt] = 0\n        for opt in self.votes.values():\n            tally[opt] += 1\n        best = None\n        best_count = -1\n        for opt in self.options:  # later additions override ties\n            if tally[opt] >= best_count:\n                best = opt\n                best_count = tally[opt]\n        return best\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = []  # preserves order of addition\n        self.votes = {}  # voter -> option\n\n    def add_option(self, option: str) -> None:\n        if option not in self.options:\n            self.options.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self.options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self.votes:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n        self.votes[voter] = option\n\n    def winner(self) -> str | None:\n        if len(self.votes) < 3:\n            return None\n        tally = {}\n        for opt in self.options:\n            tally[opt] = 0\n        for opt in self.votes.values():\n            tally[opt] += 1\n        best = None\n        best_count = -1\n        for opt in self.options:  # later additions override ties\n            if tally[opt] >= best_count:\n                best = opt\n                best_count = tally[opt]\n        return best\n",
+ "input_tokens": 186,
+ "output_tokens": 265,
+ "cost_usd": 0.00037380000000000003,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 1.56,
+ "raw_api_response": {
+  "id": "5468c715-dee9-4694-9cad-4555b82126f6",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = []  # preserves order of addition\n        self.votes = {}  # voter -> option\n\n    def add_option(self, option: str) -> None:\n        if option not in self.options:\n            self.options.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self.options:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        if voter in self.votes:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n        self.votes[voter] = option\n\n    def winner(self) -> str | None:\n        if len(self.votes) < 3:\n            return None\n        tally = {}\n        for opt in self.options:\n            tally[opt] = 0\n        for opt in self.votes.values():\n            tally[opt] += 1\n        best = None\n        best_count = -1\n        for opt in self.options:  # later additions override ties\n            if tally[opt] >= best_count:\n                best = opt\n                best_count = tally[opt]\n        return best\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794453321,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 265,
+   "prompt_tokens": 186,
+   "total_tokens": 451,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 186
+  }
+ }
+}

@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:21:06+00:00",
+ "task": "invoices",
+ "task_hash": "2f9ae38c8c1c",
+ "model": "chatgpt",
+ "condition": "BARE",
+ "rep": 1,
+ "requirement_order": [],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write code that creates invoices for my company in Poland, with consecutive invoice numbers.",
+ "response": "Below is a Python example using SQLite to persist invoices and assign consecutive numbers such as `1/2026`, `2/2026`. Numbering restarts each year. SQLite transactions prevent duplicate numbers when invoices are created concurrently.\n\n```python\nimport json\nimport sqlite3\nfrom datetime import date\nfrom decimal import Decimal, ROUND_HALF_UP\n\nDB_PATH = \"invoices.db\"\nCENT = Decimal(\"0.01\")\n\n\ndef money(value):\n    return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)\n\n\ndef init_db():\n    with sqlite3.connect(DB_PATH) as db:\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS counters (\n                year INTEGER PRIMARY KEY,\n                last_number INTEGER NOT NULL\n            )\n        \"\"\")\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS invoices (\n                number TEXT PRIMARY KEY,\n                issue_date TEXT NOT NULL,\n                document TEXT NOT NULL\n            )\n        \"\"\")\n\n\ndef create_invoice(seller, buyer, items, sale_date=None):\n    \"\"\"\n    Items use: description, quantity, unit, net_unit_price, vat_rate.\n    vat_rate is a percentage, e.g. 23 for 23%.\n    \"\"\"\n    if not items:\n        raise ValueError(\"An invoice must have at least one item\")\n\n    issue_date = date.today()\n    sale_date = sale_date or issue_date.isoformat()\n    date.fromisoformat(sale_date)  # Validate date format.\n\n    lines = []\n    vat_groups = {}\n\n    for item in items:\n        quantity = Decimal(str(item[\"quantity\"]))\n        price = Decimal(str(item[\"net_unit_price\"]))\n        rate = Decimal(str(item[\"vat_rate\"]))\n\n        if quantity <= 0 or price < 0 or rate < 0:\n            raise ValueError(\"Invalid quantity, price, or VAT rate\")\n\n        net = money(quantity * price)\n        rate_key = format(rate.normalize(), \"f\")\n        vat_groups[rate_key] = vat_groups.get(rate_key, Decimal(\"0\")) + net\n\n        lines.append({\n            \"description\": item[\"description\"],\n            \"quantity\": str(quantity),\n            \"unit\": item[\"unit\"],\n            \"net_unit_price_pln\": str(price),\n            \"vat_rate_percent\": rate_key,\n            \"net_amount_pln\": str(net),\n        })\n\n    summary = []\n    total_net = Decimal(\"0\")\n    total_vat = Decimal(\"0\")\n\n    for rate, net in sorted(vat_groups.items()):\n        vat = money(net * Decimal(rate) / 100)\n        summary.append({\n            \"vat_rate_percent\": rate,\n            \"net_pln\": str(net),\n            \"vat_pln\": str(vat),\n        })\n        total_net += net\n        total_vat += vat\n\n    db = sqlite3.connect(DB_PATH, timeout=30)\n    try:\n        db.execute(\"BEGIN IMMEDIATE\")\n        db.execute(\n            \"INSERT OR IGNORE INTO counters (year, last_number) VALUES (?, 0)\",\n            (issue_date.year,),\n        )\n        db.execute(\n            \"UPDATE counters SET last_number = last_number + 1 WHERE year = ?\",\n            (issue_date.year,),\n        )\n        sequence = db.execute(\n            \"SELECT last_number FROM counters WHERE year = ?\",\n            (issue_date.year,),\n        ).fetchone()[0]\n\n        number = f\"{sequence}/{issue_date.year}\"\n        invoice = {\n            \"number\": number,\n            \"issue_date\": issue_date.isoformat(),\n            \"sale_date\": sale_date,\n            \"currency\": \"PLN\",\n            \"seller\": seller,\n            \"buyer\": buyer,\n            \"items\": lines,\n            \"vat_summary\": summary,\n            \"total_net_pln\": str(money(total_net)),\n            \"total_vat_pln\": str(money(total_vat)),\n            \"total_gross_pln\": str(money(total_net + total_vat)),\n        }\n\n        db.execute(\n            \"INSERT INTO invoices (number, issue_date, document) VALUES (?, ?, ?)\",\n            (number, issue_date.isoformat(),\n             json.dumps(invoice, ensure_ascii=False)),\n        )\n        db.commit()\n        return invoice\n    except Exception:\n        db.rollback()\n        raise\n    finally:\n        db.close()\n\n\nif __name__ == \"__main__\":\n    init_db()\n\n    invoice = create_invoice(\n        seller={\n            \"name\": \"Your Company\",\n            \"address\": \"Your address, Poland\",\n            \"nip\": \"YOUR_NIP\",\n        },\n        buyer={\n            \"name\": \"Customer Company\",\n            \"address\": \"Customer address\",\n            \"nip\": \"CUSTOMER_NIP\",\n        },\n        items=[{\n            \"description\": \"Consulting services\",\n            \"quantity\": \"2\",\n            \"unit\": \"hour\",\n            \"net_unit_price\": \"150.00\",\n            \"vat_rate\": \"23\",\n        }],\n    )\n    print(json.dumps(invoice, ensure_ascii=False, indent=2))\n```\n\nThe database is the source of truth for numbering; back it up and do not reset its counters. This is a starting point, not a complete Polish invoicing system: confirm required fields, VAT treatment, corrections, and applicable **KSeF** requirements with your accountant before use.",
+ "input_tokens": 22,
+ "output_tokens": 1206,
+ "cost_usd": 0.006052,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 14.35,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaGAD5zN9BKyn5hkXKP78hNlTv6T",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Below is a Python example using SQLite to persist invoices and assign consecutive numbers such as `1/2026`, `2/2026`. Numbering restarts each year. SQLite transactions prevent duplicate numbers when invoices are created concurrently.\n\n```python\nimport json\nimport sqlite3\nfrom datetime import date\nfrom decimal import Decimal, ROUND_HALF_UP\n\nDB_PATH = \"invoices.db\"\nCENT = Decimal(\"0.01\")\n\n\ndef money(value):\n    return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)\n\n\ndef init_db():\n    with sqlite3.connect(DB_PATH) as db:\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS counters (\n                year INTEGER PRIMARY KEY,\n                last_number INTEGER NOT NULL\n            )\n        \"\"\")\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS invoices (\n                number TEXT PRIMARY KEY,\n                issue_date TEXT NOT NULL,\n                document TEXT NOT NULL\n            )\n        \"\"\")\n\n\ndef create_invoice(seller, buyer, items, sale_date=None):\n    \"\"\"\n    Items use: description, quantity, unit, net_unit_price, vat_rate.\n    vat_rate is a percentage, e.g. 23 for 23%.\n    \"\"\"\n    if not items:\n        raise ValueError(\"An invoice must have at least one item\")\n\n    issue_date = date.today()\n    sale_date = sale_date or issue_date.isoformat()\n    date.fromisoformat(sale_date)  # Validate date format.\n\n    lines = []\n    vat_groups = {}\n\n    for item in items:\n        quantity = Decimal(str(item[\"quantity\"]))\n        price = Decimal(str(item[\"net_unit_price\"]))\n        rate = Decimal(str(item[\"vat_rate\"]))\n\n        if quantity <= 0 or price < 0 or rate < 0:\n            raise ValueError(\"Invalid quantity, price, or VAT rate\")\n\n        net = money(quantity * price)\n        rate_key = format(rate.normalize(), \"f\")\n        vat_groups[rate_key] = vat_groups.get(rate_key, Decimal(\"0\")) + net\n\n        lines.append({\n            \"description\": item[\"description\"],\n            \"quantity\": str(quantity),\n            \"unit\": item[\"unit\"],\n            \"net_unit_price_pln\": str(price),\n            \"vat_rate_percent\": rate_key,\n            \"net_amount_pln\": str(net),\n        })\n\n    summary = []\n    total_net = Decimal(\"0\")\n    total_vat = Decimal(\"0\")\n\n    for rate, net in sorted(vat_groups.items()):\n        vat = money(net * Decimal(rate) / 100)\n        summary.append({\n            \"vat_rate_percent\": rate,\n            \"net_pln\": str(net),\n            \"vat_pln\": str(vat),\n        })\n        total_net += net\n        total_vat += vat\n\n    db = sqlite3.connect(DB_PATH, timeout=30)\n    try:\n        db.execute(\"BEGIN IMMEDIATE\")\n        db.execute(\n            \"INSERT OR IGNORE INTO counters (year, last_number) VALUES (?, 0)\",\n            (issue_date.year,),\n        )\n        db.execute(\n            \"UPDATE counters SET last_number = last_number + 1 WHERE year = ?\",\n            (issue_date.year,),\n        )\n        sequence = db.execute(\n            \"SELECT last_number FROM counters WHERE year = ?\",\n            (issue_date.year,),\n        ).fetchone()[0]\n\n        number = f\"{sequence}/{issue_date.year}\"\n        invoice = {\n            \"number\": number,\n            \"issue_date\": issue_date.isoformat(),\n            \"sale_date\": sale_date,\n            \"currency\": \"PLN\",\n            \"seller\": seller,\n            \"buyer\": buyer,\n            \"items\": lines,\n            \"vat_summary\": summary,\n            \"total_net_pln\": str(money(total_net)),\n            \"total_vat_pln\": str(money(total_vat)),\n            \"total_gross_pln\": str(money(total_net + total_vat)),\n        }\n\n        db.execute(\n            \"INSERT INTO invoices (number, issue_date, document) VALUES (?, ?, ?)\",\n            (number, issue_date.isoformat(),\n             json.dumps(invoice, ensure_ascii=False)),\n        )\n        db.commit()\n        return invoice\n    except Exception:\n        db.rollback()\n        raise\n    finally:\n        db.close()\n\n\nif __name__ == \"__main__\":\n    init_db()\n\n    invoice = create_invoice(\n        seller={\n            \"name\": \"Your Company\",\n            \"address\": \"Your address, Poland\",\n            \"nip\": \"YOUR_NIP\",\n        },\n        buyer={\n            \"name\": \"Customer Company\",\n            \"address\": \"Customer address\",\n            \"nip\": \"CUSTOMER_NIP\",\n        },\n        items=[{\n            \"description\": \"Consulting services\",\n            \"quantity\": \"2\",\n            \"unit\": \"hour\",\n            \"net_unit_price\": \"150.00\",\n            \"vat_rate\": \"23\",\n        }],\n    )\n    print(json.dumps(invoice, ensure_ascii=False, indent=2))\n```\n\nThe database is the source of truth for numbering; back it up and do not reset its counters. This is a starting point, not a complete Polish invoicing system: confirm required fields, VAT treatment, corrections, and applicable **KSeF** requirements with your accountant before use.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532850,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1206,
+   "prompt_tokens": 22,
+   "total_tokens": 1228,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 129,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "The code persists a yearly counter and enforces unique invoice numbers with a primary key."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "An immediate SQLite transaction serializes counter updates and invoice insertion."
+    },
+    "IN3": {
+     "met": false,
+     "reason": "The database does not prevent invoice updates or deletions, and the code does not implement correcting invoices."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "The code uses a SQLite `counters` table with an atomic `UPDATE` to increment `last_number` per year, ensuring sequential, non-repeating numbers within each year's series (e.g., `1/2026`, `2/2026`)."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "The code uses `BEGIN IMMEDIATE` and an `UPDATE` with `WHERE year = ?`, which serializes concurrent writes to the same year\u2019s counter, preventing two invoices from receiving the same number."
+    },
+    "IN3": {
+     "met": false,
+     "reason": "The code provides no mechanism to prevent editing or deletion of issued invoices; the `invoices` table has no immutability safeguards (e.g., no triggers, no `UPDATE`/`DELETE` restrictions), and the `create_invoice` function does not enforce correction-only changes."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "A per-year counter is incremented inside a BEGIN IMMEDIATE transaction and the number is the primary key of invoices, so numbers are sequential and cannot repeat within a year's series."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "BEGIN IMMEDIATE takes a write lock for the whole counter update and insert, with a 30s timeout, so concurrent creations get serialized and receive distinct numbers."
+    },
+    "IN3": {
+     "met": false,
+     "reason": "Nothing prevents editing or deleting rows in the invoices table (no triggers, permissions, or immutability), and there is no correcting invoice functionality."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"IN1\":{\"met\":true,\"reason\":\"The code persists a yearly counter and enforces unique invoice numbers with a primary key.\"},\"IN2\":{\"met\":true,\"reason\":\"An immediate SQLite transaction serializes counter updates and invoice insertion.\"},\"IN3\":{\"met\":false,\"reason\":\"The database does not prevent invoice updates or deletions, and the code does not implement correcting invoices.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"IN1\": {\"met\": true, \"reason\": \"The code uses a SQLite `counters` table with an atomic `UPDATE` to increment `last_number` per year, ensuring sequential, non-repeating numbers within each year's series (e.g., `1/2026`, `2/2026`).\"},\n  \"IN2\": {\"met\": true, \"reason\": \"The code uses `BEGIN IMMEDIATE` and an `UPDATE` with `WHERE year = ?`, which serializes concurrent writes to the same year\u2019s counter, preventing two invoices from receiving the same number.\"},\n  \"IN3\": {\"met\": false, \"reason\": \"The code provides no mechanism to prevent editing or deletion of issued invoices; the `invoices` table has no immutability safeguards (e.g., no triggers, no `UPDATE`/`DELETE` restrictions), and the `create_invoice` function does not enforce correction-only changes.\"}\n}",
+  "claude": "{\"_code\": true, \"IN1\": {\"met\": true, \"reason\": \"A per-year counter is incremented inside a BEGIN IMMEDIATE transaction and the number is the primary key of invoices, so numbers are sequential and cannot repeat within a year's series.\"}, \"IN2\": {\"met\": true, \"reason\": \"BEGIN IMMEDIATE takes a write lock for the whole counter update and insert, with a 30s timeout, so concurrent creations get serialized and receive distinct numbers.\"}, \"IN3\": {\"met\": false, \"reason\": \"Nothing prevents editing or deleting rows in the invoices table (no triggers, permissions, or immutability), and there is no correcting invoice functionality.\"}}"
+ },
+ "judge_cost_usd": 0.009263799999999999
+}

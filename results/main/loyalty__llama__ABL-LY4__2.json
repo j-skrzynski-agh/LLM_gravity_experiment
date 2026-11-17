@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:33:20+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "llama",
+ "condition": "ABL-LY4",
+ "rep": 2,
+ "requirement_order": [
+  "LY2",
+  "LY3",
+  "LY5",
+  "LY1"
+ ],
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": false,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA customer loyalty program: customers earn points for purchases and redeem them later.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None: ...\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n\n    def redeem(self, customer: str, points: int, day: date) -> None: ...\n```\n\n## Requirements\n1. Redeeming more points than the available balance raises ValueError.\n2. Customers earn 1 point for every full 10.00 spent (for example, 59.99 gives 5 points).\n3. Points can be redeemed only in multiples of 100; other amounts raise ValueError.\n4. A purchase with an amount of zero or less raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self.customers = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n\n        points_earned = int(amount // 10)\n        if customer not in self.customers:\n            self.customers[customer] = {\"purchases\": [], \"redemptions\": []}\n        \n        self.customers[customer][\"purchases\"].append((amount, day))\n        return points_earned\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        if customer not in self.customers:\n            return 0\n        \n        points_earned = sum(int(amount // 10) for amount, purchase_day in self.customers[customer][\"purchases\"] if purchase_day <= day)\n        points_redeemed = sum(points for points, redemption_day in self.customers[customer][\"redemptions\"] if redemption_day <= day)\n        \n        return points_earned - points_redeemed\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points.\"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        \n        if points > self.balance(customer, day):\n            raise ValueError(\"Insufficient points to redeem\")\n        \n        if customer not in self.customers:\n            self.customers[customer] = {\"purchases\": [], \"redemptions\": []}\n        \n        self.customers[customer][\"redemptions\"].append((points, day))\n```\n\nThis implementation meets all the requirements specified:\n\n- The `purchase` method records a purchase, calculates the points earned, and stores the purchase details.\n- The `balance` method calculates the available points for a customer on a given day by summing up the points earned from purchases and subtracting the points redeemed.\n- The `redeem` method allows customers to redeem points, but only in multiples of 100 and if they have sufficient points available.\n\nThe implementation uses a dictionary to store customer data, with each customer having a list of purchases and redemptions. This allows for efficient calculation of points earned and redeemed. The `purchase` and `redeem` methods update the customer data accordingly, and the `balance` method calculates the available points based on this data.",
+ "code": "from datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self.customers = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n\n        points_earned = int(amount // 10)\n        if customer not in self.customers:\n            self.customers[customer] = {\"purchases\": [], \"redemptions\": []}\n        \n        self.customers[customer][\"purchases\"].append((amount, day))\n        return points_earned\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        if customer not in self.customers:\n            return 0\n        \n        points_earned = sum(int(amount // 10) for amount, purchase_day in self.customers[customer][\"purchases\"] if purchase_day <= day)\n        points_redeemed = sum(points for points, redemption_day in self.customers[customer][\"redemptions\"] if redemption_day <= day)\n        \n        return points_earned - points_redeemed\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points.\"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        \n        if points > self.balance(customer, day):\n            raise ValueError(\"Insufficient points to redeem\")\n        \n        if customer not in self.customers:\n            self.customers[customer] = {\"purchases\": [], \"redemptions\": []}\n        \n        self.customers[customer][\"redemptions\"].append((points, day))\n",
+ "input_tokens": 266,
+ "output_tokens": 539,
+ "cost_usd": 0.00019907999999999997,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 10.44,
+ "raw_api_response": {
+  "id": "gen-1794897184-l17UVf2CbxAtKIFjcPqN",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self.customers = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n\n        points_earned = int(amount // 10)\n        if customer not in self.customers:\n            self.customers[customer] = {\"purchases\": [], \"redemptions\": []}\n        \n        self.customers[customer][\"purchases\"].append((amount, day))\n        return points_earned\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        if customer not in self.customers:\n            return 0\n        \n        points_earned = sum(int(amount // 10) for amount, purchase_day in self.customers[customer][\"purchases\"] if purchase_day <= day)\n        points_redeemed = sum(points for points, redemption_day in self.customers[customer][\"redemptions\"] if redemption_day <= day)\n        \n        return points_earned - points_redeemed\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points.\"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        \n        if points > self.balance(customer, day):\n            raise ValueError(\"Insufficient points to redeem\")\n        \n        if customer not in self.customers:\n            self.customers[customer] = {\"purchases\": [], \"redemptions\": []}\n        \n        self.customers[customer][\"redemptions\"].append((points, day))\n```\n\nThis implementation meets all the requirements specified:\n\n- The `purchase` method records a purchase, calculates the points earned, and stores the purchase details.\n- The `balance` method calculates the available points for a customer on a given day by summing up the points earned from purchases and subtracting the points redeemed.\n- The `redeem` method allows customers to redeem points, but only in multiples of 100 and if they have sufficient points available.\n\nThe implementation uses a dictionary to store customer data, with each customer having a list of purchases and redemptions. This allows for efficient calculation of points earned and redeemed. The `purchase` and `redeem` methods update the customer data accordingly, and the `balance` method calculates the available points based on this data.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794897184,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.31.0-tp2-260b81aa",
+  "usage": {
+   "completion_tokens": 539,
+   "prompt_tokens": 266,
+   "total_tokens": 805,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 176,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00031588,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00031588,
+    "upstream_inference_prompt_cost": 3.56e-05,
+    "upstream_inference_completions_cost": 0.00028028
+   }
+  },
+  "provider": "AkashML"
+ }
+}

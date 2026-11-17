@@ -1,0 +1,39 @@
+app: parking
+module: parking
+
+description: |
+  A parking meter that computes the parking fee for a single stay.
+
+api: |
+  from datetime import datetime
+
+  class ParkingMeter:
+      def __init__(self, hourly_rate: float = 4.0) -> None: ...
+
+      def fee(self, entry: datetime, exit: datetime) -> float: ...
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: PK1
+    category: K
+    text: An exit time earlier than the entry time raises ValueError.
+  - id: PK2
+    category: K
+    text: The fee is rounded to two decimal places.
+  - id: PK3
+    category: D
+    text: Every started hour is charged as a full hour.
+  - id: PK4
+    category: S
+    text: >-
+      Stays of at most 15 minutes are free, but longer stays are charged for their whole
+      duration, including the first 15 minutes.
+  - id: PK5
+    category: S
+    text: Stays longer than 24 hours are charged a flat penalty of 200.00 instead of the hourly rate.
+
+changes:
+  - 'Add a method `record(self, entry: datetime, exit: datetime) -> float` that computes the fee, stores it, and returns it, and a method `total_collected(self) -> float`.'
+  - 'Add a method `estimate(self, hours: int) -> float` that returns the fee for a stay of exactly the given number of hours.'
+  - 'Add a method `receipt(self, entry: datetime, exit: datetime) -> str` that returns a one-line receipt with the duration in minutes and the fee.'
+  - 'Add an attribute `currency` set to "PLN" by an optional constructor parameter `currency: str = "PLN"`, and include it in the receipt.'

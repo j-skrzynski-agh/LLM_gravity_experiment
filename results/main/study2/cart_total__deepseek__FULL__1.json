@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:32:38+00:00",
+ "task": "cart_total",
+ "task_hash": "fd677849fb3b",
+ "model": "deepseek",
+ "condition": "FULL",
+ "rep": 1,
+ "requirement_order": [
+  "CR1",
+  "CR2",
+  "CR3"
+ ],
+ "model_id": "deepseek-flash",
+ "prompt": "Write the code that calculates the final price of a shopping cart: products with prices and quantities, and customers can enter a discount code.\n\nRequirements:\n- Money is not computed with binary floating point; Decimal or integer cents are used.\n- The final price can never be negative.\n- The same discount code cannot be applied more than once to the same cart.",
+ "response": "# Shopping Cart Price Calculator\n\nBelow is a production-quality implementation using `Decimal` for money, guarding against negative totals, and preventing duplicate discount codes per cart.\n\n```python\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass, field\nfrom decimal import Decimal, ROUND_HALF_UP\nfrom typing import Optional\n\n\n# ---------------------------------------------------------------------------\n# Money helpers\n# ---------------------------------------------------------------------------\nCENTS = Decimal(\"0.01\")\n\n\ndef _q(amount: Decimal) -> Decimal:\n    \"\"\"Quantize to cents, round half-up (standard retail rounding).\"\"\"\n    return amount.quantize(CENTS, rounding=ROUND_HALF_UP)\n\n\n# ---------------------------------------------------------------------------\n# Domain objects\n# ---------------------------------------------------------------------------\n@dataclass(frozen=True)\nclass Product:\n    sku: str\n    name: str\n    price: Decimal  # must be >= 0\n\n\n@dataclass\nclass LineItem:\n    product: Product\n    quantity: int\n\n    def __post_init__(self) -> None:\n        if self.quantity <= 0:\n            raise ValueError(f\"Quantity for {self.product.sku} must be > 0\")\n        if self.product.price < 0:\n            raise ValueError(f\"Price for {self.product.sku} must be >= 0\")\n\n    @property\n    def subtotal(self) -> Decimal:\n        return _q(self.product.price * self.quantity)\n\n\n# ---------------------------------------------------------------------------\n# Discounts\n# ---------------------------------------------------------------------------\nclass Discount:\n    \"\"\"Base class for a discount strategy.\"\"\"\n    code: str\n\n    def apply(self, subtotal: Decimal) -> Decimal:\n        \"\"\"Return the amount to subtract (>= 0). Never returns a negative.\"\"\"\n        raise NotImplementedError\n\n\n@dataclass(frozen=True)\nclass PercentageDiscount(Discount):\n    code: str\n    percent: Decimal  # e.g. Decimal(\"10\") for 10%\n\n    def __post_init__(self) -> None:\n        if not (Decimal(\"0\") <= self.percent <= Decimal(\"100\")):\n            raise ValueError(f\"Invalid percent: {self.percent}\")\n\n    def apply(self, subtotal: Decimal) -> Decimal:\n        discount = subtotal * self.percent / Decimal(\"100\")\n        return _q(max(Decimal(\"0\"), discount))\n\n\n@dataclass(frozen=True)\nclass FixedAmountDiscount(Discount):\n    code: str\n    amount: Decimal\n\n    def __post_init__(self) -> None:\n        if self.amount < 0:\n            raise ValueError(\"Discount amount must be >= 0\")\n\n    def apply(self, subtotal: Decimal) -> Decimal:\n        # Cannot exceed the subtotal (no negative final price).\n        return _q(min(self.amount, subtotal))\n\n\n# ---------------------------------------------------------------------------\n# Cart\n# ---------------------------------------------------------------------------\nclass DiscountAlreadyApplied(Exception):\n    pass\n\n\n@dataclass\nclass ShoppingCart:\n    items: list[LineItem] = field(default_factory=list)\n    # Tracks applied codes so the same code is never applied twice.\n    _applied_codes: set[str] = field(default_factory=set)\n    _applied_discounts: list[Discount] = field(default_factory=list)\n\n    # -- Mutation -----------------------------------------------------------\n    def add_item(self, product: Product, quantity: int = 1) -> None:\n        # Merge with existing line for the same SKU for tidiness.\n        for line in self.items:\n            if line.product.sku == product.sku:\n                line.quantity += quantity\n                return\n        self.items.append(LineItem(product, quantity))\n\n    def apply_discount(self, discount: Discount) -> None:\n        code = discount.code.strip().upper()\n        if not code:\n            raise ValueError(\"Discount code must not be empty\")\n        if code in self._applied_codes:\n            raise DiscountAlreadyApplied(\n                f\"Discount code '{code}' has already been applied to this cart\"\n            )\n        self._applied_codes.add(code)\n        self._applied_discounts.append(discount)\n\n    # -- Totals -------------------------------------------------------------\n    @property\n    def subtotal(self) -> Decimal:\n        total = sum((line.subtotal for line in self.items), start=Decimal(\"0.00\"))\n        return _q(total)\n\n    def final_price(self) -> Decimal:\n        subtotal = self.subtotal\n        remaining = subtotal\n\n        # Apply discounts sequentially; each discount can only reduce what's left.\n        for discount in self._applied_discounts:\n            amount = discount.apply(remaining)\n            # Defensive clamp: never let remaining drop below zero.\n            remaining = max(Decimal(\"0.00\"), _q(remaining - amount))\n\n        # Belt-and-braces: final price is never negative.\n        return max(Decimal(\"0.00\"), _q(remaining))\n\n\n# ---------------------------------------------------------------------------\n# Demo / tests\n# ---------------------------------------------------------------------------\nif __name__ == \"__main__\":\n    cart = ShoppingCart()\n\n    cart.add_item(Product(\"A1\", \"Coffee beans\", Decimal(\"12.50\")), quantity=2)\n    cart.add_item(Product(\"B7\", \"Mug\", Decimal(\"8.00\")), quantity=1)\n\n    print(f\"Subtotal:      {cart.subtotal}\")\n\n    cart.apply_discount(PercentageDiscount(\"SAVE10\", Decimal(\"10\")))\n    cart.apply_discount(FixedAmountDiscount(\"OFF5\", Decimal(\"5.00\")))\n\n    print(f\"Final price:   {cart.final_price()}\")\n\n    # Re-applying the same code raises.\n    try:\n        cart.apply_discount(PercentageDiscount(\"save10\", Decimal(\"10\")))\n    except DiscountAlreadyApplied as exc:\n        print(f\"Blocked:       {exc}\")\n\n    # Over-discounting: fixed amount larger than subtotal clamps to zero.\n    big_cart = ShoppingCart()\n    big_cart.add_item(Product(\"X\", \"Cheap item\", Decimal(\"3.00\")), quantity=1)\n    big_cart.apply_discount(FixedAmountDiscount(\"HUGE\", Decimal(\"100.00\")))\n    print(f\"Clamped price: {big_cart.final_price()}\")  # 0.00, never negative\n```\n\n## Design notes\n\n**Money safety**\n- All prices are `Decimal`. The `_q()` helper quantizes to cents with `ROUND_HALF_UP`, which is the conventional retail rounding mode.\n- Every intermediate result goes through `_q()`, so no hidden sub-cent precision leaks into the final total.\n\n**Non-negative final price**\n- `FixedAmountDiscount.apply()` clamps the discount to the current remaining amount.\n- `ShoppingCart.final_price()` additionally clamps the running total with `max(Decimal(\"0.00\"), ...)` after each step \u2014 so even a badly-behaved future discount subclass can't produce a negative result.\n\n**Idempotent discount codes**\n- Codes are normalized (`strip().upper()`) before storage so `\"SAVE10\"` and `\"save10 \"` are treated as the same code.\n- `_applied_codes` is a `set`, so calling `apply_discount` with an already-used code raises `DiscountAlreadyApplied`. This is the explicit \"same code cannot be applied more than once to the same cart\" guarantee.\n\n**Extensibility**\n- `Discount` is a strategy base class. Additional rules (BOGO, category discounts, minimum-spend thresholds) just implement `apply(subtotal)`.\n\n## Example output\n\n```\nSubtotal:      33.00\nFinal price:   24.70\nBlocked:       Discount code 'SAVE10' has already been applied to this cart\nClamped price: 0.00\n```",
+ "input_tokens": 75,
+ "output_tokens": 1626,
+ "cost_usd": 0.0019736999999999997,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 7.78,
+ "raw_api_response": {
+  "id": "199725be-4e0b-4c63-96c4-beab7c57f45f",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "# Shopping Cart Price Calculator\n\nBelow is a production-quality implementation using `Decimal` for money, guarding against negative totals, and preventing duplicate discount codes per cart.\n\n```python\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass, field\nfrom decimal import Decimal, ROUND_HALF_UP\nfrom typing import Optional\n\n\n# ---------------------------------------------------------------------------\n# Money helpers\n# ---------------------------------------------------------------------------\nCENTS = Decimal(\"0.01\")\n\n\ndef _q(amount: Decimal) -> Decimal:\n    \"\"\"Quantize to cents, round half-up (standard retail rounding).\"\"\"\n    return amount.quantize(CENTS, rounding=ROUND_HALF_UP)\n\n\n# ---------------------------------------------------------------------------\n# Domain objects\n# ---------------------------------------------------------------------------\n@dataclass(frozen=True)\nclass Product:\n    sku: str\n    name: str\n    price: Decimal  # must be >= 0\n\n\n@dataclass\nclass LineItem:\n    product: Product\n    quantity: int\n\n    def __post_init__(self) -> None:\n        if self.quantity <= 0:\n            raise ValueError(f\"Quantity for {self.product.sku} must be > 0\")\n        if self.product.price < 0:\n            raise ValueError(f\"Price for {self.product.sku} must be >= 0\")\n\n    @property\n    def subtotal(self) -> Decimal:\n        return _q(self.product.price * self.quantity)\n\n\n# ---------------------------------------------------------------------------\n# Discounts\n# ---------------------------------------------------------------------------\nclass Discount:\n    \"\"\"Base class for a discount strategy.\"\"\"\n    code: str\n\n    def apply(self, subtotal: Decimal) -> Decimal:\n        \"\"\"Return the amount to subtract (>= 0). Never returns a negative.\"\"\"\n        raise NotImplementedError\n\n\n@dataclass(frozen=True)\nclass PercentageDiscount(Discount):\n    code: str\n    percent: Decimal  # e.g. Decimal(\"10\") for 10%\n\n    def __post_init__(self) -> None:\n        if not (Decimal(\"0\") <= self.percent <= Decimal(\"100\")):\n            raise ValueError(f\"Invalid percent: {self.percent}\")\n\n    def apply(self, subtotal: Decimal) -> Decimal:\n        discount = subtotal * self.percent / Decimal(\"100\")\n        return _q(max(Decimal(\"0\"), discount))\n\n\n@dataclass(frozen=True)\nclass FixedAmountDiscount(Discount):\n    code: str\n    amount: Decimal\n\n    def __post_init__(self) -> None:\n        if self.amount < 0:\n            raise ValueError(\"Discount amount must be >= 0\")\n\n    def apply(self, subtotal: Decimal) -> Decimal:\n        # Cannot exceed the subtotal (no negative final price).\n        return _q(min(self.amount, subtotal))\n\n\n# ---------------------------------------------------------------------------\n# Cart\n# ---------------------------------------------------------------------------\nclass DiscountAlreadyApplied(Exception):\n    pass\n\n\n@dataclass\nclass ShoppingCart:\n    items: list[LineItem] = field(default_factory=list)\n    # Tracks applied codes so the same code is never applied twice.\n    _applied_codes: set[str] = field(default_factory=set)\n    _applied_discounts: list[Discount] = field(default_factory=list)\n\n    # -- Mutation -----------------------------------------------------------\n    def add_item(self, product: Product, quantity: int = 1) -> None:\n        # Merge with existing line for the same SKU for tidiness.\n        for line in self.items:\n            if line.product.sku == product.sku:\n                line.quantity += quantity\n                return\n        self.items.append(LineItem(product, quantity))\n\n    def apply_discount(self, discount: Discount) -> None:\n        code = discount.code.strip().upper()\n        if not code:\n            raise ValueError(\"Discount code must not be empty\")\n        if code in self._applied_codes:\n            raise DiscountAlreadyApplied(\n                f\"Discount code '{code}' has already been applied to this cart\"\n            )\n        self._applied_codes.add(code)\n        self._applied_discounts.append(discount)\n\n    # -- Totals -------------------------------------------------------------\n    @property\n    def subtotal(self) -> Decimal:\n        total = sum((line.subtotal for line in self.items), start=Decimal(\"0.00\"))\n        return _q(total)\n\n    def final_price(self) -> Decimal:\n        subtotal = self.subtotal\n        remaining = subtotal\n\n        # Apply discounts sequentially; each discount can only reduce what's left.\n        for discount in self._applied_discounts:\n            amount = discount.apply(remaining)\n            # Defensive clamp: never let remaining drop below zero.\n            remaining = max(Decimal(\"0.00\"), _q(remaining - amount))\n\n        # Belt-and-braces: final price is never negative.\n        return max(Decimal(\"0.00\"), _q(remaining))\n\n\n# ---------------------------------------------------------------------------\n# Demo / tests\n# ---------------------------------------------------------------------------\nif __name__ == \"__main__\":\n    cart = ShoppingCart()\n\n    cart.add_item(Product(\"A1\", \"Coffee beans\", Decimal(\"12.50\")), quantity=2)\n    cart.add_item(Product(\"B7\", \"Mug\", Decimal(\"8.00\")), quantity=1)\n\n    print(f\"Subtotal:      {cart.subtotal}\")\n\n    cart.apply_discount(PercentageDiscount(\"SAVE10\", Decimal(\"10\")))\n    cart.apply_discount(FixedAmountDiscount(\"OFF5\", Decimal(\"5.00\")))\n\n    print(f\"Final price:   {cart.final_price()}\")\n\n    # Re-applying the same code raises.\n    try:\n        cart.apply_discount(PercentageDiscount(\"save10\", Decimal(\"10\")))\n    except DiscountAlreadyApplied as exc:\n        print(f\"Blocked:       {exc}\")\n\n    # Over-discounting: fixed amount larger than subtotal clamps to zero.\n    big_cart = ShoppingCart()\n    big_cart.add_item(Product(\"X\", \"Cheap item\", Decimal(\"3.00\")), quantity=1)\n    big_cart.apply_discount(FixedAmountDiscount(\"HUGE\", Decimal(\"100.00\")))\n    print(f\"Clamped price: {big_cart.final_price()}\")  # 0.00, never negative\n```\n\n## Design notes\n\n**Money safety**\n- All prices are `Decimal`. The `_q()` helper quantizes to cents with `ROUND_HALF_UP`, which is the conventional retail rounding mode.\n- Every intermediate result goes through `_q()`, so no hidden sub-cent precision leaks into the final total.\n\n**Non-negative final price**\n- `FixedAmountDiscount.apply()` clamps the discount to the current remaining amount.\n- `ShoppingCart.final_price()` additionally clamps the running total with `max(Decimal(\"0.00\"), ...)` after each step \u2014 so even a badly-behaved future discount subclass can't produce a negative result.\n\n**Idempotent discount codes**\n- Codes are normalized (`strip().upper()`) before storage so `\"SAVE10\"` and `\"save10 \"` are treated as the same code.\n- `_applied_codes` is a `set`, so calling `apply_discount` with an already-used code raises `DiscountAlreadyApplied`. This is the explicit \"same code cannot be applied more than once to the same cart\" guarantee.\n\n**Extensibility**\n- `Discount` is a strategy base class. Additional rules (BOGO, category discounts, minimum-spend thresholds) just implement `apply(subtotal)`.\n\n## Example output\n\n```\nSubtotal:      33.00\nFinal price:   24.70\nBlocked:       Discount code 'SAVE10' has already been applied to this cart\nClamped price: 0.00\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794529947,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 1626,
+   "prompt_tokens": 75,
+   "total_tokens": 1701,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 75
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "The calculation uses Decimal values for prices, discounts, and totals."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The final price is clamped to zero after discounts and before returning."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "The cart tracks normalized discount codes and rejects repeated applications."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "All monetary values are represented and computed using `Decimal`, with quantization to cents via `_q()`."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The `final_price()` method clamps the running total with `max(Decimal('0.00'), ...)` after each discount application, ensuring the final price is never negative."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "The `ShoppingCart.apply_discount()` method normalizes and tracks applied codes in `_applied_codes` and raises `DiscountAlreadyApplied` if a duplicate code is applied."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "All money values use Decimal with quantization; no floats are used in calculations."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "final_price clamps the running total and the final result with max(Decimal('0.00'), ...), so it is never negative."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "apply_discount normalizes the code and raises DiscountAlreadyApplied if it is already in the applied set."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"CR1\":{\"met\":true,\"reason\":\"The calculation uses Decimal values for prices, discounts, and totals.\"},\"CR2\":{\"met\":true,\"reason\":\"The final price is clamped to zero after discounts and before returning.\"},\"CR3\":{\"met\":true,\"reason\":\"The cart tracks normalized discount codes and rejects repeated applications.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"CR1\": {\"met\": true, \"reason\": \"All monetary values are represented and computed using `Decimal`, with quantization to cents via `_q()`.\"},\n  \"CR2\": {\"met\": true, \"reason\": \"The `final_price()` method clamps the running total with `max(Decimal('0.00'), ...)` after each discount application, ensuring the final price is never negative.\"},\n  \"CR3\": {\"met\": true, \"reason\": \"The `ShoppingCart.apply_discount()` method normalizes and tracks applied codes in `_applied_codes` and raises `DiscountAlreadyApplied` if a duplicate code is applied.\"}\n}",
+  "claude": "Checking the code against each requirement:\n\nCR1: Decimal is used throughout and results are quantized. The code accepts Decimal from the caller, but the arithmetic itself does not use floats. Met.\n\nCR2: final_price clamps to 0 after each discount and again at the end. A negative subtotal is not possible because LineItem validates price and quantity at creation. However, add_item merges quantity with `line.quantity += quantity` without validation, so a negative quantity can be added to an existing line and produce a negative subtotal. For example, adding 1 and then -5 gives a negative subtotal. The final clamp `max(0, ...)` still makes the final price non-negative, since remaining = subtotal (negative), each discount amount is computed against it, and the end result is clamped to 0. So the final price is never negative. A PercentageDiscount on a negative subtotal gives a negative discount of 0 after the clamp, which is fine. Met.\n\nCR3: apply_discount normalizes the code and raises if it was already applied. The `_applied_codes` set is a dataclass field, so it can be passed to the constructor, but that is an edge case. Met.\n\n{\"_code\": true, \"CR1\": {\"met\": true, \"reason\": \"All money values use Decimal with quantization; no floats are used in calculations.\"}, \"CR2\": {\"met\": true, \"reason\": \"final_price clamps the running total and the final result with max(Decimal('0.00'), ...), so it is never negative.\"}, \"CR3\": {\"met\": true, \"reason\": \"apply_discount normalizes the code and raises DiscountAlreadyApplied if it is already in the applied set.\"}}"
+ },
+ "judge_cost_usd": 0.014647199999999999
+}

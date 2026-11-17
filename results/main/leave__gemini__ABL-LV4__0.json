@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:46:56+00:00",
+ "app": "leave",
+ "app_hash": "c3276e419d06",
+ "model": "gemini",
+ "condition": "ABL-LV4",
+ "rep": 0,
+ "requirement_order": [
+  "LV5",
+  "LV1",
+  "LV2",
+  "LV3"
+ ],
+ "passed": {
+  "LV1": true,
+  "LV2": true,
+  "LV3": true,
+  "LV4": false,
+  "LV5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that tracks employees' annual leave requests.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None: ...\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n\n    def remaining(self, employee: str, year: int) -> int: ...\n```\n\n## Requirements\n1. Unused leave days do not carry over to the next year.\n2. A request whose end date is before its start date raises ValueError.\n3. A request that needs more days than the employee has remaining raises ValueError.\n4. Weekends and the given holidays do not use leave days.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `LeaveTracker` class based on your specifications:\n\n```python\nfrom collections import defaultdict\nfrom datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays is not None else set()\n        # Maps employee name -> dict of {year: days_used}\n        self._used_leave: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"Leave end date cannot be before the start date.\")\n\n        # Calculate requested leave days per calendar year\n        days_per_year: dict[int, int] = defaultdict(int)\n        curr = start\n        while curr <= end:\n            # Monday is 0, Sunday is 6; weekends are 5 and 6\n            if curr.weekday() < 5 and curr not in self.holidays:\n                days_per_year[curr.year] += 1\n            curr += timedelta(days=1)\n\n        # Check if the employee has enough leave days remaining for each affected year\n        for yr, requested_days in days_per_year.items():\n            if requested_days > self.remaining(employee, yr):\n                raise ValueError(\n                    f\"Employee '{employee}' does not have enough remaining leave days for year {yr}.\"\n                )\n\n        # Record the leave days\n        for yr, requested_days in days_per_year.items():\n            self._used_leave[employee][yr] += requested_days\n\n        return sum(days_per_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"Returns the number of remaining leave days for an employee in a given year.\"\"\"\n        used = self._used_leave[employee][year]\n        return self.days_per_year - used\n```",
+ "code": "from collections import defaultdict\nfrom datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays is not None else set()\n        # Maps employee name -> dict of {year: days_used}\n        self._used_leave: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"Leave end date cannot be before the start date.\")\n\n        # Calculate requested leave days per calendar year\n        days_per_year: dict[int, int] = defaultdict(int)\n        curr = start\n        while curr <= end:\n            # Monday is 0, Sunday is 6; weekends are 5 and 6\n            if curr.weekday() < 5 and curr not in self.holidays:\n                days_per_year[curr.year] += 1\n            curr += timedelta(days=1)\n\n        # Check if the employee has enough leave days remaining for each affected year\n        for yr, requested_days in days_per_year.items():\n            if requested_days > self.remaining(employee, yr):\n                raise ValueError(\n                    f\"Employee '{employee}' does not have enough remaining leave days for year {yr}.\"\n                )\n\n        # Record the leave days\n        for yr, requested_days in days_per_year.items():\n            self._used_leave[employee][yr] += requested_days\n\n        return sum(days_per_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"Returns the number of remaining leave days for an employee in a given year.\"\"\"\n        used = self._used_leave[employee][year]\n        return self.days_per_year - used\n",
+ "input_tokens": 229,
+ "output_tokens": 513,
+ "cost_usd": 0.0020955,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 4.81,
+ "raw_api_response": {
+  "id": "pjb1apXSM7n2nsEPgqzb4Qs",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `LeaveTracker` class based on your specifications:\n\n```python\nfrom collections import defaultdict\nfrom datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays is not None else set()\n        # Maps employee name -> dict of {year: days_used}\n        self._used_leave: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"Leave end date cannot be before the start date.\")\n\n        # Calculate requested leave days per calendar year\n        days_per_year: dict[int, int] = defaultdict(int)\n        curr = start\n        while curr <= end:\n            # Monday is 0, Sunday is 6; weekends are 5 and 6\n            if curr.weekday() < 5 and curr not in self.holidays:\n                days_per_year[curr.year] += 1\n            curr += timedelta(days=1)\n\n        # Check if the employee has enough leave days remaining for each affected year\n        for yr, requested_days in days_per_year.items():\n            if requested_days > self.remaining(employee, yr):\n                raise ValueError(\n                    f\"Employee '{employee}' does not have enough remaining leave days for year {yr}.\"\n                )\n\n        # Record the leave days\n        for yr, requested_days in days_per_year.items():\n            self._used_leave[employee][yr] += requested_days\n\n        return sum(days_per_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"Returns the number of remaining leave days for an employee in a given year.\"\"\"\n        used = self._used_leave[employee][year]\n        return self.days_per_year - used\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0T92IDLIzw15UqMIjz5c4D73vFSgYLatnvw2Xpfe2A87gb180y6Wmvf82joH7+e9wcGXlAgRm2VZXtPUpOs8WDIOhgyl64bGoPgVoPzcLuFOi5I6NreuBocsrhUh2pJG1Amfs="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794455211,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 513,
+   "prompt_tokens": 229,
+   "total_tokens": 742,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

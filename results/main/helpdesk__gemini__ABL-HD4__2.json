@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:42:47+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "gemini",
+ "condition": "ABL-HD4",
+ "rep": 2,
+ "requirement_order": [
+  "HD3",
+  "HD1",
+  "HD5",
+  "HD2"
+ ],
+ "passed": {
+  "HD1": true,
+  "HD2": true,
+  "HD3": true,
+  "HD4": false,
+  "HD5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. Critical tickets are handled before high ones, and high ones before normal ones.\n2. Opening a ticket with an empty title raises ValueError.\n3. A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.\n4. Tickets with the same priority are handled in the order in which they were opened.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `Helpdesk` module based on your specifications:\n\n```python\nclass Ticket:\n    def __init__(self, ticket_id: int, customer: str, title: str, priority: str, order: int) -> None:\n        self.id = ticket_id\n        self.customer = customer\n        self.title = title\n        self.priority = priority\n        self.order = order\n        self.closed = False\n        self.in_queue = True\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self._customers: dict[str, bool] = {}\n        self._tickets: dict[int, Ticket] = {}\n        # Queues per priority; index corresponds to PRIORITIES index (0: normal, 1: high, 2: critical)\n        self._queues: dict[str, list[Ticket]] = {p: [] for p in self.PRIORITIES}\n        self._next_id: int = 1\n        self._order_counter: int = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty.\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority '{priority}'. Must be one of {self.PRIORITIES}.\")\n\n        ticket_id = self._next_id\n        self._next_id += 1\n\n        order = self._order_counter\n        self._order_counter += 1\n\n        ticket = Ticket(\n            ticket_id=ticket_id,\n            customer=customer,\n            title=title,\n            priority=priority,\n            order=order,\n        )\n        self._tickets[ticket_id] = ticket\n        self._queues[priority].append(ticket)\n        return ticket_id\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n        for priority in reversed(self.PRIORITIES):\n            queue = self._queues[priority]\n            if queue:\n                ticket = queue.pop(0)\n                ticket.in_queue = False\n                return ticket.id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n\n        ticket = self._tickets[ticket_id]\n        ticket.closed = True\n\n        if ticket.in_queue:\n            self._queues[ticket.priority].remove(ticket)\n            ticket.in_queue = False\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n        if ticket_id not in self._tickets:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n\n        ticket = self._tickets[ticket_id]\n        if ticket.closed:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}.\")\n\n        if not ticket.in_queue:\n            queue = self._queues[ticket.priority]\n            # Maintain the original open order within the priority queue\n            insert_pos = 0\n            while insert_pos < len(queue) and queue[insert_pos].order < ticket.order:\n                insert_pos += 1\n            queue.insert(insert_pos, ticket)\n            ticket.in_queue = True\n```",
+ "code": "class Ticket:\n    def __init__(self, ticket_id: int, customer: str, title: str, priority: str, order: int) -> None:\n        self.id = ticket_id\n        self.customer = customer\n        self.title = title\n        self.priority = priority\n        self.order = order\n        self.closed = False\n        self.in_queue = True\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self._customers: dict[str, bool] = {}\n        self._tickets: dict[int, Ticket] = {}\n        # Queues per priority; index corresponds to PRIORITIES index (0: normal, 1: high, 2: critical)\n        self._queues: dict[str, list[Ticket]] = {p: [] for p in self.PRIORITIES}\n        self._next_id: int = 1\n        self._order_counter: int = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty.\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority '{priority}'. Must be one of {self.PRIORITIES}.\")\n\n        ticket_id = self._next_id\n        self._next_id += 1\n\n        order = self._order_counter\n        self._order_counter += 1\n\n        ticket = Ticket(\n            ticket_id=ticket_id,\n            customer=customer,\n            title=title,\n            priority=priority,\n            order=order,\n        )\n        self._tickets[ticket_id] = ticket\n        self._queues[priority].append(ticket)\n        return ticket_id\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n        for priority in reversed(self.PRIORITIES):\n            queue = self._queues[priority]\n            if queue:\n                ticket = queue.pop(0)\n                ticket.in_queue = False\n                return ticket.id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n\n        ticket = self._tickets[ticket_id]\n        ticket.closed = True\n\n        if ticket.in_queue:\n            self._queues[ticket.priority].remove(ticket)\n            ticket.in_queue = False\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n        if ticket_id not in self._tickets:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n\n        ticket = self._tickets[ticket_id]\n        if ticket.closed:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}.\")\n\n        if not ticket.in_queue:\n            queue = self._queues[ticket.priority]\n            # Maintain the original open order within the priority queue\n            insert_pos = 0\n            while insert_pos < len(queue) and queue[insert_pos].order < ticket.order:\n                insert_pos += 1\n            queue.insert(insert_pos, ticket)\n            ticket.in_queue = True\n",
+ "input_tokens": 316,
+ "output_tokens": 865,
+ "cost_usd": 0.00348075,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 7.89,
+ "raw_api_response": {
+  "id": "qjX1ao_pINPgxN8PsO3tsAg",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `Helpdesk` module based on your specifications:\n\n```python\nclass Ticket:\n    def __init__(self, ticket_id: int, customer: str, title: str, priority: str, order: int) -> None:\n        self.id = ticket_id\n        self.customer = customer\n        self.title = title\n        self.priority = priority\n        self.order = order\n        self.closed = False\n        self.in_queue = True\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self._customers: dict[str, bool] = {}\n        self._tickets: dict[int, Ticket] = {}\n        # Queues per priority; index corresponds to PRIORITIES index (0: normal, 1: high, 2: critical)\n        self._queues: dict[str, list[Ticket]] = {p: [] for p in self.PRIORITIES}\n        self._next_id: int = 1\n        self._order_counter: int = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty.\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority '{priority}'. Must be one of {self.PRIORITIES}.\")\n\n        ticket_id = self._next_id\n        self._next_id += 1\n\n        order = self._order_counter\n        self._order_counter += 1\n\n        ticket = Ticket(\n            ticket_id=ticket_id,\n            customer=customer,\n            title=title,\n            priority=priority,\n            order=order,\n        )\n        self._tickets[ticket_id] = ticket\n        self._queues[priority].append(ticket)\n        return ticket_id\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n        for priority in reversed(self.PRIORITIES):\n            queue = self._queues[priority]\n            if queue:\n                ticket = queue.pop(0)\n                ticket.in_queue = False\n                return ticket.id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n\n        ticket = self._tickets[ticket_id]\n        ticket.closed = True\n\n        if ticket.in_queue:\n            self._queues[ticket.priority].remove(ticket)\n            ticket.in_queue = False\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n        if ticket_id not in self._tickets:\n            raise KeyError(f\"Ticket {ticket_id} does not exist.\")\n\n        ticket = self._tickets[ticket_id]\n        if ticket.closed:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}.\")\n\n        if not ticket.in_queue:\n            queue = self._queues[ticket.priority]\n            # Maintain the original open order within the priority queue\n            insert_pos = 0\n            while insert_pos < len(queue) and queue[insert_pos].order < ticket.order:\n                insert_pos += 1\n            queue.insert(insert_pos, ticket)\n            ticket.in_queue = True\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0T0mCxM2OVy/r0OJYpQljIji2MNVVsteW23gCd0EtK0DQUWRoQFKdRx/a6eE+JyxMg4oMDyDz+m04POIu5d8Lg61YwlNljk4BrU455A/TL1SYo8f0ExXvKL2AxdQGlpNLPKrY="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794454961,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 865,
+   "prompt_tokens": 316,
+   "total_tokens": 1181,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

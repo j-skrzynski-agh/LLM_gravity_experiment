@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:15:31+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "llama",
+ "condition": "ABL-HD2",
+ "rep": 1,
+ "requirement_order": [
+  "HD4",
+  "HD3",
+  "HD5",
+  "HD1"
+ ],
+ "passed": {
+  "HD1": true,
+  "HD2": true,
+  "HD3": false,
+  "HD4": false,
+  "HD5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. Tickets of VIP customers are handled before all other tickets, even critical tickets of other customers.\n2. Critical tickets are handled before high ones, and high ones before normal ones.\n3. A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.\n4. Opening a ticket with an empty title raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom typing import Optional\nfrom heapq import heappop, heappush\n\nclass Helpdesk:\n    \"\"\"\n    A ticket queue for a customer helpdesk.\n\n    Customers open tickets, agents take the next ticket to handle, and tickets get closed.\n    \"\"\"\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n    PRIORITY_LEVELS = {priority: i for i, priority in enumerate(PRIORITIES)}\n\n    def __init__(self) -> None:\n        \"\"\"\n        Initialize the helpdesk.\n        \"\"\"\n        self.customers = {}\n        self.tickets = {}\n        self.queue = []\n        self.ticket_id = 0\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        \"\"\"\n        Add a customer to the helpdesk.\n\n        Args:\n        name (str): The customer's name.\n        vip (bool): Whether the customer is a VIP. Defaults to False.\n        \"\"\"\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"\n        Open a ticket.\n\n        Args:\n        customer (str): The customer's name.\n        title (str): The ticket's title.\n        priority (str): The ticket's priority. Defaults to \"normal\".\n\n        Returns:\n        int: The ticket's ID.\n\n        Raises:\n        ValueError: If the title is empty.\n        \"\"\"\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n\n        if customer not in self.customers:\n            raise ValueError(\"Customer not found\")\n\n        self.ticket_id += 1\n        ticket = (self.customers[customer], self.PRIORITY_LEVELS[priority], title, self.ticket_id)\n        heappush(self.queue, ticket)\n        self.tickets[self.ticket_id] = ticket\n        return self.ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        \"\"\"\n        Take the ticket that should be handled next out of the queue.\n\n        Returns:\n        int | None: The ticket's ID, or None if the queue is empty.\n        \"\"\"\n        if not self.queue:\n            return None\n\n        _, _, _, ticket_id = heappop(self.queue)\n        self.tickets[ticket_id] = None\n        return ticket_id\n\n    def close(self, ticket_id: int) -> None:\n        \"\"\"\n        Close a ticket.\n\n        Args:\n        ticket_id (int): The ticket's ID.\n        \"\"\"\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n\n        self.closed_tickets.add(ticket_id)\n        self.tickets[ticket_id] = None\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"\n        Put a ticket back into the queue.\n\n        Args:\n        ticket_id (int): The ticket's ID.\n\n        Raises:\n        ValueError: If the ticket is already closed.\n        \"\"\"\n        if ticket_id in self.closed_tickets:\n            raise ValueError(\"Cannot reopen a closed ticket\")\n\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n\n        ticket = self.tickets[ticket_id]\n        if ticket:\n            heappush(self.queue, ticket)\n\n# Example usage:\nhelpdesk = Helpdesk()\nhelpdesk.add_customer(\"John Doe\", vip=True)\nhelpdesk.add_customer(\"Jane Doe\")\n\nticket1 = helpdesk.open_ticket(\"John Doe\", \"VIP ticket\", \"critical\")\nticket2 = helpdesk.open_ticket(\"Jane Doe\", \"Normal ticket\")\nticket3 = helpdesk.open_ticket(\"Jane Doe\", \"High priority ticket\", \"high\")\n\nprint(helpdesk.next_ticket())  # Should print ticket1\nprint(helpdesk.next_ticket())  # Should print ticket3\nprint(helpdesk.next_ticket())  # Should print ticket2\n\nhelpdesk.close(ticket1)\ntry:\n    helpdesk.reopen(ticket1)\nexcept ValueError as e:\n    print(e)  # Should print \"Cannot reopen a closed ticket\"\n```",
+ "code": "from typing import Optional\nfrom heapq import heappop, heappush\n\nclass Helpdesk:\n    \"\"\"\n    A ticket queue for a customer helpdesk.\n\n    Customers open tickets, agents take the next ticket to handle, and tickets get closed.\n    \"\"\"\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n    PRIORITY_LEVELS = {priority: i for i, priority in enumerate(PRIORITIES)}\n\n    def __init__(self) -> None:\n        \"\"\"\n        Initialize the helpdesk.\n        \"\"\"\n        self.customers = {}\n        self.tickets = {}\n        self.queue = []\n        self.ticket_id = 0\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        \"\"\"\n        Add a customer to the helpdesk.\n\n        Args:\n        name (str): The customer's name.\n        vip (bool): Whether the customer is a VIP. Defaults to False.\n        \"\"\"\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"\n        Open a ticket.\n\n        Args:\n        customer (str): The customer's name.\n        title (str): The ticket's title.\n        priority (str): The ticket's priority. Defaults to \"normal\".\n\n        Returns:\n        int: The ticket's ID.\n\n        Raises:\n        ValueError: If the title is empty.\n        \"\"\"\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n\n        if customer not in self.customers:\n            raise ValueError(\"Customer not found\")\n\n        self.ticket_id += 1\n        ticket = (self.customers[customer], self.PRIORITY_LEVELS[priority], title, self.ticket_id)\n        heappush(self.queue, ticket)\n        self.tickets[self.ticket_id] = ticket\n        return self.ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        \"\"\"\n        Take the ticket that should be handled next out of the queue.\n\n        Returns:\n        int | None: The ticket's ID, or None if the queue is empty.\n        \"\"\"\n        if not self.queue:\n            return None\n\n        _, _, _, ticket_id = heappop(self.queue)\n        self.tickets[ticket_id] = None\n        return ticket_id\n\n    def close(self, ticket_id: int) -> None:\n        \"\"\"\n        Close a ticket.\n\n        Args:\n        ticket_id (int): The ticket's ID.\n        \"\"\"\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n\n        self.closed_tickets.add(ticket_id)\n        self.tickets[ticket_id] = None\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"\n        Put a ticket back into the queue.\n\n        Args:\n        ticket_id (int): The ticket's ID.\n\n        Raises:\n        ValueError: If the ticket is already closed.\n        \"\"\"\n        if ticket_id in self.closed_tickets:\n            raise ValueError(\"Cannot reopen a closed ticket\")\n\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n\n        ticket = self.tickets[ticket_id]\n        if ticket:\n            heappush(self.queue, ticket)\n\n# Example usage:\nhelpdesk = Helpdesk()\nhelpdesk.add_customer(\"John Doe\", vip=True)\nhelpdesk.add_customer(\"Jane Doe\")\n\nticket1 = helpdesk.open_ticket(\"John Doe\", \"VIP ticket\", \"critical\")\nticket2 = helpdesk.open_ticket(\"Jane Doe\", \"Normal ticket\")\nticket3 = helpdesk.open_ticket(\"Jane Doe\", \"High priority ticket\", \"high\")\n\nprint(helpdesk.next_ticket())  # Should print ticket1\nprint(helpdesk.next_ticket())  # Should print ticket3\nprint(helpdesk.next_ticket())  # Should print ticket2\n\nhelpdesk.close(ticket1)\ntry:\n    helpdesk.reopen(ticket1)\nexcept ValueError as e:\n    print(e)  # Should print \"Cannot reopen a closed ticket\"\n",
+ "input_tokens": 299,
+ "output_tokens": 828,
+ "cost_usd": 0.00029486,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 9.69,
+ "raw_api_response": {
+  "id": "gen-1794896116-mRcCPUO671W0aWjFBJMs",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom typing import Optional\nfrom heapq import heappop, heappush\n\nclass Helpdesk:\n    \"\"\"\n    A ticket queue for a customer helpdesk.\n\n    Customers open tickets, agents take the next ticket to handle, and tickets get closed.\n    \"\"\"\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n    PRIORITY_LEVELS = {priority: i for i, priority in enumerate(PRIORITIES)}\n\n    def __init__(self) -> None:\n        \"\"\"\n        Initialize the helpdesk.\n        \"\"\"\n        self.customers = {}\n        self.tickets = {}\n        self.queue = []\n        self.ticket_id = 0\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        \"\"\"\n        Add a customer to the helpdesk.\n\n        Args:\n        name (str): The customer's name.\n        vip (bool): Whether the customer is a VIP. Defaults to False.\n        \"\"\"\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"\n        Open a ticket.\n\n        Args:\n        customer (str): The customer's name.\n        title (str): The ticket's title.\n        priority (str): The ticket's priority. Defaults to \"normal\".\n\n        Returns:\n        int: The ticket's ID.\n\n        Raises:\n        ValueError: If the title is empty.\n        \"\"\"\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n\n        if customer not in self.customers:\n            raise ValueError(\"Customer not found\")\n\n        self.ticket_id += 1\n        ticket = (self.customers[customer], self.PRIORITY_LEVELS[priority], title, self.ticket_id)\n        heappush(self.queue, ticket)\n        self.tickets[self.ticket_id] = ticket\n        return self.ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        \"\"\"\n        Take the ticket that should be handled next out of the queue.\n\n        Returns:\n        int | None: The ticket's ID, or None if the queue is empty.\n        \"\"\"\n        if not self.queue:\n            return None\n\n        _, _, _, ticket_id = heappop(self.queue)\n        self.tickets[ticket_id] = None\n        return ticket_id\n\n    def close(self, ticket_id: int) -> None:\n        \"\"\"\n        Close a ticket.\n\n        Args:\n        ticket_id (int): The ticket's ID.\n        \"\"\"\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n\n        self.closed_tickets.add(ticket_id)\n        self.tickets[ticket_id] = None\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"\n        Put a ticket back into the queue.\n\n        Args:\n        ticket_id (int): The ticket's ID.\n\n        Raises:\n        ValueError: If the ticket is already closed.\n        \"\"\"\n        if ticket_id in self.closed_tickets:\n            raise ValueError(\"Cannot reopen a closed ticket\")\n\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n\n        ticket = self.tickets[ticket_id]\n        if ticket:\n            heappush(self.queue, ticket)\n\n# Example usage:\nhelpdesk = Helpdesk()\nhelpdesk.add_customer(\"John Doe\", vip=True)\nhelpdesk.add_customer(\"Jane Doe\")\n\nticket1 = helpdesk.open_ticket(\"John Doe\", \"VIP ticket\", \"critical\")\nticket2 = helpdesk.open_ticket(\"Jane Doe\", \"Normal ticket\")\nticket3 = helpdesk.open_ticket(\"Jane Doe\", \"High priority ticket\", \"high\")\n\nprint(helpdesk.next_ticket())  # Should print ticket1\nprint(helpdesk.next_ticket())  # Should print ticket3\nprint(helpdesk.next_ticket())  # Should print ticket2\n\nhelpdesk.close(ticket1)\ntry:\n    helpdesk.reopen(ticket1)\nexcept ValueError as e:\n    print(e)  # Should print \"Cannot reopen a closed ticket\"\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794896116,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 828,
+   "prompt_tokens": 299,
+   "total_tokens": 1127,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 192,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00080017,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00080017,
+    "upstream_inference_prompt_cost": 0.00021229,
+    "upstream_inference_completions_cost": 0.00058788
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

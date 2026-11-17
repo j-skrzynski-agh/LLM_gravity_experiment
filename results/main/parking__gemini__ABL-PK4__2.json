@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:05:58+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "gemini",
+ "condition": "ABL-PK4",
+ "rep": 2,
+ "requirement_order": [
+  "PK1",
+  "PK2",
+  "PK5",
+  "PK3"
+ ],
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": false,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA parking meter that computes the parking fee for a single stay.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None: ...\n\n    def fee(self, entry: datetime, exit: datetime) -> float: ...\n```\n\n## Requirements\n1. An exit time earlier than the entry time raises ValueError.\n2. The fee is rounded to two decimal places.\n3. Stays longer than 24 hours are charged a flat penalty of 200.00 instead of the hourly rate.\n4. Every started hour is charged as a full hour.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport math\nfrom datetime import datetime\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Check if duration is strictly greater than 24 hours (86,400 seconds)\n        if total_seconds > 24 * 3600:\n            return 200.00\n\n        # Every started hour is charged as a full hour\n        hours = math.ceil(total_seconds / 3600.0)\n        total_fee = hours * self.hourly_rate\n\n        return round(total_fee, 2)\n```",
+ "code": "import math\nfrom datetime import datetime\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Check if duration is strictly greater than 24 hours (86,400 seconds)\n        if total_seconds > 24 * 3600:\n            return 200.00\n\n        # Every started hour is charged as a full hour\n        hours = math.ceil(total_seconds / 3600.0)\n        total_fee = hours * self.hourly_rate\n\n        return round(total_fee, 2)\n",
+ "input_tokens": 179,
+ "output_tokens": 215,
+ "cost_usd": 0.0009405,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 3.13,
+ "raw_api_response": {
+  "id": "Hjv1apGTAd69vdIPrLPZ8Q4",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport math\nfrom datetime import datetime\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Check if duration is strictly greater than 24 hours (86,400 seconds)\n        if total_seconds > 24 * 3600:\n            return 200.00\n\n        # Every started hour is charged as a full hour\n        hours = math.ceil(total_seconds / 3600.0)\n        total_fee = hours * self.hourly_rate\n\n        return round(total_fee, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TloKrtiXdk3C1Sl80yOEL0vAkz1XYwMdITKDVOuDT+FauAeY6MECTAKU9W5/MW/QGESnnY5XZJKIk6Caqm/d3GFWHam5sjDLEL1ALar5bQjR6hfEuJiXwhc47MmwfdRt8Pkk="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794456352,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 215,
+   "prompt_tokens": 179,
+   "total_tokens": 394,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

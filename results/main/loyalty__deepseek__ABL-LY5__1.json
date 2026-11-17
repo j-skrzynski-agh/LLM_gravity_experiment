@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:06:18+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "deepseek",
+ "condition": "ABL-LY5",
+ "rep": 1,
+ "requirement_order": [
+  "LY3",
+  "LY4",
+  "LY1",
+  "LY2"
+ ],
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": true,
+  "LY5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA customer loyalty program: customers earn points for purchases and redeem them later.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None: ...\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n\n    def redeem(self, customer: str, points: int, day: date) -> None: ...\n```\n\n## Requirements\n1. Customers earn 1 point for every full 10.00 spent (for example, 59.99 gives 5 points).\n2. Points from a purchase become available only 14 days after the purchase.\n3. A purchase with an amount of zero or less raises ValueError.\n4. Redeeming more points than the available balance raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_date, points_remaining)\n        self._points = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        available_on = day + timedelta(days=14)\n        self._points.setdefault(customer, []).append([available_on, points])\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        total = 0\n        for available_on, remaining in self._points.get(customer, []):\n            if available_on <= day:\n                total += remaining\n        return total\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points < 0:\n            raise ValueError(\"Cannot redeem a negative number of points\")\n        available = self.balance(customer, day)\n        if points > available:\n            raise ValueError(\"Insufficient points available\")\n        if points == 0:\n            return\n        # Spend from the oldest available points first (FIFO)\n        entries = self._points.get(customer, [])\n        available_entries = sorted(\n            (e for e in entries if e[0] <= day and e[1] > 0),\n            key=lambda e: e[0],\n        )\n        to_redeem = points\n        for entry in available_entries:\n            if to_redeem <= 0:\n                break\n            used = min(entry[1], to_redeem)\n            entry[1] -= used\n            to_redeem -= used\n```",
+ "code": "from datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_date, points_remaining)\n        self._points = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        available_on = day + timedelta(days=14)\n        self._points.setdefault(customer, []).append([available_on, points])\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        total = 0\n        for available_on, remaining in self._points.get(customer, []):\n            if available_on <= day:\n                total += remaining\n        return total\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points < 0:\n            raise ValueError(\"Cannot redeem a negative number of points\")\n        available = self.balance(customer, day)\n        if points > available:\n            raise ValueError(\"Insufficient points available\")\n        if points == 0:\n            return\n        # Spend from the oldest available points first (FIFO)\n        entries = self._points.get(customer, [])\n        available_entries = sorted(\n            (e for e in entries if e[0] <= day and e[1] > 0),\n            key=lambda e: e[0],\n        )\n        to_redeem = points\n        for entry in available_entries:\n            if to_redeem <= 0:\n                break\n            used = min(entry[1], to_redeem)\n            entry[1] -= used\n            to_redeem -= used\n",
+ "input_tokens": 234,
+ "output_tokens": 409,
+ "cost_usd": 0.000561,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 1.95,
+ "raw_api_response": {
+  "id": "799bd0db-0009-4bf8-b26b-8eeffc949fed",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_date, points_remaining)\n        self._points = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        available_on = day + timedelta(days=14)\n        self._points.setdefault(customer, []).append([available_on, points])\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        total = 0\n        for available_on, remaining in self._points.get(customer, []):\n            if available_on <= day:\n                total += remaining\n        return total\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points < 0:\n            raise ValueError(\"Cannot redeem a negative number of points\")\n        available = self.balance(customer, day)\n        if points > available:\n            raise ValueError(\"Insufficient points available\")\n        if points == 0:\n            return\n        # Spend from the oldest available points first (FIFO)\n        entries = self._points.get(customer, [])\n        available_entries = sorted(\n            (e for e in entries if e[0] <= day and e[1] > 0),\n            key=lambda e: e[0],\n        )\n        to_redeem = points\n        for entry in available_entries:\n            if to_redeem <= 0:\n                break\n            used = min(entry[1], to_redeem)\n            entry[1] -= used\n            to_redeem -= used\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794452771,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 409,
+   "prompt_tokens": 234,
+   "total_tokens": 643,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 234
+  }
+ }
+}

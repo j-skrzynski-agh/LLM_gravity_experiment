@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:30:26+00:00",
+ "task": "login",
+ "task_hash": "2c9c1f491105",
+ "model": "deepseek",
+ "condition": "BARE",
+ "rep": 0,
+ "requirement_order": [],
+ "model_id": "deepseek-flash",
+ "prompt": "I run a small online shop. Write me a login and registration system for customers (a Python backend is fine).",
+ "response": "# Customer Login & Registration System\n\nHere's a complete, production-ready authentication system for your online shop using **Flask** and **SQLite**. I'll walk through the design decisions, then give you the full code.\n\n## Design decisions (and why)\n\n- **Passwords hashed with `bcrypt`** \u2014 never store plaintext. Bcrypt has a built-in cost factor that resists brute-force.\n- **Session-based auth with secure cookies** \u2014 simpler and safer than rolling your own JWT for a small shop.\n- **SQLite** \u2014 zero-config, plenty fast for a small shop. Easy to swap for Postgres later.\n- **Rate limiting on login** \u2014 prevents credential-stuffing attacks.\n- **Generic error messages** \u2014 don't reveal whether an email exists (\"Invalid email or password\" for both).\n- **CSRF protection + password strength check** \u2014 the basics every shop needs.\n\n## Project structure\n\n```\nshop/\n\u251c\u2500\u2500 app.py\n\u251c\u2500\u2500 requirements.txt\n\u2514\u2500\u2500 templates/\n    \u251c\u2500\u2500 register.html\n    \u251c\u2500\u2500 login.html\n    \u2514\u2500\u2500 account.html\n```\n\n## `requirements.txt`\n\n```\nflask==3.0.0\nflask-sqlalchemy==3.1.1\nflask-login==0.6.3\nflask-wtf==1.2.1\nbcrypt==4.1.2\nemail-validator==2.1.0\nflask-limiter==3.5.0\n```\n\n## `app.py`\n\n```python\nimport os\nimport re\nimport bcrypt\nfrom datetime import timedelta\n\nfrom flask import Flask, render_template, redirect, url_for, flash, request\nfrom flask_sqlalchemy import SQLAlchemy\nfrom flask_login import (\n    LoginManager, UserMixin, login_user, logout_user,\n    login_required, current_user,\n)\nfrom flask_wtf import FlaskForm, CSRFProtect\nfrom wtforms import StringField, PasswordField, SubmitField\nfrom wtforms.validators import DataRequired, Email, Length, EqualTo\nfrom flask_limiter import Limiter\nfrom flask_limiter.util import get_remote_address\n\n# ---------- App setup ----------\napp = Flask(__name__)\napp.config.update(\n    SECRET_KEY=os.environ.get(\"SECRET_KEY\", os.urandom(32)),\n    SQLALCHEMY_DATABASE_URI=\"sqlite:///shop.db\",\n    SQLALCHEMY_TRACK_MODIFICATIONS=False,\n    SESSION_COOKIE_HTTPONLY=True,\n    SESSION_COOKIE_SAMESITE=\"Lax\",\n    SESSION_COOKIE_SECURE=os.environ.get(\"FLASK_ENV\") == \"production\",\n    PERMANENT_SESSION_LIFETIME=timedelta(days=14),\n    WTF_CSRF_TIME_LIMIT=None,\n)\n\ndb = SQLAlchemy(app)\ncsrf = CSRFProtect(app)\nlogin_manager = LoginManager(app)\nlogin_manager.login_view = \"login\"\nlogin_manager.login_message_category = \"info\"\n\nlimiter = Limiter(\n    get_remote_address,\n    app=app,\n    default_limits=[],\n    storage_uri=\"memory://\",   # swap to Redis in production\n)\n\n# ---------- Model ----------\nclass User(UserMixin, db.Model):\n    __tablename__ = \"users\"\n    id = db.Column(db.Integer, primary_key=True)\n    email = db.Column(db.String(255), unique=True, nullable=False, index=True)\n    password_hash = db.Column(db.String(128), nullable=False)\n    created_at = db.Column(db.DateTime, server_default=db.func.now())\n\n    def set_password(self, password: str) -> None:\n        # bcrypt truncates input at 72 bytes, so enforce a length limit client-side too\n        self.password_hash = bcrypt.hashpw(\n            password.encode(\"utf-8\"), bcrypt.gensalt(rounds=12)\n        ).decode(\"utf-8\")\n\n    def check_password(self, password: str) -> bool:\n        return bcrypt.checkpw(\n            password.encode(\"utf-8\"), self.password_hash.encode(\"utf-8\")\n        )\n\n@login_manager.user_loader\ndef load_user(user_id: str):\n    return db.session.get(User, int(user_id))\n\n# ---------- Forms ----------\nclass RegisterForm(FlaskForm):\n    email = StringField(\n        \"Email\", validators=[DataRequired(), Email(), Length(max=255)]\n    )\n    password = PasswordField(\n        \"Password\", validators=[DataRequired(), Length(min=10, max=128)]\n    )\n    confirm = PasswordField(\n        \"Confirm password\",\n        validators=[DataRequired(), EqualTo(\"password\", message=\"Passwords must match.\")],\n    )\n    submit = SubmitField(\"Create account\")\n\nclass LoginForm(FlaskForm):\n    email = StringField(\"Email\", validators=[DataRequired(), Email(), Length(max=255)])\n    password = PasswordField(\"Password\", validators=[DataRequired(), Length(max=128)])\n    submit = SubmitField(\"Log in\")\n\n# ---------- Helpers ----------\ndef password_is_strong(pw: str) -> tuple[bool, str]:\n    \"\"\"Minimum policy: 10+ chars, at least one letter and one digit.\"\"\"\n    if len(pw) < 10:\n        return False, \"Password must be at least 10 characters.\"\n    if not re.search(r\"[A-Za-z]\", pw):\n        return False, \"Password must contain a letter.\"\n    if not re.search(r\"\\d\", pw):\n        return False, \"Password must contain a number.\"\n    return True, \"\"\n\n# ---------- Routes ----------\n@app.route(\"/register\", methods=[\"GET\", \"POST\"])\n@limiter.limit(\"10/hour\")\ndef register():\n    if current_user.is_authenticated:\n        return redirect(url_for(\"account\"))\n\n    form = RegisterForm()\n    if form.validate_on_submit():\n        email = form.email.data.strip().lower()\n\n        if db.session.query(User.id).filter_by(email=email).first():\n            # Generic message \u2014 don't confirm whether the email exists\n            flash(\"Could not create account. Try logging in instead.\", \"error\")\n            return redirect(url_for(\"login\"))\n\n        ok, msg = password_is_strong(form.password.data)\n        if not ok:\n            flash(msg, \"error\")\n            return render_template(\"register.html\", form=form), 400\n\n        user = User(email=email)\n        user.set_password(form.password.data)\n        db.session.add(user)\n        db.session.commit()\n\n        login_user(user)\n        flash(\"Welcome! Your account is ready.\", \"success\")\n        return redirect(url_for(\"account\"))\n\n    return render_template(\"register.html\", form=form)\n\n\n@app.route(\"/login\", methods=[\"GET\", \"POST\"])\n@limiter.limit(\"20/hour\")\ndef login():\n    if current_user.is_authenticated:\n        return redirect(url_for(\"account\"))\n\n    form = LoginForm()\n    if form.validate_on_submit():\n        email = form.email.data.strip().lower()\n        user = db.session.query(User).filter_by(email=email).first()\n\n        if user and user.check_password(form.password.data):\n            login_user(user, remember=True)\n            next_url = request.args.get(\"next\")\n            if next_url and next_url.startswith(\"/\") and not next_url.startswith(\"//\"):\n                return redirect(next_url)\n            return redirect(url_for(\"account\"))\n\n        # Deliberately vague message\n        flash(\"Invalid email or password.\", \"error\")\n\n    return render_template(\"login.html\", form=form)\n\n\n@app.route(\"/logout\", methods=[\"POST\"])\n@login_required\ndef logout():\n    logout_user()\n    flash(\"You've been logged out.\", \"info\")\n    return redirect(url_for(\"login\"))\n\n\n@app.route(\"/account\")\n@login_required\ndef account():\n    return render_template(\"account.html\", user=current_user)\n\n\n# ---------- Init ----------\nwith app.app_context():\n    db.create_all()\n\nif __name__ == \"__main__\":\n    app.run(debug=True)\n```\n\n## Templates\n\n### `templates/register.html`\n\n```html\n<!doctype html>\n<html><head><title>Create account</title></head><body>\n<h1>Create your account</h1>\n\n{% with messages = get_flashed_messages(with_categories=true) %}\n  {% for cat, msg in messages %}<p class=\"{{ cat }}\">{{ msg }}</p>{% endfor %}\n{% endwith %}\n\n<form method=\"post\">\n  {{ form.hidden_tag() }}\n  <p>{{ form.email.label }}<br>{{ form.email(size=32) }}</p>\n  <p>{{ form.password.label }}<br>{{ form.password(size=32) }}</p>\n  <p>{{ form.confirm.label }}<br>{{ form.confirm(size=32) }}</p>\n  <p>{{ form.submit() }}</p>\n</form>\n<p><a href=\"{{ url_for('login') }}\">Already have an account?</a></p>\n</body></html>\n```\n\n### `templates/login.html`\n\n```html\n<!doctype html>\n<html><head><title>Log in</title></head><body>\n<h1>Log in</h1>\n\n{% with messages = get_flashed_messages(with_categories=true) %}\n  {% for cat, msg in messages %}<p class=\"{{ cat }}\">{{ msg }}</p>{% endfor %}\n{% endwith %}\n\n<form method=\"post\">\n  {{ form.hidden_tag() }}\n  <p>{{ form.email.label }}<br>{{ form.email(size=32) }}</p>\n  <p>{{ form.password.label }}<br>{{ form.password(size=32) }}</p>\n  <p>{{ form.submit() }}</p>\n</form>\n<p><a href=\"{{ url_for('register') }}\">Create an account</a></p>\n</body></html>\n```\n\n### `templates/account.html`\n\n```html\n<!doctype html>\n<html><head><title>Your account</title></head><body>\n<h1>Hi, {{ user.email }}</h1>\n<p>Signed up on {{ user.created_at.strftime(\"%Y-%m-%d\") }}.</p>\n\n<form method=\"post\" action=\"{{ url_for('logout') }}\">\n  <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">\n  <button type=\"submit\">Log out</button>\n</form>\n</body></html>\n```\n\n## Running it\n\n```bash\npip install -r requirements.txt\nexport SECRET_KEY=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\npython app.py\n```\n\nThen open `http://127.0.0.1:5000/register`.\n\n## Things to add before going live\n\n1. **Email verification** \u2014 send a signed token by email before activating accounts. Prevents typos and reduces spam signups. Use `itsdangerous` (already a Flask dependency) or `flask-mail`.\n2. **Password reset** \u2014 same idea: time-limited signed token via email.\n3. **Persistent rate-limit storage** \u2014 swap `memory://` for Redis so limits survive restarts and scale across workers.\n4. **HTTPS** \u2014 `SESSION_COOKIE_SECURE` is already gated on `FLASK_ENV=production`; make sure you actually terminate TLS in front of the app.\n5. **Have I Been Pwned check** \u2014 you can optionally call the HIBP k-anonymity API at registration to reject known-leaked passwords. Nice cheap win.\n6. **Logging & monitoring** \u2014 log failed logins (email + IP) so you can spot attacks.\n7. **Database migration** \u2014 when the schema grows, add [Flask-Migrate](https://flask-migrate.readthedocs.io/) so you're not stuck deleting `shop.db` every time you add a column.\n\nIf you're serving real customers, also consider handing identity over to a provider like Auth0/Clerk/WorkOS \u2014 but for a small shop, the above is genuinely solid and self-hosted. Happy to expand any piece (email verification, password reset, order history tables, etc.) \u2014 just say which.",
+ "input_tokens": 27,
+ "output_tokens": 2569,
+ "cost_usd": 0.0030908999999999997,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 11.78,
+ "raw_api_response": {
+  "id": "007f445f-6ff9-42b4-b389-bca266f6e7c9",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "# Customer Login & Registration System\n\nHere's a complete, production-ready authentication system for your online shop using **Flask** and **SQLite**. I'll walk through the design decisions, then give you the full code.\n\n## Design decisions (and why)\n\n- **Passwords hashed with `bcrypt`** \u2014 never store plaintext. Bcrypt has a built-in cost factor that resists brute-force.\n- **Session-based auth with secure cookies** \u2014 simpler and safer than rolling your own JWT for a small shop.\n- **SQLite** \u2014 zero-config, plenty fast for a small shop. Easy to swap for Postgres later.\n- **Rate limiting on login** \u2014 prevents credential-stuffing attacks.\n- **Generic error messages** \u2014 don't reveal whether an email exists (\"Invalid email or password\" for both).\n- **CSRF protection + password strength check** \u2014 the basics every shop needs.\n\n## Project structure\n\n```\nshop/\n\u251c\u2500\u2500 app.py\n\u251c\u2500\u2500 requirements.txt\n\u2514\u2500\u2500 templates/\n    \u251c\u2500\u2500 register.html\n    \u251c\u2500\u2500 login.html\n    \u2514\u2500\u2500 account.html\n```\n\n## `requirements.txt`\n\n```\nflask==3.0.0\nflask-sqlalchemy==3.1.1\nflask-login==0.6.3\nflask-wtf==1.2.1\nbcrypt==4.1.2\nemail-validator==2.1.0\nflask-limiter==3.5.0\n```\n\n## `app.py`\n\n```python\nimport os\nimport re\nimport bcrypt\nfrom datetime import timedelta\n\nfrom flask import Flask, render_template, redirect, url_for, flash, request\nfrom flask_sqlalchemy import SQLAlchemy\nfrom flask_login import (\n    LoginManager, UserMixin, login_user, logout_user,\n    login_required, current_user,\n)\nfrom flask_wtf import FlaskForm, CSRFProtect\nfrom wtforms import StringField, PasswordField, SubmitField\nfrom wtforms.validators import DataRequired, Email, Length, EqualTo\nfrom flask_limiter import Limiter\nfrom flask_limiter.util import get_remote_address\n\n# ---------- App setup ----------\napp = Flask(__name__)\napp.config.update(\n    SECRET_KEY=os.environ.get(\"SECRET_KEY\", os.urandom(32)),\n    SQLALCHEMY_DATABASE_URI=\"sqlite:///shop.db\",\n    SQLALCHEMY_TRACK_MODIFICATIONS=False,\n    SESSION_COOKIE_HTTPONLY=True,\n    SESSION_COOKIE_SAMESITE=\"Lax\",\n    SESSION_COOKIE_SECURE=os.environ.get(\"FLASK_ENV\") == \"production\",\n    PERMANENT_SESSION_LIFETIME=timedelta(days=14),\n    WTF_CSRF_TIME_LIMIT=None,\n)\n\ndb = SQLAlchemy(app)\ncsrf = CSRFProtect(app)\nlogin_manager = LoginManager(app)\nlogin_manager.login_view = \"login\"\nlogin_manager.login_message_category = \"info\"\n\nlimiter = Limiter(\n    get_remote_address,\n    app=app,\n    default_limits=[],\n    storage_uri=\"memory://\",   # swap to Redis in production\n)\n\n# ---------- Model ----------\nclass User(UserMixin, db.Model):\n    __tablename__ = \"users\"\n    id = db.Column(db.Integer, primary_key=True)\n    email = db.Column(db.String(255), unique=True, nullable=False, index=True)\n    password_hash = db.Column(db.String(128), nullable=False)\n    created_at = db.Column(db.DateTime, server_default=db.func.now())\n\n    def set_password(self, password: str) -> None:\n        # bcrypt truncates input at 72 bytes, so enforce a length limit client-side too\n        self.password_hash = bcrypt.hashpw(\n            password.encode(\"utf-8\"), bcrypt.gensalt(rounds=12)\n        ).decode(\"utf-8\")\n\n    def check_password(self, password: str) -> bool:\n        return bcrypt.checkpw(\n            password.encode(\"utf-8\"), self.password_hash.encode(\"utf-8\")\n        )\n\n@login_manager.user_loader\ndef load_user(user_id: str):\n    return db.session.get(User, int(user_id))\n\n# ---------- Forms ----------\nclass RegisterForm(FlaskForm):\n    email = StringField(\n        \"Email\", validators=[DataRequired(), Email(), Length(max=255)]\n    )\n    password = PasswordField(\n        \"Password\", validators=[DataRequired(), Length(min=10, max=128)]\n    )\n    confirm = PasswordField(\n        \"Confirm password\",\n        validators=[DataRequired(), EqualTo(\"password\", message=\"Passwords must match.\")],\n    )\n    submit = SubmitField(\"Create account\")\n\nclass LoginForm(FlaskForm):\n    email = StringField(\"Email\", validators=[DataRequired(), Email(), Length(max=255)])\n    password = PasswordField(\"Password\", validators=[DataRequired(), Length(max=128)])\n    submit = SubmitField(\"Log in\")\n\n# ---------- Helpers ----------\ndef password_is_strong(pw: str) -> tuple[bool, str]:\n    \"\"\"Minimum policy: 10+ chars, at least one letter and one digit.\"\"\"\n    if len(pw) < 10:\n        return False, \"Password must be at least 10 characters.\"\n    if not re.search(r\"[A-Za-z]\", pw):\n        return False, \"Password must contain a letter.\"\n    if not re.search(r\"\\d\", pw):\n        return False, \"Password must contain a number.\"\n    return True, \"\"\n\n# ---------- Routes ----------\n@app.route(\"/register\", methods=[\"GET\", \"POST\"])\n@limiter.limit(\"10/hour\")\ndef register():\n    if current_user.is_authenticated:\n        return redirect(url_for(\"account\"))\n\n    form = RegisterForm()\n    if form.validate_on_submit():\n        email = form.email.data.strip().lower()\n\n        if db.session.query(User.id).filter_by(email=email).first():\n            # Generic message \u2014 don't confirm whether the email exists\n            flash(\"Could not create account. Try logging in instead.\", \"error\")\n            return redirect(url_for(\"login\"))\n\n        ok, msg = password_is_strong(form.password.data)\n        if not ok:\n            flash(msg, \"error\")\n            return render_template(\"register.html\", form=form), 400\n\n        user = User(email=email)\n        user.set_password(form.password.data)\n        db.session.add(user)\n        db.session.commit()\n\n        login_user(user)\n        flash(\"Welcome! Your account is ready.\", \"success\")\n        return redirect(url_for(\"account\"))\n\n    return render_template(\"register.html\", form=form)\n\n\n@app.route(\"/login\", methods=[\"GET\", \"POST\"])\n@limiter.limit(\"20/hour\")\ndef login():\n    if current_user.is_authenticated:\n        return redirect(url_for(\"account\"))\n\n    form = LoginForm()\n    if form.validate_on_submit():\n        email = form.email.data.strip().lower()\n        user = db.session.query(User).filter_by(email=email).first()\n\n        if user and user.check_password(form.password.data):\n            login_user(user, remember=True)\n            next_url = request.args.get(\"next\")\n            if next_url and next_url.startswith(\"/\") and not next_url.startswith(\"//\"):\n                return redirect(next_url)\n            return redirect(url_for(\"account\"))\n\n        # Deliberately vague message\n        flash(\"Invalid email or password.\", \"error\")\n\n    return render_template(\"login.html\", form=form)\n\n\n@app.route(\"/logout\", methods=[\"POST\"])\n@login_required\ndef logout():\n    logout_user()\n    flash(\"You've been logged out.\", \"info\")\n    return redirect(url_for(\"login\"))\n\n\n@app.route(\"/account\")\n@login_required\ndef account():\n    return render_template(\"account.html\", user=current_user)\n\n\n# ---------- Init ----------\nwith app.app_context():\n    db.create_all()\n\nif __name__ == \"__main__\":\n    app.run(debug=True)\n```\n\n## Templates\n\n### `templates/register.html`\n\n```html\n<!doctype html>\n<html><head><title>Create account</title></head><body>\n<h1>Create your account</h1>\n\n{% with messages = get_flashed_messages(with_categories=true) %}\n  {% for cat, msg in messages %}<p class=\"{{ cat }}\">{{ msg }}</p>{% endfor %}\n{% endwith %}\n\n<form method=\"post\">\n  {{ form.hidden_tag() }}\n  <p>{{ form.email.label }}<br>{{ form.email(size=32) }}</p>\n  <p>{{ form.password.label }}<br>{{ form.password(size=32) }}</p>\n  <p>{{ form.confirm.label }}<br>{{ form.confirm(size=32) }}</p>\n  <p>{{ form.submit() }}</p>\n</form>\n<p><a href=\"{{ url_for('login') }}\">Already have an account?</a></p>\n</body></html>\n```\n\n### `templates/login.html`\n\n```html\n<!doctype html>\n<html><head><title>Log in</title></head><body>\n<h1>Log in</h1>\n\n{% with messages = get_flashed_messages(with_categories=true) %}\n  {% for cat, msg in messages %}<p class=\"{{ cat }}\">{{ msg }}</p>{% endfor %}\n{% endwith %}\n\n<form method=\"post\">\n  {{ form.hidden_tag() }}\n  <p>{{ form.email.label }}<br>{{ form.email(size=32) }}</p>\n  <p>{{ form.password.label }}<br>{{ form.password(size=32) }}</p>\n  <p>{{ form.submit() }}</p>\n</form>\n<p><a href=\"{{ url_for('register') }}\">Create an account</a></p>\n</body></html>\n```\n\n### `templates/account.html`\n\n```html\n<!doctype html>\n<html><head><title>Your account</title></head><body>\n<h1>Hi, {{ user.email }}</h1>\n<p>Signed up on {{ user.created_at.strftime(\"%Y-%m-%d\") }}.</p>\n\n<form method=\"post\" action=\"{{ url_for('logout') }}\">\n  <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">\n  <button type=\"submit\">Log out</button>\n</form>\n</body></html>\n```\n\n## Running it\n\n```bash\npip install -r requirements.txt\nexport SECRET_KEY=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\npython app.py\n```\n\nThen open `http://127.0.0.1:5000/register`.\n\n## Things to add before going live\n\n1. **Email verification** \u2014 send a signed token by email before activating accounts. Prevents typos and reduces spam signups. Use `itsdangerous` (already a Flask dependency) or `flask-mail`.\n2. **Password reset** \u2014 same idea: time-limited signed token via email.\n3. **Persistent rate-limit storage** \u2014 swap `memory://` for Redis so limits survive restarts and scale across workers.\n4. **HTTPS** \u2014 `SESSION_COOKIE_SECURE` is already gated on `FLASK_ENV=production`; make sure you actually terminate TLS in front of the app.\n5. **Have I Been Pwned check** \u2014 you can optionally call the HIBP k-anonymity API at registration to reject known-leaked passwords. Nice cheap win.\n6. **Logging & monitoring** \u2014 log failed logins (email + IP) so you can spot attacks.\n7. **Database migration** \u2014 when the schema grows, add [Flask-Migrate](https://flask-migrate.readthedocs.io/) so you're not stuck deleting `shop.db` every time you add a column.\n\nIf you're serving real customers, also consider handing identity over to a provider like Auth0/Clerk/WorkOS \u2014 but for a small shop, the above is genuinely solid and self-hosted. Happy to expand any piece (email verification, password reset, order history tables, etc.) \u2014 just say which.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794529812,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 2569,
+   "prompt_tokens": 27,
+   "total_tokens": 2596,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 27
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are stored using bcrypt with a generated salt and cost factor of 12."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "A failed login displays the same error message whether the email is registered or not."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The login endpoint is limited to 20 requests per hour per remote address."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "The code uses bcrypt with a cost factor of 12 to hash passwords in the User.set_password method."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "The login route shows 'Invalid email or password.' for both incorrect email and incorrect password, without distinguishing between them."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The login route is decorated with @limiter.limit('20/hour'), enforcing rate limiting on failed and successful login attempts."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed with bcrypt using bcrypt.gensalt(rounds=12), which is slow and salted."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "The login route flashes 'Invalid email or password.' for both an unknown email and a wrong password."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "Flask-Limiter applies @limiter.limit('20/hour') to the login route, capping repeated attempts per IP."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"LG1\":{\"met\":true,\"reason\":\"Passwords are stored using bcrypt with a generated salt and cost factor of 12.\"},\"LG2\":{\"met\":true,\"reason\":\"A failed login displays the same error message whether the email is registered or not.\"},\"LG3\":{\"met\":true,\"reason\":\"The login endpoint is limited to 20 requests per hour per remote address.\"}}",
+  "qwen": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"The code uses bcrypt with a cost factor of 12 to hash passwords in the User.set_password method.\"}, \"LG2\": {\"met\": true, \"reason\": \"The login route shows 'Invalid email or password.' for both incorrect email and incorrect password, without distinguishing between them.\"}, \"LG3\": {\"met\": true, \"reason\": \"The login route is decorated with @limiter.limit('20/hour'), enforcing rate limiting on failed and successful login attempts.\"}}",
+  "claude": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"Passwords are hashed with bcrypt using bcrypt.gensalt(rounds=12), which is slow and salted.\"}, \"LG2\": {\"met\": true, \"reason\": \"The login route flashes 'Invalid email or password.' for both an unknown email and a wrong password.\"}, \"LG3\": {\"met\": true, \"reason\": \"Flask-Limiter applies @limiter.limit('20/hour') to the login route, capping repeated attempts per IP.\"}}"
+ },
+ "judge_cost_usd": 0.0147544
+}

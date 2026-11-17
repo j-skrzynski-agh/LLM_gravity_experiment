@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:47:36+00:00",
+ "app": "cart",
+ "app_hash": "33d14211d923",
+ "model": "deepseek",
+ "condition": "ABL-CT5",
+ "rep": 1,
+ "requirement_order": [
+  "CT2",
+  "CT1",
+  "CT3",
+  "CT4"
+ ],
+ "passed": {
+  "CT1": true,
+  "CT2": true,
+  "CT3": true,
+  "CT4": true,
+  "CT5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA shopping cart for an online shop: items, percentage discounts, vouchers and shipping.\n\n## API (implement exactly these names and signatures)\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None: ...\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None: ...\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n```\n\n## Requirements\n1. total() is rounded to two decimal places.\n2. Adding an item with a quantity of zero or less raises ValueError.\n3. A voucher never makes the price of the items negative; the unused part of the voucher is lost.\n4. Discounts and vouchers do not add up: only the single one that saves the customer the most money is applied.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items = []  # list of (unit_price, quantity)\n        self.discounts = []  # list of percent values\n        self.vouchers = []  # list of fixed amounts\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero\")\n        self.items.append((unit_price, quantity))\n\n    def apply_discount(self, percent: float) -> None:\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        items_total = sum(price * qty for price, qty in self.items)\n\n        # Determine best single saving among discounts and vouchers\n        best_saving = 0.0\n        for percent in self.discounts:\n            saving = items_total * (percent / 100.0)\n            if saving > best_saving:\n                best_saving = saving\n        for amount in self.vouchers:\n            saving = amount\n            if saving > best_saving:\n                best_saving = saving\n\n        # Voucher/discount can't exceed items total\n        if best_saving > items_total:\n            best_saving = items_total\n\n        discounted_total = items_total - best_saving\n\n        # Shipping: free if discounted_total meets threshold\n        if discounted_total >= self.free_shipping_threshold:\n            shipping = 0.0\n        else:\n            shipping = self.shipping_cost\n\n        return round(discounted_total + shipping, 2)\n```",
+ "code": "class Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items = []  # list of (unit_price, quantity)\n        self.discounts = []  # list of percent values\n        self.vouchers = []  # list of fixed amounts\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero\")\n        self.items.append((unit_price, quantity))\n\n    def apply_discount(self, percent: float) -> None:\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        items_total = sum(price * qty for price, qty in self.items)\n\n        # Determine best single saving among discounts and vouchers\n        best_saving = 0.0\n        for percent in self.discounts:\n            saving = items_total * (percent / 100.0)\n            if saving > best_saving:\n                best_saving = saving\n        for amount in self.vouchers:\n            saving = amount\n            if saving > best_saving:\n                best_saving = saving\n\n        # Voucher/discount can't exceed items total\n        if best_saving > items_total:\n            best_saving = items_total\n\n        discounted_total = items_total - best_saving\n\n        # Shipping: free if discounted_total meets threshold\n        if discounted_total >= self.free_shipping_threshold:\n            shipping = 0.0\n        else:\n            shipping = self.shipping_cost\n\n        return round(discounted_total + shipping, 2)\n",
+ "input_tokens": 281,
+ "output_tokens": 419,
+ "cost_usd": 0.0005870999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.29,
+ "raw_api_response": {
+  "id": "5e505fbe-39f9-431a-8141-d8060f0b870e",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items = []  # list of (unit_price, quantity)\n        self.discounts = []  # list of percent values\n        self.vouchers = []  # list of fixed amounts\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero\")\n        self.items.append((unit_price, quantity))\n\n    def apply_discount(self, percent: float) -> None:\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        items_total = sum(price * qty for price, qty in self.items)\n\n        # Determine best single saving among discounts and vouchers\n        best_saving = 0.0\n        for percent in self.discounts:\n            saving = items_total * (percent / 100.0)\n            if saving > best_saving:\n                best_saving = saving\n        for amount in self.vouchers:\n            saving = amount\n            if saving > best_saving:\n                best_saving = saving\n\n        # Voucher/discount can't exceed items total\n        if best_saving > items_total:\n            best_saving = items_total\n\n        discounted_total = items_total - best_saving\n\n        # Shipping: free if discounted_total meets threshold\n        if discounted_total >= self.free_shipping_threshold:\n            shipping = 0.0\n        else:\n            shipping = self.shipping_cost\n\n        return round(discounted_total + shipping, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794451646,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 419,
+   "prompt_tokens": 281,
+   "total_tokens": 700,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 281
+  }
+ }
+}

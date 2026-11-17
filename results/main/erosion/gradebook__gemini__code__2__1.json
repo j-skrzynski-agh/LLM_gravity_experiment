@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T00:06:17+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "gemini",
+ "variant": "code",
+ "rep": 2,
+ "step": 1,
+ "change": "Add a method `students(self) -> list[str]` that returns all students with at least one grade, sorted.",
+ "start_file": "gradebook__gemini__FULL__2.json",
+ "passed": {
+  "GB1": true,
+  "GB2": true,
+  "GB3": true,
+  "GB4": true,
+  "GB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # Map assignment name -> (weight, kind)\n        self.assignments: dict[str, tuple[float, str]] = {}\n        # Map student name -> dict of {assignment_name: grade}\n        self.grades: dict[str, dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self.assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the allowed scale of 2.0 to 5.0.\")\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        student_grades = self.grades.get(student, {})\n\n        # Collect quizzes to evaluate if the lowest quiz grade needs to be dropped\n        quizzes = []\n        for name, (weight, kind) in self.assignments.items():\n            if kind == \"quiz\":\n                # Assignments without a recorded grade count as 2.0\n                grade = student_grades.get(name, 2.0)\n                quizzes.append((name, grade, weight))\n\n        dropped_quiz_name = None\n        if len(quizzes) > 1:\n            # Identify the quiz with the lowest grade.\n            # In case of ties, dropping any single lowest grade quiz is standard.\n            dropped_quiz_name = min(quizzes, key=lambda q: q[1])[0]\n\n        total_weighted_sum = 0.0\n        total_weight = 0.0\n\n        for name, (weight, kind) in self.assignments.items():\n            if name == dropped_quiz_name:\n                continue\n\n            grade = student_grades.get(name, 2.0)\n            total_weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0.0:\n            return 0.0\n\n        return round(total_weighted_sum / total_weight, 2)\n```\n\n## Change request\nAdd a method `students(self) -> list[str]` that returns all students with at least one grade, sorted.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the updated module with the `students` method added:\n\n```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # Map assignment name -> (weight, kind)\n        self.assignments: dict[str, tuple[float, str]] = {}\n        # Map student name -> dict of {assignment_name: grade}\n        self.grades: dict[str, dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self.assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the allowed scale of 2.0 to 5.0.\")\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def students(self) -> list[str]:\n        return sorted(student for student, grades in self.grades.items() if len(grades) > 0)\n\n    def average(self, student: str) -> float:\n        student_grades = self.grades.get(student, {})\n\n        # Collect quizzes to evaluate if the lowest quiz grade needs to be dropped\n        quizzes = []\n        for name, (weight, kind) in self.assignments.items():\n            if kind == \"quiz\":\n                # Assignments without a recorded grade count as 2.0\n                grade = student_grades.get(name, 2.0)\n                quizzes.append((name, grade, weight))\n\n        dropped_quiz_name = None\n        if len(quizzes) > 1:\n            # Identify the quiz with the lowest grade.\n            # In case of ties, dropping any single lowest grade quiz is standard.\n            dropped_quiz_name = min(quizzes, key=lambda q: q[1])[0]\n\n        total_weighted_sum = 0.0\n        total_weight = 0.0\n\n        for name, (weight, kind) in self.assignments.items():\n            if name == dropped_quiz_name:\n                continue\n\n            grade = student_grades.get(name, 2.0)\n            total_weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0.0:\n            return 0.0\n\n        return round(total_weighted_sum / total_weight, 2)\n```",
+ "code": "class Gradebook:\n    def __init__(self) -> None:\n        # Map assignment name -> (weight, kind)\n        self.assignments: dict[str, tuple[float, str]] = {}\n        # Map student name -> dict of {assignment_name: grade}\n        self.grades: dict[str, dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self.assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the allowed scale of 2.0 to 5.0.\")\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def students(self) -> list[str]:\n        return sorted(student for student, grades in self.grades.items() if len(grades) > 0)\n\n    def average(self, student: str) -> float:\n        student_grades = self.grades.get(student, {})\n\n        # Collect quizzes to evaluate if the lowest quiz grade needs to be dropped\n        quizzes = []\n        for name, (weight, kind) in self.assignments.items():\n            if kind == \"quiz\":\n                # Assignments without a recorded grade count as 2.0\n                grade = student_grades.get(name, 2.0)\n                quizzes.append((name, grade, weight))\n\n        dropped_quiz_name = None\n        if len(quizzes) > 1:\n            # Identify the quiz with the lowest grade.\n            # In case of ties, dropping any single lowest grade quiz is standard.\n            dropped_quiz_name = min(quizzes, key=lambda q: q[1])[0]\n\n        total_weighted_sum = 0.0\n        total_weight = 0.0\n\n        for name, (weight, kind) in self.assignments.items():\n            if name == dropped_quiz_name:\n                continue\n\n            grade = student_grades.get(name, 2.0)\n            total_weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0.0:\n            return 0.0\n\n        return round(total_weighted_sum / total_weight, 2)\n",
+ "input_tokens": 616,
+ "output_tokens": 605,
+ "cost_usd": 0.00273075,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 4.55,
+ "raw_api_response": {
+  "id": "blT2asLGI5z-vdIPxr-u8QI",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the updated module with the `students` method added:\n\n```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # Map assignment name -> (weight, kind)\n        self.assignments: dict[str, tuple[float, str]] = {}\n        # Map student name -> dict of {assignment_name: grade}\n        self.grades: dict[str, dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self.assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the allowed scale of 2.0 to 5.0.\")\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def students(self) -> list[str]:\n        return sorted(student for student, grades in self.grades.items() if len(grades) > 0)\n\n    def average(self, student: str) -> float:\n        student_grades = self.grades.get(student, {})\n\n        # Collect quizzes to evaluate if the lowest quiz grade needs to be dropped\n        quizzes = []\n        for name, (weight, kind) in self.assignments.items():\n            if kind == \"quiz\":\n                # Assignments without a recorded grade count as 2.0\n                grade = student_grades.get(name, 2.0)\n                quizzes.append((name, grade, weight))\n\n        dropped_quiz_name = None\n        if len(quizzes) > 1:\n            # Identify the quiz with the lowest grade.\n            # In case of ties, dropping any single lowest grade quiz is standard.\n            dropped_quiz_name = min(quizzes, key=lambda q: q[1])[0]\n\n        total_weighted_sum = 0.0\n        total_weight = 0.0\n\n        for name, (weight, kind) in self.assignments.items():\n            if name == dropped_quiz_name:\n                continue\n\n            grade = student_grades.get(name, 2.0)\n            total_weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0.0:\n            return 0.0\n\n        return round(total_weighted_sum / total_weight, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TJl1SYe0vfJCF6X4H0pK90XszdYLxkhDCqyE7dbCP+nvCT6Q8gSCO1SGa2Ijpj2VCR2nR8dQQcI4MMCXyyZOfSkQeccN2XM4bs2lwRq2cIZAmnXV5Qqc3KC27mevfiYeKznc="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794528370,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 605,
+   "prompt_tokens": 616,
+   "total_tokens": 1221,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

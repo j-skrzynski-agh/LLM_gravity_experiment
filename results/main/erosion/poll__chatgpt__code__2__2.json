@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T01:12:08+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "chatgpt",
+ "variant": "code",
+ "rep": 2,
+ "step": 2,
+ "change": "Add a method `voters(self) -> list[str]` that returns the names of people who have voted, sorted.",
+ "start_file": "poll__chatgpt__FULL__2.json",
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._options:\n            self._options[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self._voters:\n            raise ValueError(\"Voter has already voted\")\n        self._options[option] += 1\n        self._voters.add(voter)\n\n    def results(self) -> dict[str, int]:\n        return self._options.copy()\n\n    def winner(self) -> str | None:\n        if len(self._voters) < 3:\n            return None\n\n        winning_option = None\n        most_votes = -1\n        for option, votes in self._options.items():\n            if votes >= most_votes:\n                winning_option = option\n                most_votes = votes\n        return winning_option\n```\n\n## Change request\nAdd a method `voters(self) -> list[str]` that returns the names of people who have voted, sorted.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._options:\n            self._options[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self._voters:\n            raise ValueError(\"Voter has already voted\")\n        self._options[option] += 1\n        self._voters.add(voter)\n\n    def results(self) -> dict[str, int]:\n        return self._options.copy()\n\n    def voters(self) -> list[str]:\n        return sorted(self._voters)\n\n    def winner(self) -> str | None:\n        if len(self._voters) < 3:\n            return None\n\n        winning_option = None\n        most_votes = -1\n        for option, votes in self._options.items():\n            if votes >= most_votes:\n                winning_option = option\n                most_votes = votes\n        return winning_option\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._options:\n            self._options[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self._voters:\n            raise ValueError(\"Voter has already voted\")\n        self._options[option] += 1\n        self._voters.add(voter)\n\n    def results(self) -> dict[str, int]:\n        return self._options.copy()\n\n    def voters(self) -> list[str]:\n        return sorted(self._voters)\n\n    def winner(self) -> str | None:\n        if len(self._voters) < 3:\n            return None\n\n        winning_option = None\n        most_votes = -1\n        for option, votes in self._options.items():\n            if votes >= most_votes:\n                winning_option = option\n                most_votes = votes\n        return winning_option\n",
+ "input_tokens": 317,
+ "output_tokens": 271,
+ "cost_usd": 0.001672,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 4.07,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja7aMH6IzcaukIMNmTP0DexKCPWk",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._options:\n            self._options[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self._voters:\n            raise ValueError(\"Voter has already voted\")\n        self._options[option] += 1\n        self._voters.add(voter)\n\n    def results(self) -> dict[str, int]:\n        return self._options.copy()\n\n    def voters(self) -> list[str]:\n        return sorted(self._voters)\n\n    def winner(self) -> str | None:\n        if len(self._voters) < 3:\n            return None\n\n        winning_option = None\n        most_votes = -1\n        for option, votes in self._options.items():\n            if votes >= most_votes:\n                winning_option = option\n                most_votes = votes\n        return winning_option\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532318,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 271,
+   "prompt_tokens": 317,
+   "total_tokens": 588,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

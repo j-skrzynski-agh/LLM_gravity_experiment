@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:14:57+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "deepseek",
+ "condition": "ABL-PL2",
+ "rep": 1,
+ "requirement_order": [
+  "PL4",
+  "PL3",
+  "PL5",
+  "PL1"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": false,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. In case of a tie, the tied option that was added last wins.\n2. The winner is the option with the most votes.\n3. winner() returns None until at least 3 votes have been cast.\n4. Voting for an option that does not exist raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = []          # ordered list of option names (order added)\n        self.votes = {}            # option -> vote count\n        self.total_votes = 0\n\n    def add_option(self, option: str) -> None:\n        if option in self.votes:\n            return  # or could raise; spec doesn't say, keep idempotent\n        self.options.append(option)\n        self.votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self.votes:\n            raise ValueError(f\"Option '{option}' does not exist\")\n        self.votes[option] += 1\n        self.total_votes += 1\n\n    def winner(self) -> str | None:\n        if self.total_votes < 3:\n            return None\n        # Find max vote count, then among those pick the one added last.\n        best = None\n        best_count = -1\n        for opt in reversed(self.options):  # last added first\n            if self.votes[opt] > best_count:\n                best_count = self.votes[opt]\n                best = opt\n        return best\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = []          # ordered list of option names (order added)\n        self.votes = {}            # option -> vote count\n        self.total_votes = 0\n\n    def add_option(self, option: str) -> None:\n        if option in self.votes:\n            return  # or could raise; spec doesn't say, keep idempotent\n        self.options.append(option)\n        self.votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self.votes:\n            raise ValueError(f\"Option '{option}' does not exist\")\n        self.votes[option] += 1\n        self.total_votes += 1\n\n    def winner(self) -> str | None:\n        if self.total_votes < 3:\n            return None\n        # Find max vote count, then among those pick the one added last.\n        best = None\n        best_count = -1\n        for opt in reversed(self.options):  # last added first\n            if self.votes[opt] > best_count:\n                best_count = self.votes[opt]\n                best = opt\n        return best\n",
+ "input_tokens": 179,
+ "output_tokens": 278,
+ "cost_usd": 0.0003873,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.03,
+ "raw_api_response": {
+  "id": "39b6e550-9568-4733-8466-08b8697c2785",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = []          # ordered list of option names (order added)\n        self.votes = {}            # option -> vote count\n        self.total_votes = 0\n\n    def add_option(self, option: str) -> None:\n        if option in self.votes:\n            return  # or could raise; spec doesn't say, keep idempotent\n        self.options.append(option)\n        self.votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self.votes:\n            raise ValueError(f\"Option '{option}' does not exist\")\n        self.votes[option] += 1\n        self.total_votes += 1\n\n    def winner(self) -> str | None:\n        if self.total_votes < 3:\n            return None\n        # Find max vote count, then among those pick the one added last.\n        best = None\n        best_count = -1\n        for opt in reversed(self.options):  # last added first\n            if self.votes[opt] > best_count:\n                best_count = self.votes[opt]\n                best = opt\n        return best\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794453289,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 278,
+   "prompt_tokens": 179,
+   "total_tokens": 457,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 179
+  }
+ }
+}

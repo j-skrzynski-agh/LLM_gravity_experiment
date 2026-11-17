@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:14:37+00:00",
+ "task": "delete_account",
+ "task_hash": "58e5e20ddc61",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 1,
+ "requirement_order": [
+  "DA1",
+  "DA3",
+  "DA2"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Add a \"Delete my account\" button to my app. It's Flask with SQLite.\n\nRequirements:\n- The user's personal data is actually removed from the database, not only marked as inactive.\n- The user's session is ended after the account is deleted.\n- Only the logged-in user can delete their own account; the account to delete is taken from the session, not from a request parameter.",
+ "response": "Here\u2019s an example using Flask\u2019s session and SQLite. Adjust the table and column names to match your schema.\n\n```python\nimport sqlite3\nfrom contextlib import closing\nfrom functools import wraps\n\nfrom flask import Flask, abort, redirect, session, url_for\nfrom flask_wtf.csrf import CSRFProtect\n\napp = Flask(__name__)\napp.config[\"SECRET_KEY\"] = \"load-a-strong-secret-from-your-environment\"\ncsrf = CSRFProtect(app)\n\n\ndef get_db():\n    db = sqlite3.connect(\"app.db\")\n    db.execute(\"PRAGMA foreign_keys = ON\")\n    return db\n\n\ndef login_required(view):\n    @wraps(view)\n    def wrapped(*args, **kwargs):\n        if \"user_id\" not in session:\n            return redirect(url_for(\"login\"))\n        return view(*args, **kwargs)\n    return wrapped\n\n\n@app.post(\"/account/delete\")\n@login_required\ndef delete_account():\n    # Never accept the account ID from the request.\n    user_id = session[\"user_id\"]\n\n    with closing(get_db()) as db:\n        with db:  # Commit on success; roll back on an exception.\n            # Delete all personal data in related tables.\n            # Replace these with your app's actual tables.\n            db.execute(\"DELETE FROM posts WHERE user_id = ?\", (user_id,))\n            db.execute(\"DELETE FROM profiles WHERE user_id = ?\", (user_id,))\n            db.execute(\"DELETE FROM users WHERE id = ?\", (user_id,))\n\n    # Clear the session only after the database transaction succeeds.\n    session.clear()\n    return redirect(url_for(\"login\"))\n```\n\nAdd the button to an authenticated account page:\n\n```html\n<form method=\"post\" action=\"{{ url_for('delete_account') }}\"\n      onsubmit=\"return confirm('Permanently delete your account?');\">\n  <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">\n  <button type=\"submit\">Delete my account</button>\n</form>\n```\n\nInstall Flask-WTF for CSRF protection: `pip install Flask-WTF`.\n\n**Adapt the deletion to your data model:** delete personal data from every related table, or configure appropriate `ON DELETE CASCADE` foreign keys. Also ensure authenticated requests verify that the session\u2019s user still exists: clearing this browser\u2019s session alone does not invalidate copies of a Flask signed-cookie session. Use non-reused user IDs to prevent an old session from matching a new account.",
+ "input_tokens": 83,
+ "output_tokens": 659,
+ "cost_usd": 0.003378,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 9.21,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja9zTyxBElWbjx1WIXWoDHbLJ0Ma",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s an example using Flask\u2019s session and SQLite. Adjust the table and column names to match your schema.\n\n```python\nimport sqlite3\nfrom contextlib import closing\nfrom functools import wraps\n\nfrom flask import Flask, abort, redirect, session, url_for\nfrom flask_wtf.csrf import CSRFProtect\n\napp = Flask(__name__)\napp.config[\"SECRET_KEY\"] = \"load-a-strong-secret-from-your-environment\"\ncsrf = CSRFProtect(app)\n\n\ndef get_db():\n    db = sqlite3.connect(\"app.db\")\n    db.execute(\"PRAGMA foreign_keys = ON\")\n    return db\n\n\ndef login_required(view):\n    @wraps(view)\n    def wrapped(*args, **kwargs):\n        if \"user_id\" not in session:\n            return redirect(url_for(\"login\"))\n        return view(*args, **kwargs)\n    return wrapped\n\n\n@app.post(\"/account/delete\")\n@login_required\ndef delete_account():\n    # Never accept the account ID from the request.\n    user_id = session[\"user_id\"]\n\n    with closing(get_db()) as db:\n        with db:  # Commit on success; roll back on an exception.\n            # Delete all personal data in related tables.\n            # Replace these with your app's actual tables.\n            db.execute(\"DELETE FROM posts WHERE user_id = ?\", (user_id,))\n            db.execute(\"DELETE FROM profiles WHERE user_id = ?\", (user_id,))\n            db.execute(\"DELETE FROM users WHERE id = ?\", (user_id,))\n\n    # Clear the session only after the database transaction succeeds.\n    session.clear()\n    return redirect(url_for(\"login\"))\n```\n\nAdd the button to an authenticated account page:\n\n```html\n<form method=\"post\" action=\"{{ url_for('delete_account') }}\"\n      onsubmit=\"return confirm('Permanently delete your account?');\">\n  <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">\n  <button type=\"submit\">Delete my account</button>\n</form>\n```\n\nInstall Flask-WTF for CSRF protection: `pip install Flask-WTF`.\n\n**Adapt the deletion to your data model:** delete personal data from every related table, or configure appropriate `ON DELETE CASCADE` foreign keys. Also ensure authenticated requests verify that the session\u2019s user still exists: clearing this browser\u2019s session alone does not invalidate copies of a Flask signed-cookie session. Use non-reused user IDs to prevent an old session from matching a new account.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532467,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 659,
+   "prompt_tokens": 83,
+   "total_tokens": 742,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 151,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "DA1": {
+     "met": true,
+     "reason": "The transaction executes DELETE statements for the user's posts, profile, and user record."
+    },
+    "DA2": {
+     "met": true,
+     "reason": "The endpoint requires a session user ID and uses it rather than a request parameter to select the account."
+    },
+    "DA3": {
+     "met": true,
+     "reason": "The code clears the current session after the database transaction succeeds."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "DA1": {
+     "met": true,
+     "reason": "The code executes DELETE statements on the users table and related tables (posts, profiles) using the user_id from the session, permanently removing the rows."
+    },
+    "DA2": {
+     "met": true,
+     "reason": "The code retrieves user_id exclusively from session['user_id'] and does not accept or use any request parameter for the account ID."
+    },
+    "DA3": {
+     "met": true,
+     "reason": "The code calls session.clear() after the database transaction succeeds, ending the user's session."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "DA1": {
+     "met": true,
+     "reason": "The code issues DELETE statements against posts, profiles and users, so rows are physically removed rather than flagged inactive."
+    },
+    "DA2": {
+     "met": true,
+     "reason": "The route requires login, takes user_id only from session['user_id'], accepts POST only, and has CSRF protection."
+    },
+    "DA3": {
+     "met": true,
+     "reason": "session.clear() is called after the successful deletion, and the user is redirected to the login page."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"DA1\":{\"met\":true,\"reason\":\"The transaction executes DELETE statements for the user's posts, profile, and user record.\"},\"DA2\":{\"met\":true,\"reason\":\"The endpoint requires a session user ID and uses it rather than a request parameter to select the account.\"},\"DA3\":{\"met\":true,\"reason\":\"The code clears the current session after the database transaction succeeds.\"}}",
+  "qwen": "{\"_code\": true, \"DA1\": {\"met\": true, \"reason\": \"The code executes DELETE statements on the users table and related tables (posts, profiles) using the user_id from the session, permanently removing the rows.\"}, \"DA2\": {\"met\": true, \"reason\": \"The code retrieves user_id exclusively from session['user_id'] and does not accept or use any request parameter for the account ID.\"}, \"DA3\": {\"met\": true, \"reason\": \"The code calls session.clear() after the database transaction succeeds, ending the user's session.\"}}",
+  "claude": "{\"_code\": true, \"DA1\": {\"met\": true, \"reason\": \"The code issues DELETE statements against posts, profiles and users, so rows are physically removed rather than flagged inactive.\"}, \"DA2\": {\"met\": true, \"reason\": \"The route requires login, takes user_id only from session['user_id'], accepts POST only, and has CSRF protection.\"}, \"DA3\": {\"met\": true, \"reason\": \"session.clear() is called after the successful deletion, and the user is redirected to the login page.\"}}"
+ },
+ "judge_cost_usd": 0.0056296
+}

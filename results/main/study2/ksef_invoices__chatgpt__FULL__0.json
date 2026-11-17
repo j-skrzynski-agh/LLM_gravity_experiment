@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:23:39+00:00",
+ "task": "ksef_invoices",
+ "task_hash": "acc3500e3319",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "KS3",
+  "KS1",
+  "KS2"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write me a program for my accounting office that downloads purchase invoices from KSeF (the Polish national e-invoicing system) for our clients and lets me search and filter them by date, supplier and amount.\n\nRequirements:\n- Synchronization is incremental: invoices downloaded before are not downloaded again.\n- Searching and filtering work on invoices stored locally; they do not send new requests to the KSeF API.\n- The program respects KSeF API rate limits: on HTTP 429 it waits for the time given in the Retry-After header before retrying.",
+ "response": "Below is a runnable **local storage, synchronization, and search program**. It needs one additional piece: a KSeF adapter implementing authentication and the actual KSeF endpoints. I\u2019ve kept that separate rather than guessing at the current KSeF authentication and pagination contracts.\n\nThe program stores invoice XML locally, skips invoice IDs already stored, and retries HTTP 429 responses after the `Retry-After` delay. Searches query SQLite only.\n\n### `invoices.py`\n\n```python\nimport argparse\nimport importlib\nimport json\nimport sqlite3\nimport time\nfrom datetime import datetime, timezone\nfrom email.utils import parsedate_to_datetime\n\nimport requests\n\n\nDB_PATH = \"invoices.sqlite3\"\n\n\ndef open_db():\n    db = sqlite3.connect(DB_PATH)\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS invoices (\n            client_id TEXT NOT NULL,\n            invoice_id TEXT NOT NULL,\n            issue_date TEXT NOT NULL,\n            supplier TEXT NOT NULL,\n            amount_grosz INTEGER NOT NULL,\n            currency TEXT NOT NULL,\n            xml BLOB NOT NULL,\n            PRIMARY KEY (client_id, invoice_id)\n        )\n    \"\"\")\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS sync_state (\n            client_id TEXT PRIMARY KEY,\n            cursor TEXT NOT NULL\n        )\n    \"\"\")\n    db.commit()\n    return db\n\n\ndef retry_delay(value):\n    \"\"\"Parse either form of the HTTP Retry-After header.\"\"\"\n    if not value:\n        raise RuntimeError(\"HTTP 429 received without a Retry-After header\")\n\n    value = value.strip()\n    if value.isdigit():\n        return int(value)\n\n    try:\n        retry_at = parsedate_to_datetime(value)\n        if retry_at.tzinfo is None:\n            retry_at = retry_at.replace(tzinfo=timezone.utc)\n        return max(\n            0,\n            (retry_at - datetime.now(timezone.utc)).total_seconds(),\n        )\n    except (TypeError, ValueError, OverflowError) as exc:\n        raise RuntimeError(f\"Invalid Retry-After header: {value!r}\") from exc\n\n\ndef request(method, url, **kwargs):\n    \"\"\"\n    Make an HTTP request, waiting as instructed on HTTP 429.\n\n    The adapter must use this function for *every* KSeF HTTP request,\n    including authentication requests.\n    \"\"\"\n    kwargs.setdefault(\"timeout\", 60)\n\n    while True:\n        response = requests.request(method, url, **kwargs)\n        if response.status_code == 429:\n            delay = retry_delay(response.headers.get(\"Retry-After\"))\n            response.close()\n            time.sleep(delay)\n            continue\n\n        response.raise_for_status()\n        return response\n\n\ndef sync(client_id, adapter_name):\n    adapter = importlib.import_module(adapter_name)\n    db = open_db()\n\n    try:\n        row = db.execute(\n            \"SELECT cursor FROM sync_state WHERE client_id = ?\",\n            (client_id,),\n        ).fetchone()\n        cursor = json.loads(row[0]) if row else None\n\n        # Each page contains metadata and a durable resume cursor.\n        for page in adapter.pages(client_id, cursor, request):\n            next_cursor = page[\"next_cursor\"]\n            if next_cursor is None:\n                raise ValueError(\"Adapter must provide a durable next_cursor\")\n\n            for item in page[\"invoices\"]:\n                invoice_id = item[\"invoice_id\"]\n\n                exists = db.execute(\n                    \"\"\"\n                    SELECT 1 FROM invoices\n                    WHERE client_id = ? AND invoice_id = ?\n                    \"\"\",\n                    (client_id, invoice_id),\n                ).fetchone()\n\n                if exists:\n                    continue\n\n                # Store each downloaded invoice immediately. If the process\n                # stops mid-page, already stored IDs are skipped on retry.\n                xml = adapter.download(client_id, invoice_id, request)\n                with db:\n                    db.execute(\n                        \"\"\"\n                        INSERT INTO invoices\n                            (client_id, invoice_id, issue_date, supplier,\n                             amount_grosz, currency, xml)\n                        VALUES (?, ?, ?, ?, ?, ?, ?)\n                        \"\"\",\n                        (\n                            client_id,\n                            invoice_id,\n                            item[\"issue_date\"],\n                            item[\"supplier\"],\n                            item[\"amount_grosz\"],\n                            item[\"currency\"],\n                            xml,\n                        ),\n                    )\n                print(f\"Stored {invoice_id}\")\n\n            # Advance only after every invoice on the page is stored.\n            with db:\n                db.execute(\n                    \"\"\"\n                    INSERT INTO sync_state (client_id, cursor)\n                    VALUES (?, ?)\n                    ON CONFLICT(client_id)\n                    DO UPDATE SET cursor = excluded.cursor\n                    \"\"\",\n                    (client_id, json.dumps(next_cursor)),\n                )\n    finally:\n        db.close()\n\n\ndef search(args):\n    db = open_db()\n    try:\n        conditions = [\"client_id = ?\"]\n        values = [args.client]\n\n        if args.date_from:\n            conditions.append(\"issue_date >= ?\")\n            values.append(args.date_from)\n        if args.date_to:\n            conditions.append(\"issue_date <= ?\")\n            values.append(args.date_to)\n        if args.supplier:\n            conditions.append(\"supplier LIKE ?\")\n            values.append(f\"%{args.supplier}%\")\n        if args.min_grosz is not None:\n            conditions.append(\"amount_grosz >= ?\")\n            values.append(args.min_grosz)\n        if args.max_grosz is not None:\n            conditions.append(\"amount_grosz <= ?\")\n            values.append(args.max_grosz)\n        if args.currency:\n            conditions.append(\"currency = ?\")\n            values.append(args.currency.upper())\n\n        sql = \"\"\"\n            SELECT invoice_id, issue_date, supplier, amount_grosz, currency\n            FROM invoices\n            WHERE {}\n            ORDER BY issue_date DESC, invoice_id\n        \"\"\".format(\" AND \".join(conditions))\n\n        for invoice_id, date, supplier, amount, currency in db.execute(sql, values):\n            print(json.dumps({\n                \"invoice_id\": invoice_id,\n                \"issue_date\": date,\n                \"supplier\": supplier,\n                \"amount_grosz\": amount,\n                \"currency\": currency,\n            }, ensure_ascii=False))\n    finally:\n        db.close()\n\n\ndef main():\n    parser = argparse.ArgumentParser()\n    commands = parser.add_subparsers(dest=\"command\", required=True)\n\n    sync_parser = commands.add_parser(\"sync\")\n    sync_parser.add_argument(\"--client\", required=True)\n    sync_parser.add_argument(\"--adapter\", default=\"ksef_adapter\")\n\n    search_parser = commands.add_parser(\"search\")\n    search_parser.add_argument(\"--client\", required=True)\n    search_parser.add_argument(\"--date-from\", help=\"YYYY-MM-DD, inclusive\")\n    search_parser.add_argument(\"--date-to\", help=\"YYYY-MM-DD, inclusive\")\n    search_parser.add_argument(\"--supplier\")\n    search_parser.add_argument(\"--min-grosz\", type=int)\n    search_parser.add_argument(\"--max-grosz\", type=int)\n    search_parser.add_argument(\"--currency\", help=\"e.g. PLN\")\n\n    args = parser.parse_args()\n    if args.command == \"sync\":\n        sync(args.client, args.adapter)\n    else:\n        search(args)\n\n\nif __name__ == \"__main__\":\n    main()\n```\n\n### Adapter contract\n\nCreate a module named `ksef_adapter.py` with these functions:\n\n```python\ndef pages(client_id, cursor, request):\n    \"\"\"\n    Authenticate and yield pages of purchase-invoice metadata.\n\n    Each yielded page must have this shape:\n    {\n        \"invoices\": [\n            {\n                \"invoice_id\": \"unique KSeF invoice ID\",\n                \"issue_date\": \"2026-01-31\",\n                \"supplier\": \"Supplier name\",\n                \"amount_grosz\": 12345,\n                \"currency\": \"PLN\",\n            }\n        ],\n        \"next_cursor\": <JSON-serializable durable resume position>,\n    }\n\n    cursor is None on the first sync. The saved cursor must allow a later\n    sync to find newly available invoices without missing any.\n    Use the supplied request() function for all HTTP calls.\n    \"\"\"\n    raise NotImplementedError\n\n\ndef download(client_id, invoice_id, request):\n    \"\"\"Download and return the invoice XML as bytes.\"\"\"\n    raise NotImplementedError\n```\n\nThe adapter must implement the current KSeF authentication, purchase-invoice queries, pagination, and a durable incremental cursor according to the official API documentation. In particular, it must account for invoices appearing later than their issue date. Use appropriate client-specific credentials and permissions.\n\n### Usage\n\n```bash\npip install requests\n\n# Once the adapter is implemented:\npython invoices.py sync --client CLIENT_NIP\n\n# Local-only search:\npython invoices.py search --client CLIENT_NIP \\\n  --date-from 2026-01-01 --date-to 2026-03-31 \\\n  --supplier \"Example\" --min-grosz 10000 --currency PLN\n```\n\nAmounts are integer minor units; filter by currency when comparing amounts. Before office deployment, protect the database and credentials, arrange backups, and prevent simultaneous syncs for the same client.",
+ "input_tokens": 119,
+ "output_tokens": 2320,
+ "cost_usd": 0.011719,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 27.15,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaIQnKlN2cjHtd02VXcknwIhpLXw",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Below is a runnable **local storage, synchronization, and search program**. It needs one additional piece: a KSeF adapter implementing authentication and the actual KSeF endpoints. I\u2019ve kept that separate rather than guessing at the current KSeF authentication and pagination contracts.\n\nThe program stores invoice XML locally, skips invoice IDs already stored, and retries HTTP 429 responses after the `Retry-After` delay. Searches query SQLite only.\n\n### `invoices.py`\n\n```python\nimport argparse\nimport importlib\nimport json\nimport sqlite3\nimport time\nfrom datetime import datetime, timezone\nfrom email.utils import parsedate_to_datetime\n\nimport requests\n\n\nDB_PATH = \"invoices.sqlite3\"\n\n\ndef open_db():\n    db = sqlite3.connect(DB_PATH)\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS invoices (\n            client_id TEXT NOT NULL,\n            invoice_id TEXT NOT NULL,\n            issue_date TEXT NOT NULL,\n            supplier TEXT NOT NULL,\n            amount_grosz INTEGER NOT NULL,\n            currency TEXT NOT NULL,\n            xml BLOB NOT NULL,\n            PRIMARY KEY (client_id, invoice_id)\n        )\n    \"\"\")\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS sync_state (\n            client_id TEXT PRIMARY KEY,\n            cursor TEXT NOT NULL\n        )\n    \"\"\")\n    db.commit()\n    return db\n\n\ndef retry_delay(value):\n    \"\"\"Parse either form of the HTTP Retry-After header.\"\"\"\n    if not value:\n        raise RuntimeError(\"HTTP 429 received without a Retry-After header\")\n\n    value = value.strip()\n    if value.isdigit():\n        return int(value)\n\n    try:\n        retry_at = parsedate_to_datetime(value)\n        if retry_at.tzinfo is None:\n            retry_at = retry_at.replace(tzinfo=timezone.utc)\n        return max(\n            0,\n            (retry_at - datetime.now(timezone.utc)).total_seconds(),\n        )\n    except (TypeError, ValueError, OverflowError) as exc:\n        raise RuntimeError(f\"Invalid Retry-After header: {value!r}\") from exc\n\n\ndef request(method, url, **kwargs):\n    \"\"\"\n    Make an HTTP request, waiting as instructed on HTTP 429.\n\n    The adapter must use this function for *every* KSeF HTTP request,\n    including authentication requests.\n    \"\"\"\n    kwargs.setdefault(\"timeout\", 60)\n\n    while True:\n        response = requests.request(method, url, **kwargs)\n        if response.status_code == 429:\n            delay = retry_delay(response.headers.get(\"Retry-After\"))\n            response.close()\n            time.sleep(delay)\n            continue\n\n        response.raise_for_status()\n        return response\n\n\ndef sync(client_id, adapter_name):\n    adapter = importlib.import_module(adapter_name)\n    db = open_db()\n\n    try:\n        row = db.execute(\n            \"SELECT cursor FROM sync_state WHERE client_id = ?\",\n            (client_id,),\n        ).fetchone()\n        cursor = json.loads(row[0]) if row else None\n\n        # Each page contains metadata and a durable resume cursor.\n        for page in adapter.pages(client_id, cursor, request):\n            next_cursor = page[\"next_cursor\"]\n            if next_cursor is None:\n                raise ValueError(\"Adapter must provide a durable next_cursor\")\n\n            for item in page[\"invoices\"]:\n                invoice_id = item[\"invoice_id\"]\n\n                exists = db.execute(\n                    \"\"\"\n                    SELECT 1 FROM invoices\n                    WHERE client_id = ? AND invoice_id = ?\n                    \"\"\",\n                    (client_id, invoice_id),\n                ).fetchone()\n\n                if exists:\n                    continue\n\n                # Store each downloaded invoice immediately. If the process\n                # stops mid-page, already stored IDs are skipped on retry.\n                xml = adapter.download(client_id, invoice_id, request)\n                with db:\n                    db.execute(\n                        \"\"\"\n                        INSERT INTO invoices\n                            (client_id, invoice_id, issue_date, supplier,\n                             amount_grosz, currency, xml)\n                        VALUES (?, ?, ?, ?, ?, ?, ?)\n                        \"\"\",\n                        (\n                            client_id,\n                            invoice_id,\n                            item[\"issue_date\"],\n                            item[\"supplier\"],\n                            item[\"amount_grosz\"],\n                            item[\"currency\"],\n                            xml,\n                        ),\n                    )\n                print(f\"Stored {invoice_id}\")\n\n            # Advance only after every invoice on the page is stored.\n            with db:\n                db.execute(\n                    \"\"\"\n                    INSERT INTO sync_state (client_id, cursor)\n                    VALUES (?, ?)\n                    ON CONFLICT(client_id)\n                    DO UPDATE SET cursor = excluded.cursor\n                    \"\"\",\n                    (client_id, json.dumps(next_cursor)),\n                )\n    finally:\n        db.close()\n\n\ndef search(args):\n    db = open_db()\n    try:\n        conditions = [\"client_id = ?\"]\n        values = [args.client]\n\n        if args.date_from:\n            conditions.append(\"issue_date >= ?\")\n            values.append(args.date_from)\n        if args.date_to:\n            conditions.append(\"issue_date <= ?\")\n            values.append(args.date_to)\n        if args.supplier:\n            conditions.append(\"supplier LIKE ?\")\n            values.append(f\"%{args.supplier}%\")\n        if args.min_grosz is not None:\n            conditions.append(\"amount_grosz >= ?\")\n            values.append(args.min_grosz)\n        if args.max_grosz is not None:\n            conditions.append(\"amount_grosz <= ?\")\n            values.append(args.max_grosz)\n        if args.currency:\n            conditions.append(\"currency = ?\")\n            values.append(args.currency.upper())\n\n        sql = \"\"\"\n            SELECT invoice_id, issue_date, supplier, amount_grosz, currency\n            FROM invoices\n            WHERE {}\n            ORDER BY issue_date DESC, invoice_id\n        \"\"\".format(\" AND \".join(conditions))\n\n        for invoice_id, date, supplier, amount, currency in db.execute(sql, values):\n            print(json.dumps({\n                \"invoice_id\": invoice_id,\n                \"issue_date\": date,\n                \"supplier\": supplier,\n                \"amount_grosz\": amount,\n                \"currency\": currency,\n            }, ensure_ascii=False))\n    finally:\n        db.close()\n\n\ndef main():\n    parser = argparse.ArgumentParser()\n    commands = parser.add_subparsers(dest=\"command\", required=True)\n\n    sync_parser = commands.add_parser(\"sync\")\n    sync_parser.add_argument(\"--client\", required=True)\n    sync_parser.add_argument(\"--adapter\", default=\"ksef_adapter\")\n\n    search_parser = commands.add_parser(\"search\")\n    search_parser.add_argument(\"--client\", required=True)\n    search_parser.add_argument(\"--date-from\", help=\"YYYY-MM-DD, inclusive\")\n    search_parser.add_argument(\"--date-to\", help=\"YYYY-MM-DD, inclusive\")\n    search_parser.add_argument(\"--supplier\")\n    search_parser.add_argument(\"--min-grosz\", type=int)\n    search_parser.add_argument(\"--max-grosz\", type=int)\n    search_parser.add_argument(\"--currency\", help=\"e.g. PLN\")\n\n    args = parser.parse_args()\n    if args.command == \"sync\":\n        sync(args.client, args.adapter)\n    else:\n        search(args)\n\n\nif __name__ == \"__main__\":\n    main()\n```\n\n### Adapter contract\n\nCreate a module named `ksef_adapter.py` with these functions:\n\n```python\ndef pages(client_id, cursor, request):\n    \"\"\"\n    Authenticate and yield pages of purchase-invoice metadata.\n\n    Each yielded page must have this shape:\n    {\n        \"invoices\": [\n            {\n                \"invoice_id\": \"unique KSeF invoice ID\",\n                \"issue_date\": \"2026-01-31\",\n                \"supplier\": \"Supplier name\",\n                \"amount_grosz\": 12345,\n                \"currency\": \"PLN\",\n            }\n        ],\n        \"next_cursor\": <JSON-serializable durable resume position>,\n    }\n\n    cursor is None on the first sync. The saved cursor must allow a later\n    sync to find newly available invoices without missing any.\n    Use the supplied request() function for all HTTP calls.\n    \"\"\"\n    raise NotImplementedError\n\n\ndef download(client_id, invoice_id, request):\n    \"\"\"Download and return the invoice XML as bytes.\"\"\"\n    raise NotImplementedError\n```\n\nThe adapter must implement the current KSeF authentication, purchase-invoice queries, pagination, and a durable incremental cursor according to the official API documentation. In particular, it must account for invoices appearing later than their issue date. Use appropriate client-specific credentials and permissions.\n\n### Usage\n\n```bash\npip install requests\n\n# Once the adapter is implemented:\npython invoices.py sync --client CLIENT_NIP\n\n# Local-only search:\npython invoices.py search --client CLIENT_NIP \\\n  --date-from 2026-01-01 --date-to 2026-03-31 \\\n  --supplier \"Example\" --min-grosz 10000 --currency PLN\n```\n\nAmounts are integer minor units; filter by currency when comparing amounts. Before office deployment, protect the database and credentials, arrange backups, and prevent simultaneous syncs for the same client.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532990,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 2320,
+   "prompt_tokens": 119,
+   "total_tokens": 2439,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 467,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "KS1": {
+     "met": true,
+     "reason": "Search filters invoices in SQLite without making HTTP requests."
+    },
+    "KS2": {
+     "met": true,
+     "reason": "The provided HTTP request function waits for the parsed Retry-After delay before retrying a 429 response."
+    },
+    "KS3": {
+     "met": true,
+     "reason": "Synchronization checks for each invoice ID in the local database before downloading it."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "KS1": {
+     "met": true,
+     "reason": "The search function queries only the local SQLite database and does not make any HTTP requests or call the adapter."
+    },
+    "KS2": {
+     "met": true,
+     "reason": "The request() function explicitly handles HTTP 429 by parsing the Retry-After header (in both numeric and date-time forms) and sleeping for the computed delay before retrying."
+    },
+    "KS3": {
+     "met": true,
+     "reason": "The sync function checks for existing invoices in the database using a SELECT query before downloading and storing each invoice, skipping those already present."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "KS1": {
+     "met": true,
+     "reason": "The search() function queries only the local SQLite database and makes no HTTP calls."
+    },
+    "KS2": {
+     "met": true,
+     "reason": "request() on a 429 parses Retry-After (seconds or HTTP date), sleeps for that time and retries; the adapter is told to use it for all calls."
+    },
+    "KS3": {
+     "met": true,
+     "reason": "Sync stores a cursor and skips invoice IDs already in the database before calling download, so previously stored invoices are not downloaded again."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"KS1\":{\"met\":true,\"reason\":\"Search filters invoices in SQLite without making HTTP requests.\"},\"KS2\":{\"met\":true,\"reason\":\"The provided HTTP request function waits for the parsed Retry-After delay before retrying a 429 response.\"},\"KS3\":{\"met\":true,\"reason\":\"Synchronization checks for each invoice ID in the local database before downloading it.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"KS1\": {\"met\": true, \"reason\": \"The search function queries only the local SQLite database and does not make any HTTP requests or call the adapter.\"},\n  \"KS2\": {\"met\": true, \"reason\": \"The request() function explicitly handles HTTP 429 by parsing the Retry-After header (in both numeric and date-time forms) and sleeping for the computed delay before retrying.\"},\n  \"KS3\": {\"met\": true, \"reason\": \"The sync function checks for existing invoices in the database using a SELECT query before downloading and storing each invoice, skipping those already present.\"}\n}",
+  "claude": "{\"_code\": true, \"KS1\": {\"met\": true, \"reason\": \"The search() function queries only the local SQLite database and makes no HTTP calls.\"}, \"KS2\": {\"met\": true, \"reason\": \"request() on a 429 parses Retry-After (seconds or HTTP date), sleeps for that time and retries; the adapter is told to use it for all calls.\"}, \"KS3\": {\"met\": true, \"reason\": \"Sync stores a cursor and skips invoice IDs already in the database before calling download, so previously stored invoices are not downloaded again.\"}}"
+ },
+ "judge_cost_usd": 0.0131982
+}

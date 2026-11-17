@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T18:19:36+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "llama",
+ "variant": "code",
+ "rep": 2,
+ "step": 4,
+ "change": "Add a method `summary(self) -> str` that returns a short text with the question and the vote counts.",
+ "start_file": "poll__llama__FULL__2.json",
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        \"\"\"\n        Initialize a new poll with a given question.\n\n        Args:\n        question (str): The question for the poll.\n        \"\"\"\n        self.question = question\n        self.options = []\n        self.votes = {}\n        self.voter_history = set()\n\n    def add_option(self, option: str) -> None:\n        \"\"\"\n        Add an option to the poll.\n\n        Args:\n        option (str): The option to add.\n        \"\"\"\n        self.options.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        \"\"\"\n        Cast a vote for an option.\n\n        Args:\n        voter (str): The voter's name.\n        option (str): The option to vote for.\n\n        Raises:\n        ValueError: If the option does not exist or the voter has already voted.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self.voter_history:\n            raise ValueError(\"Voter has already voted\")\n        self.voter_history.add(voter)\n        self.votes[voter] = option\n\n    def winner(self) -> str | None:\n        \"\"\"\n        Get the current winner of the poll.\n\n        Returns:\n        str | None: The current winner, or None if less than 3 votes have been cast.\n        \"\"\"\n        if len(self.votes) < 3:\n            return None\n        vote_counts = {}\n        for option in self.options:\n            vote_counts[option] = 0\n        for vote in self.votes.values():\n            vote_counts[vote] += 1\n        max_votes = max(vote_counts.values())\n        winning_options = [option for option, count in vote_counts.items() if count == max_votes]\n        # In case of a tie, the tied option that was added last wins\n        winning_option = max(winning_options, key=self.options.index)\n        return winning_option\n\n    def results(self) -> dict[str, int]:\n        \"\"\"\n        Get the number of votes per option.\n\n        Returns:\n        dict[str, int]: A dictionary where the keys are the options and the values are the number of votes.\n        \"\"\"\n        vote_counts = {}\n        for option in self.options:\n            vote_counts[option] = 0\n        for vote in self.votes.values():\n            vote_counts[vote] += 1\n        return vote_counts\n\n    def voters(self) -> list[str]:\n        \"\"\"\n        Get the names of people who have voted, sorted.\n\n        Returns:\n        list[str]: A list of voter names in sorted order.\n        \"\"\"\n        return sorted(list(self.voter_history))\n\n    def remove_option(self, option: str) -> None:\n        \"\"\"\n        Remove an option from the poll if it has no votes.\n\n        Args:\n        option (str): The option to remove.\n\n        Raises:\n        ValueError: If the option does not exist or has votes.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if option in self.votes.values():\n            raise ValueError(\"Option has votes\")\n        self.options.remove(option)\n```\n\n## Change request\nAdd a method `summary(self) -> str` that returns a short text with the question and the vote counts.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        \"\"\"\n        Initialize a new poll with a given question.\n\n        Args:\n        question (str): The question for the poll.\n        \"\"\"\n        self.question = question\n        self.options = []\n        self.votes = {}\n        self.voter_history = set()\n\n    def add_option(self, option: str) -> None:\n        \"\"\"\n        Add an option to the poll.\n\n        Args:\n        option (str): The option to add.\n        \"\"\"\n        self.options.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        \"\"\"\n        Cast a vote for an option.\n\n        Args:\n        voter (str): The voter's name.\n        option (str): The option to vote for.\n\n        Raises:\n        ValueError: If the option does not exist or the voter has already voted.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self.voter_history:\n            raise ValueError(\"Voter has already voted\")\n        self.voter_history.add(voter)\n        self.votes[voter] = option\n\n    def winner(self) -> str | None:\n        \"\"\"\n        Get the current winner of the poll.\n\n        Returns:\n        str | None: The current winner, or None if less than 3 votes have been cast.\n        \"\"\"\n        if len(self.votes) < 3:\n            return None\n        vote_counts = {}\n        for option in self.options:\n            vote_counts[option] = 0\n        for vote in self.votes.values():\n            vote_counts[vote] += 1\n        max_votes = max(vote_counts.values())\n        winning_options = [option for option, count in vote_counts.items() if count == max_votes]\n        # In case of a tie, the tied option that was added last wins\n        winning_option = max(winning_options, key=self.options.index)\n        return winning_option\n\n    def results(self) -> dict[str, int]:\n        \"\"\"\n        Get the number of votes per option.\n\n        Returns:\n        dict[str, int]: A dictionary where the keys are the options and the values are the number of votes.\n        \"\"\"\n        vote_counts = {}\n        for option in self.options:\n            vote_counts[option] = 0\n        for vote in self.votes.values():\n            vote_counts[vote] += 1\n        return vote_counts\n\n    def voters(self) -> list[str]:\n        \"\"\"\n        Get the names of people who have voted, sorted.\n\n        Returns:\n        list[str]: A list of voter names in sorted order.\n        \"\"\"\n        return sorted(list(self.voter_history))\n\n    def remove_option(self, option: str) -> None:\n        \"\"\"\n        Remove an option from the poll if it has no votes.\n\n        Args:\n        option (str): The option to remove.\n\n        Raises:\n        ValueError: If the option does not exist or has votes.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if option in self.votes.values():\n            raise ValueError(\"Option has votes\")\n        self.options.remove(option)\n\n    def summary(self) -> str:\n        \"\"\"\n        Get a short text with the question and the vote counts.\n\n        Returns:\n        str: A summary of the poll.\n        \"\"\"\n        vote_counts = self.results()\n        summary_text = f\"Question: {self.question}\\n\"\n        for option, count in vote_counts.items():\n            summary_text += f\"{option}: {count} vote{'s' if count != 1 else ''}\\n\"\n        return summary_text.strip()\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        \"\"\"\n        Initialize a new poll with a given question.\n\n        Args:\n        question (str): The question for the poll.\n        \"\"\"\n        self.question = question\n        self.options = []\n        self.votes = {}\n        self.voter_history = set()\n\n    def add_option(self, option: str) -> None:\n        \"\"\"\n        Add an option to the poll.\n\n        Args:\n        option (str): The option to add.\n        \"\"\"\n        self.options.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        \"\"\"\n        Cast a vote for an option.\n\n        Args:\n        voter (str): The voter's name.\n        option (str): The option to vote for.\n\n        Raises:\n        ValueError: If the option does not exist or the voter has already voted.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self.voter_history:\n            raise ValueError(\"Voter has already voted\")\n        self.voter_history.add(voter)\n        self.votes[voter] = option\n\n    def winner(self) -> str | None:\n        \"\"\"\n        Get the current winner of the poll.\n\n        Returns:\n        str | None: The current winner, or None if less than 3 votes have been cast.\n        \"\"\"\n        if len(self.votes) < 3:\n            return None\n        vote_counts = {}\n        for option in self.options:\n            vote_counts[option] = 0\n        for vote in self.votes.values():\n            vote_counts[vote] += 1\n        max_votes = max(vote_counts.values())\n        winning_options = [option for option, count in vote_counts.items() if count == max_votes]\n        # In case of a tie, the tied option that was added last wins\n        winning_option = max(winning_options, key=self.options.index)\n        return winning_option\n\n    def results(self) -> dict[str, int]:\n        \"\"\"\n        Get the number of votes per option.\n\n        Returns:\n        dict[str, int]: A dictionary where the keys are the options and the values are the number of votes.\n        \"\"\"\n        vote_counts = {}\n        for option in self.options:\n            vote_counts[option] = 0\n        for vote in self.votes.values():\n            vote_counts[vote] += 1\n        return vote_counts\n\n    def voters(self) -> list[str]:\n        \"\"\"\n        Get the names of people who have voted, sorted.\n\n        Returns:\n        list[str]: A list of voter names in sorted order.\n        \"\"\"\n        return sorted(list(self.voter_history))\n\n    def remove_option(self, option: str) -> None:\n        \"\"\"\n        Remove an option from the poll if it has no votes.\n\n        Args:\n        option (str): The option to remove.\n\n        Raises:\n        ValueError: If the option does not exist or has votes.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if option in self.votes.values():\n            raise ValueError(\"Option has votes\")\n        self.options.remove(option)\n\n    def summary(self) -> str:\n        \"\"\"\n        Get a short text with the question and the vote counts.\n\n        Returns:\n        str: A summary of the poll.\n        \"\"\"\n        vote_counts = self.results()\n        summary_text = f\"Question: {self.question}\\n\"\n        for option, count in vote_counts.items():\n            summary_text += f\"{option}: {count} vote{'s' if count != 1 else ''}\\n\"\n        return summary_text.strip()\n",
+ "input_tokens": 727,
+ "output_tokens": 759,
+ "cost_usd": 0.00031558,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 8.28,
+ "raw_api_response": {
+  "id": "gen-1794939562-GhCaa5CqKfHueXFfCp8M",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        \"\"\"\n        Initialize a new poll with a given question.\n\n        Args:\n        question (str): The question for the poll.\n        \"\"\"\n        self.question = question\n        self.options = []\n        self.votes = {}\n        self.voter_history = set()\n\n    def add_option(self, option: str) -> None:\n        \"\"\"\n        Add an option to the poll.\n\n        Args:\n        option (str): The option to add.\n        \"\"\"\n        self.options.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        \"\"\"\n        Cast a vote for an option.\n\n        Args:\n        voter (str): The voter's name.\n        option (str): The option to vote for.\n\n        Raises:\n        ValueError: If the option does not exist or the voter has already voted.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self.voter_history:\n            raise ValueError(\"Voter has already voted\")\n        self.voter_history.add(voter)\n        self.votes[voter] = option\n\n    def winner(self) -> str | None:\n        \"\"\"\n        Get the current winner of the poll.\n\n        Returns:\n        str | None: The current winner, or None if less than 3 votes have been cast.\n        \"\"\"\n        if len(self.votes) < 3:\n            return None\n        vote_counts = {}\n        for option in self.options:\n            vote_counts[option] = 0\n        for vote in self.votes.values():\n            vote_counts[vote] += 1\n        max_votes = max(vote_counts.values())\n        winning_options = [option for option, count in vote_counts.items() if count == max_votes]\n        # In case of a tie, the tied option that was added last wins\n        winning_option = max(winning_options, key=self.options.index)\n        return winning_option\n\n    def results(self) -> dict[str, int]:\n        \"\"\"\n        Get the number of votes per option.\n\n        Returns:\n        dict[str, int]: A dictionary where the keys are the options and the values are the number of votes.\n        \"\"\"\n        vote_counts = {}\n        for option in self.options:\n            vote_counts[option] = 0\n        for vote in self.votes.values():\n            vote_counts[vote] += 1\n        return vote_counts\n\n    def voters(self) -> list[str]:\n        \"\"\"\n        Get the names of people who have voted, sorted.\n\n        Returns:\n        list[str]: A list of voter names in sorted order.\n        \"\"\"\n        return sorted(list(self.voter_history))\n\n    def remove_option(self, option: str) -> None:\n        \"\"\"\n        Remove an option from the poll if it has no votes.\n\n        Args:\n        option (str): The option to remove.\n\n        Raises:\n        ValueError: If the option does not exist or has votes.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if option in self.votes.values():\n            raise ValueError(\"Option has votes\")\n        self.options.remove(option)\n\n    def summary(self) -> str:\n        \"\"\"\n        Get a short text with the question and the vote counts.\n\n        Returns:\n        str: A summary of the poll.\n        \"\"\"\n        vote_counts = self.results()\n        summary_text = f\"Question: {self.question}\\n\"\n        for option, count in vote_counts.items():\n            summary_text += f\"{option}: {count} vote{'s' if count != 1 else ''}\\n\"\n        return summary_text.strip()\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794939562,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 759,
+   "prompt_tokens": 727,
+   "total_tokens": 1486,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00105506,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00105506,
+    "upstream_inference_prompt_cost": 0.00051617,
+    "upstream_inference_completions_cost": 0.00053889
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

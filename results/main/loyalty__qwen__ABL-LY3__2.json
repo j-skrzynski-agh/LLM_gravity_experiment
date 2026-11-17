@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:26:51+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "qwen",
+ "condition": "ABL-LY3",
+ "rep": 2,
+ "requirement_order": [
+  "LY4",
+  "LY2",
+  "LY1",
+  "LY5"
+ ],
+ "passed": {
+  "LY1": true,
+  "LY2": false,
+  "LY3": false,
+  "LY4": false,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA customer loyalty program: customers earn points for purchases and redeem them later.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None: ...\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n\n    def redeem(self, customer: str, points: int, day: date) -> None: ...\n```\n\n## Requirements\n1. Points from a purchase become available only 14 days after the purchase.\n2. Redeeming more points than the available balance raises ValueError.\n3. A purchase with an amount of zero or less raises ValueError.\n4. Points can be redeemed only in multiples of 100; other amounts raise ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date\nfrom typing import List, Dict, Tuple\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Store purchases as list of (customer, amount, day, points) tuples\n        # Points earned = amount * 10 (rounded down to nearest integer)\n        self.purchases: List[Tuple[str, float, date, int]] = []\n        # Store redemptions as list of (customer, points, day) tuples\n        self.redemptions: List[Tuple[str, int, date]] = []\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        # Calculate points: amount * 10, rounded down to nearest integer\n        points = int(amount * 10)\n        self.purchases.append((customer, amount, day, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        # Calculate total points earned by this customer that are available (14+ days old)\n        available_points = 0\n        for cust, amount, purchase_day, points in self.purchases:\n            if cust == customer:\n                # Check if 14 days have passed since purchase\n                days_diff = (day - purchase_day).days\n                if days_diff >= 14:\n                    available_points += points\n        \n        # Subtract points already redeemed by this customer\n        redeemed_points = 0\n        for cust, points, redemption_day in self.redemptions:\n            if cust == customer:\n                redeemed_points += points\n        \n        return max(0, available_points - redeemed_points)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        # Check if points is multiple of 100\n        if points % 100 != 0:\n            raise ValueError(\"Points must be redeemed in multiples of 100\")\n        \n        # Check if enough points available\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Not enough points available for redemption\")\n        \n        # Record the redemption\n        self.redemptions.append((customer, points, day))\n```",
+ "code": "from datetime import date\nfrom typing import List, Dict, Tuple\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Store purchases as list of (customer, amount, day, points) tuples\n        # Points earned = amount * 10 (rounded down to nearest integer)\n        self.purchases: List[Tuple[str, float, date, int]] = []\n        # Store redemptions as list of (customer, points, day) tuples\n        self.redemptions: List[Tuple[str, int, date]] = []\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        # Calculate points: amount * 10, rounded down to nearest integer\n        points = int(amount * 10)\n        self.purchases.append((customer, amount, day, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        # Calculate total points earned by this customer that are available (14+ days old)\n        available_points = 0\n        for cust, amount, purchase_day, points in self.purchases:\n            if cust == customer:\n                # Check if 14 days have passed since purchase\n                days_diff = (day - purchase_day).days\n                if days_diff >= 14:\n                    available_points += points\n        \n        # Subtract points already redeemed by this customer\n        redeemed_points = 0\n        for cust, points, redemption_day in self.redemptions:\n            if cust == customer:\n                redeemed_points += points\n        \n        return max(0, available_points - redeemed_points)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        # Check if points is multiple of 100\n        if points % 100 != 0:\n            raise ValueError(\"Points must be redeemed in multiples of 100\")\n        \n        # Check if enough points available\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Not enough points available for redemption\")\n        \n        # Record the redemption\n        self.redemptions.append((customer, points, day))\n",
+ "input_tokens": 230,
+ "output_tokens": 516,
+ "cost_usd": 0.0007111999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 10.34,
+ "raw_api_response": {
+  "id": "gen-1794893193-gRjucfLLwitvdKCnUqqx",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date\nfrom typing import List, Dict, Tuple\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Store purchases as list of (customer, amount, day, points) tuples\n        # Points earned = amount * 10 (rounded down to nearest integer)\n        self.purchases: List[Tuple[str, float, date, int]] = []\n        # Store redemptions as list of (customer, points, day) tuples\n        self.redemptions: List[Tuple[str, int, date]] = []\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        # Calculate points: amount * 10, rounded down to nearest integer\n        points = int(amount * 10)\n        self.purchases.append((customer, amount, day, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        # Calculate total points earned by this customer that are available (14+ days old)\n        available_points = 0\n        for cust, amount, purchase_day, points in self.purchases:\n            if cust == customer:\n                # Check if 14 days have passed since purchase\n                days_diff = (day - purchase_day).days\n                if days_diff >= 14:\n                    available_points += points\n        \n        # Subtract points already redeemed by this customer\n        redeemed_points = 0\n        for cust, points, redemption_day in self.redemptions:\n            if cust == customer:\n                redeemed_points += points\n        \n        return max(0, available_points - redeemed_points)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        # Check if points is multiple of 100\n        if points % 100 != 0:\n            raise ValueError(\"Points must be redeemed in multiples of 100\")\n        \n        # Check if enough points available\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Not enough points available for redemption\")\n        \n        # Record the redemption\n        self.redemptions.append((customer, points, day))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794893193,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 516,
+   "prompt_tokens": 230,
+   "total_tokens": 746,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00046228,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00046228,
+    "upstream_inference_prompt_cost": 5.98e-05,
+    "upstream_inference_completions_cost": 0.00040248
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:47:51+00:00",
+ "app": "leave",
+ "app_hash": "c3276e419d06",
+ "model": "gemini",
+ "condition": "ABL-LV5",
+ "rep": 1,
+ "requirement_order": [
+  "LV4",
+  "LV1",
+  "LV2",
+  "LV3"
+ ],
+ "passed": {
+  "LV1": true,
+  "LV2": true,
+  "LV3": true,
+  "LV4": true,
+  "LV5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that tracks employees' annual leave requests.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None: ...\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n\n    def remaining(self, employee: str, year: int) -> int: ...\n```\n\n## Requirements\n1. A request made less than 3 days before its start date is rejected with ValueError.\n2. A request whose end date is before its start date raises ValueError.\n3. A request that needs more days than the employee has remaining raises ValueError.\n4. Weekends and the given holidays do not use leave days.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `LeaveTracker` module meeting all specifications:\n\n```python\nfrom datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays is not None else set()\n        # Track used leave days per employee per year: {employee: {year: used_days}}\n        self._used: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date.\")\n\n        if (start - today).days < 3:\n            raise ValueError(\"Leave requests must be made at least 3 days before the start date.\")\n\n        # Calculate leave days requested per calendar year\n        needed_by_year: dict[int, int] = defaultdict(int)\n        curr = start\n        while curr <= end:\n            # Weekdays are 0-4 (Monday-Friday); weekends (5, 6) and holidays don't use leave days\n            if curr.weekday() < 5 and curr not in self.holidays:\n                needed_by_year[curr.year] += 1\n            curr += timedelta(days=1)\n\n        # Check if the employee has enough remaining days for each year in the request\n        for year, needed in needed_by_year.items():\n            if needed > self.remaining(employee, year):\n                raise ValueError(\n                    f\"Employee '{employee}' does not have enough remaining leave days for year {year}.\"\n                )\n\n        # Deduct the days\n        for year, needed in needed_by_year.items():\n            self._used[employee][year] += needed\n\n        return sum(needed_by_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used[employee][year]\n```",
+ "code": "from datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays is not None else set()\n        # Track used leave days per employee per year: {employee: {year: used_days}}\n        self._used: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date.\")\n\n        if (start - today).days < 3:\n            raise ValueError(\"Leave requests must be made at least 3 days before the start date.\")\n\n        # Calculate leave days requested per calendar year\n        needed_by_year: dict[int, int] = defaultdict(int)\n        curr = start\n        while curr <= end:\n            # Weekdays are 0-4 (Monday-Friday); weekends (5, 6) and holidays don't use leave days\n            if curr.weekday() < 5 and curr not in self.holidays:\n                needed_by_year[curr.year] += 1\n            curr += timedelta(days=1)\n\n        # Check if the employee has enough remaining days for each year in the request\n        for year, needed in needed_by_year.items():\n            if needed > self.remaining(employee, year):\n                raise ValueError(\n                    f\"Employee '{employee}' does not have enough remaining leave days for year {year}.\"\n                )\n\n        # Deduct the days\n        for year, needed in needed_by_year.items():\n            self._used[employee][year] += needed\n\n        return sum(needed_by_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used[employee][year]\n",
+ "input_tokens": 233,
+ "output_tokens": 1860,
+ "cost_usd": 0.00714975,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 15.98,
+ "raw_api_response": {
+  "id": "1Db1ao6yELyG28oPqpPSoAc",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `LeaveTracker` module meeting all specifications:\n\n```python\nfrom datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays is not None else set()\n        # Track used leave days per employee per year: {employee: {year: used_days}}\n        self._used: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date.\")\n\n        if (start - today).days < 3:\n            raise ValueError(\"Leave requests must be made at least 3 days before the start date.\")\n\n        # Calculate leave days requested per calendar year\n        needed_by_year: dict[int, int] = defaultdict(int)\n        curr = start\n        while curr <= end:\n            # Weekdays are 0-4 (Monday-Friday); weekends (5, 6) and holidays don't use leave days\n            if curr.weekday() < 5 and curr not in self.holidays:\n                needed_by_year[curr.year] += 1\n            curr += timedelta(days=1)\n\n        # Check if the employee has enough remaining days for each year in the request\n        for year, needed in needed_by_year.items():\n            if needed > self.remaining(employee, year):\n                raise ValueError(\n                    f\"Employee '{employee}' does not have enough remaining leave days for year {year}.\"\n                )\n\n        # Deduct the days\n        for year, needed in needed_by_year.items():\n            self._used[employee][year] += needed\n\n        return sum(needed_by_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used[employee][year]\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "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"
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794455266,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 523,
+   "prompt_tokens": 233,
+   "total_tokens": 2093,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

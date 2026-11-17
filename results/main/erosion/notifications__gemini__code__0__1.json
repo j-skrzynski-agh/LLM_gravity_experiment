@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T00:20:27+00:00",
+ "app": "notifications",
+ "app_hash": "3c8e19143fe2",
+ "model": "gemini",
+ "variant": "code",
+ "rep": 0,
+ "step": 1,
+ "change": "Add a method `users(self) -> list[str]` that returns all users, sorted.",
+ "start_file": "notifications__gemini__FULL__0.json",
+ "passed": {
+  "NT1": true,
+  "NT2": true,
+  "NT3": true,
+  "NT4": true,
+  "NT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._user_preferences: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"Add a user with default notification preferences.\"\"\"\n        self._user_preferences[user] = {\n            channel: (channel == \"email\") for channel in self.CHANNELS\n        }\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"Enable or disable a specific notification channel for a user.\"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}. Must be one of {self.CHANNELS}\")\n        if user not in self._user_preferences:\n            self.add_user(user)\n        self._user_preferences[user][channel] = enabled\n\n    def _is_quiet_hour(self, t: time) -> bool:\n        \"\"\"Check if a given time falls within the quiet hours interval.\"\"\"\n        if self.quiet_start <= self.quiet_end:\n            return self.quiet_start <= t < self.quiet_end\n        # Overnight range spanning midnight (e.g., 22:00 to 07:00)\n        return t >= self.quiet_start or t < self.quiet_end\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        if user not in self._user_preferences:\n            self.add_user(user)\n\n        preferences = self._user_preferences[user]\n        quiet = self._is_quiet_hour(at.time())\n        delivered = []\n\n        for channel in self.CHANNELS:\n            if not preferences.get(channel, False):\n                continue\n\n            # Email is always allowed; SMS and push are muted during quiet hours\n            if quiet and channel in (\"sms\", \"push\"):\n                continue\n\n            delivered.append(channel)\n\n        return delivered\n```\n\n## Change request\nAdd a method `users(self) -> list[str]` that returns all users, sorted.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._user_preferences: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"Add a user with default notification preferences.\"\"\"\n        self._user_preferences[user] = {\n            channel: (channel == \"email\") for channel in self.CHANNELS\n        }\n\n    def users(self) -> list[str]:\n        \"\"\"Return all users, sorted.\"\"\"\n        return sorted(self._user_preferences.keys())\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"Enable or disable a specific notification channel for a user.\"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}. Must be one of {self.CHANNELS}\")\n        if user not in self._user_preferences:\n            self.add_user(user)\n        self._user_preferences[user][channel] = enabled\n\n    def _is_quiet_hour(self, t: time) -> bool:\n        \"\"\"Check if a given time falls within the quiet hours interval.\"\"\"\n        if self.quiet_start <= self.quiet_end:\n            return self.quiet_start <= t < self.quiet_end\n        # Overnight range spanning midnight (e.g., 22:00 to 07:00)\n        return t >= self.quiet_start or t < self.quiet_end\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        if user not in self._user_preferences:\n            self.add_user(user)\n\n        preferences = self._user_preferences[user]\n        quiet = self._is_quiet_hour(at.time())\n        delivered = []\n\n        for channel in self.CHANNELS:\n            if not preferences.get(channel, False):\n                continue\n\n            # Email is always allowed; SMS and push are muted during quiet hours\n            if quiet and channel in (\"sms\", \"push\"):\n                continue\n\n            delivered.append(channel)\n\n        return delivered\n```",
+ "code": "from datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._user_preferences: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"Add a user with default notification preferences.\"\"\"\n        self._user_preferences[user] = {\n            channel: (channel == \"email\") for channel in self.CHANNELS\n        }\n\n    def users(self) -> list[str]:\n        \"\"\"Return all users, sorted.\"\"\"\n        return sorted(self._user_preferences.keys())\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"Enable or disable a specific notification channel for a user.\"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}. Must be one of {self.CHANNELS}\")\n        if user not in self._user_preferences:\n            self.add_user(user)\n        self._user_preferences[user][channel] = enabled\n\n    def _is_quiet_hour(self, t: time) -> bool:\n        \"\"\"Check if a given time falls within the quiet hours interval.\"\"\"\n        if self.quiet_start <= self.quiet_end:\n            return self.quiet_start <= t < self.quiet_end\n        # Overnight range spanning midnight (e.g., 22:00 to 07:00)\n        return t >= self.quiet_start or t < self.quiet_end\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        if user not in self._user_preferences:\n            self.add_user(user)\n\n        preferences = self._user_preferences[user]\n        quiet = self._is_quiet_hour(at.time())\n        delivered = []\n\n        for channel in self.CHANNELS:\n            if not preferences.get(channel, False):\n                continue\n\n            # Email is always allowed; SMS and push are muted during quiet hours\n            if quiet and channel in (\"sms\", \"push\"):\n                continue\n\n            delivered.append(channel)\n\n        return delivered\n",
+ "input_tokens": 618,
+ "output_tokens": 685,
+ "cost_usd": 0.00303225,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 8.1,
+ "raw_api_response": {
+  "id": "vFf2auCDO7ma3boP6PqqwAg",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._user_preferences: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"Add a user with default notification preferences.\"\"\"\n        self._user_preferences[user] = {\n            channel: (channel == \"email\") for channel in self.CHANNELS\n        }\n\n    def users(self) -> list[str]:\n        \"\"\"Return all users, sorted.\"\"\"\n        return sorted(self._user_preferences.keys())\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"Enable or disable a specific notification channel for a user.\"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}. Must be one of {self.CHANNELS}\")\n        if user not in self._user_preferences:\n            self.add_user(user)\n        self._user_preferences[user][channel] = enabled\n\n    def _is_quiet_hour(self, t: time) -> bool:\n        \"\"\"Check if a given time falls within the quiet hours interval.\"\"\"\n        if self.quiet_start <= self.quiet_end:\n            return self.quiet_start <= t < self.quiet_end\n        # Overnight range spanning midnight (e.g., 22:00 to 07:00)\n        return t >= self.quiet_start or t < self.quiet_end\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        if user not in self._user_preferences:\n            self.add_user(user)\n\n        preferences = self._user_preferences[user]\n        quiet = self._is_quiet_hour(at.time())\n        delivered = []\n\n        for channel in self.CHANNELS:\n            if not preferences.get(channel, False):\n                continue\n\n            # Email is always allowed; SMS and push are muted during quiet hours\n            if quiet and channel in (\"sms\", \"push\"):\n                continue\n\n            delivered.append(channel)\n\n        return delivered\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EtgDCtUDAWkUfRODDBX9qgtA/sqJU5dRhjbRFUlxOozu7v+ans+Hx87HmPjIZwwgyTtS5IprtCV0O8HnX/7NuZKhluxX9kfhU2S6UxyZ6iRRFoex8UuS1n1WLVfWSrR+1eQ+xoib3YDc6DhRl6GiNX0NHAIjQhq7XjhxK/LXGUf0NGiBCAXHultHta7SViwkmijeuSI/N3XdBlp3W/MLeeH/XpsM/8i0LRelb/xOP4Y9sDRZUwGx54EJk/Cy33Y0T6wfRMdOruY6Fz8y8HK6j/2EtgSKGOBmIuEODqdbQv/fn/aM3RK2HoZfHHMbt1Hefu9QoTMTm9kbtyiB9fazqugysueyw0yGcUOXszLZn3mTQcWpajQ7WCgz2fzr64/dFmWNekl+NLP5rDBK199nc3qbaHaY6bJme8ax6o8OS8hBccdKqstmXI0mUo6xxOTo58rBtVY697igolOPStaEhs4HtvPWFRKT+kmr160CLKcnsCwluTaNz+dkY8zO/KSTP0V3oiI7jW99e7Yc6yvjg++/aAAR2Y+IBwfzDx5MgnZJ7/XPIrDwWsavz1WdxfJ2AoElw1n6hglOMptNzNbEelSoP51z82HTLPXs7g4V6eQLX/5fUogSGTMUwA=="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794529220,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 594,
+   "prompt_tokens": 618,
+   "total_tokens": 1303,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

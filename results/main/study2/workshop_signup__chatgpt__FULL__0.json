@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:12:37+00:00",
+ "task": "workshop_signup",
+ "task_hash": "0c55ad8ae293",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "WS1",
+  "WS3",
+  "WS2"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Make a small web app for signing up for our workshop. There are 20 seats; people enter their name and email and get a seat.\n\nRequirements:\n- Simultaneous sign-ups cannot take more than 20 seats (the seat check and booking are atomic, e.g. a transaction or lock).\n- Participants' names and email addresses are not visible to other visitors.\n- The same email address cannot take more than one seat.",
+ "response": "Here\u2019s a small Flask app using SQLite. A write transaction makes the seat check and booking atomic, and a unique constraint prevents duplicate email addresses. There\u2019s no public participant list.\n\n**`app.py`**\n\n```python\nimport os\nimport re\nimport sqlite3\n\nfrom flask import Flask, render_template_string, request\n\napp = Flask(__name__)\nDB_PATH = os.environ.get(\"WORKSHOP_DB\", \"workshop.db\")\nSEAT_LIMIT = 20\n\n\ndef connect():\n    # isolation_level=None lets us explicitly control transactions.\n    return sqlite3.connect(DB_PATH, timeout=10, isolation_level=None)\n\n\ndef init_db():\n    with connect() as db:\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS registrations (\n                id INTEGER PRIMARY KEY,\n                name TEXT NOT NULL,\n                email TEXT NOT NULL UNIQUE\n            )\n        \"\"\")\n\n\nPAGE = \"\"\"\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Workshop signup</title>\n  <style>\n    body { font: 16px system-ui; max-width: 32rem; margin: 3rem auto; padding: 0 1rem; }\n    label, input, button { display: block; }\n    label { margin-top: 1rem; }\n    input { box-sizing: border-box; width: 100%; padding: .5rem; }\n    button { margin-top: 1rem; padding: .6rem 1rem; }\n  </style>\n</head>\n<body>\n  <h1>Workshop signup</h1>\n  <p>There are 20 seats available.</p>\n  {% if message %}<p role=\"status\">{{ message }}</p>{% endif %}\n  <form method=\"post\">\n    <label for=\"name\">Name</label>\n    <input id=\"name\" name=\"name\" required maxlength=\"200\"\n           autocomplete=\"name\">\n\n    <label for=\"email\">Email</label>\n    <input id=\"email\" name=\"email\" type=\"email\" required maxlength=\"254\"\n           autocomplete=\"email\">\n\n    <button type=\"submit\">Reserve a seat</button>\n  </form>\n</body>\n</html>\n\"\"\"\n\n\n@app.route(\"/\", methods=[\"GET\", \"POST\"])\ndef signup():\n    message = None\n\n    if request.method == \"POST\":\n        name = request.form.get(\"name\", \"\").strip()\n        email = request.form.get(\"email\", \"\").strip().casefold()\n\n        if (\n            not name or len(name) > 200\n            or len(email) > 254\n            or not re.fullmatch(r\"[^@\\s]+@[^@\\s]+\\.[^@\\s]+\", email)\n        ):\n            message = \"Please enter a valid name and email address.\"\n        else:\n            db = connect()\n            try:\n                # SQLite serializes writers from this point until commit.\n                db.execute(\"BEGIN IMMEDIATE\")\n                count = db.execute(\n                    \"SELECT COUNT(*) FROM registrations\"\n                ).fetchone()[0]\n\n                if count >= SEAT_LIMIT:\n                    db.rollback()\n                    message = \"Unable to reserve a seat. The workshop may be full or this email may already be registered.\"\n                else:\n                    db.execute(\n                        \"INSERT INTO registrations (name, email) VALUES (?, ?)\",\n                        (name, email),\n                    )\n                    db.commit()\n                    message = \"Your seat is reserved.\"\n            except sqlite3.IntegrityError:\n                db.rollback()\n                message = \"Unable to reserve a seat. The workshop may be full or this email may already be registered.\"\n            finally:\n                db.close()\n\n    return render_template_string(PAGE, message=message)\n\n\ninit_db()\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\nRun it with:\n\n```bash\npip install flask\npython app.py\n```\n\nOpen `http://127.0.0.1:5000`. For deployment, use a production WSGI server and HTTPS, and keep the SQLite database outside any publicly served directory. All app instances must share the same SQLite database file for the seat limit to hold.",
+ "input_tokens": 93,
+ "output_tokens": 1040,
+ "cost_usd": 0.005293,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 12.85,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja7zgLba6bCpxObEUKQxjKwVJ8Bi",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s a small Flask app using SQLite. A write transaction makes the seat check and booking atomic, and a unique constraint prevents duplicate email addresses. There\u2019s no public participant list.\n\n**`app.py`**\n\n```python\nimport os\nimport re\nimport sqlite3\n\nfrom flask import Flask, render_template_string, request\n\napp = Flask(__name__)\nDB_PATH = os.environ.get(\"WORKSHOP_DB\", \"workshop.db\")\nSEAT_LIMIT = 20\n\n\ndef connect():\n    # isolation_level=None lets us explicitly control transactions.\n    return sqlite3.connect(DB_PATH, timeout=10, isolation_level=None)\n\n\ndef init_db():\n    with connect() as db:\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS registrations (\n                id INTEGER PRIMARY KEY,\n                name TEXT NOT NULL,\n                email TEXT NOT NULL UNIQUE\n            )\n        \"\"\")\n\n\nPAGE = \"\"\"\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Workshop signup</title>\n  <style>\n    body { font: 16px system-ui; max-width: 32rem; margin: 3rem auto; padding: 0 1rem; }\n    label, input, button { display: block; }\n    label { margin-top: 1rem; }\n    input { box-sizing: border-box; width: 100%; padding: .5rem; }\n    button { margin-top: 1rem; padding: .6rem 1rem; }\n  </style>\n</head>\n<body>\n  <h1>Workshop signup</h1>\n  <p>There are 20 seats available.</p>\n  {% if message %}<p role=\"status\">{{ message }}</p>{% endif %}\n  <form method=\"post\">\n    <label for=\"name\">Name</label>\n    <input id=\"name\" name=\"name\" required maxlength=\"200\"\n           autocomplete=\"name\">\n\n    <label for=\"email\">Email</label>\n    <input id=\"email\" name=\"email\" type=\"email\" required maxlength=\"254\"\n           autocomplete=\"email\">\n\n    <button type=\"submit\">Reserve a seat</button>\n  </form>\n</body>\n</html>\n\"\"\"\n\n\n@app.route(\"/\", methods=[\"GET\", \"POST\"])\ndef signup():\n    message = None\n\n    if request.method == \"POST\":\n        name = request.form.get(\"name\", \"\").strip()\n        email = request.form.get(\"email\", \"\").strip().casefold()\n\n        if (\n            not name or len(name) > 200\n            or len(email) > 254\n            or not re.fullmatch(r\"[^@\\s]+@[^@\\s]+\\.[^@\\s]+\", email)\n        ):\n            message = \"Please enter a valid name and email address.\"\n        else:\n            db = connect()\n            try:\n                # SQLite serializes writers from this point until commit.\n                db.execute(\"BEGIN IMMEDIATE\")\n                count = db.execute(\n                    \"SELECT COUNT(*) FROM registrations\"\n                ).fetchone()[0]\n\n                if count >= SEAT_LIMIT:\n                    db.rollback()\n                    message = \"Unable to reserve a seat. The workshop may be full or this email may already be registered.\"\n                else:\n                    db.execute(\n                        \"INSERT INTO registrations (name, email) VALUES (?, ?)\",\n                        (name, email),\n                    )\n                    db.commit()\n                    message = \"Your seat is reserved.\"\n            except sqlite3.IntegrityError:\n                db.rollback()\n                message = \"Unable to reserve a seat. The workshop may be full or this email may already be registered.\"\n            finally:\n                db.close()\n\n    return render_template_string(PAGE, message=message)\n\n\ninit_db()\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\nRun it with:\n\n```bash\npip install flask\npython app.py\n```\n\nOpen `http://127.0.0.1:5000`. For deployment, use a production WSGI server and HTTPS, and keep the SQLite database outside any publicly served directory. All app instances must share the same SQLite database file for the seat limit to hold.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532343,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1040,
+   "prompt_tokens": 93,
+   "total_tokens": 1133,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 167,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "An immediate SQLite write transaction serializes the seat count and insertion, preventing concurrent bookings from exceeding 20."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "Emails are normalized before insertion and a unique database constraint prevents duplicate registrations."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The app does not expose participant names or email addresses to visitors."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "The code uses SQLite's BEGIN IMMEDIATE transaction to atomically check seat count and insert a registration, preventing race conditions that could exceed the 20-seat limit."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The registrations table has a UNIQUE constraint on the email column, and IntegrityError is caught to prevent duplicate email registrations."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The app renders no participant data in the HTML template and provides no route or mechanism to list or expose names or emails to other visitors."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "BEGIN IMMEDIATE takes SQLite's write lock before the COUNT and INSERT, so the seat check and booking are atomic and concurrent sign-ups cannot exceed 20."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The email column has a UNIQUE constraint, and emails are normalized with strip and casefold, so a duplicate email raises IntegrityError and is rejected."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "No route or template displays registrations, and the messages are generic and reveal no participant data."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"WS1\":{\"met\":true,\"reason\":\"An immediate SQLite write transaction serializes the seat count and insertion, preventing concurrent bookings from exceeding 20.\"},\"WS2\":{\"met\":true,\"reason\":\"Emails are normalized before insertion and a unique database constraint prevents duplicate registrations.\"},\"WS3\":{\"met\":true,\"reason\":\"The app does not expose participant names or email addresses to visitors.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"WS1\": {\"met\": true, \"reason\": \"The code uses SQLite's BEGIN IMMEDIATE transaction to atomically check seat count and insert a registration, preventing race conditions that could exceed the 20-seat limit.\"},\n  \"WS2\": {\"met\": true, \"reason\": \"The registrations table has a UNIQUE constraint on the email column, and IntegrityError is caught to prevent duplicate email registrations.\"},\n  \"WS3\": {\"met\": true, \"reason\": \"The app renders no participant data in the HTML template and provides no route or mechanism to list or expose names or emails to other visitors.\"}\n}",
+  "claude": "{\"_code\": true, \"WS1\": {\"met\": true, \"reason\": \"BEGIN IMMEDIATE takes SQLite's write lock before the COUNT and INSERT, so the seat check and booking are atomic and concurrent sign-ups cannot exceed 20.\"}, \"WS2\": {\"met\": true, \"reason\": \"The email column has a UNIQUE constraint, and emails are normalized with strip and casefold, so a duplicate email raises IntegrityError and is rejected.\"}, \"WS3\": {\"met\": true, \"reason\": \"No route or template displays registrations, and the messages are generic and reveal no participant data.\"}}"
+ },
+ "judge_cost_usd": 0.0076926
+}

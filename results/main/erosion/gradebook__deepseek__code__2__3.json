@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:33:21+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 2,
+ "step": 3,
+ "change": "Add a method `remove_assignment(self, name: str) -> None` that removes an assignment and its grades.",
+ "start_file": "gradebook__deepseek__FULL__2.json",
+ "passed": {
+  "GB1": true,
+  "GB2": true,
+  "GB3": true,
+  "GB4": true,
+  "GB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # assignment name -> (weight, kind)\n        self._assignments = {}\n        # student -> {assignment name: grade}\n        self._records = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(f\"Invalid assignment kind: {kind!r}\")\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the 2.0-5.0 scale\")\n        if assignment not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {assignment!r}\")\n        self._records.setdefault(student, {})[assignment] = grade\n\n    def average(self, student: str) -> float:\n        student_grades = self._records.get(student, {})\n\n        # Determine the lowest quiz grade to drop (only if more than one quiz)\n        quizzes = [\n            (name, student_grades.get(name, 2.0))\n            for name, (_, kind) in self._assignments.items()\n            if kind == \"quiz\"\n        ]\n        dropped_quiz = None\n        if len(quizzes) > 1:\n            dropped_quiz = min(quizzes, key=lambda ng: ng[1])[0]\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _kind) in self._assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)\n            weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0:\n            return 0.0\n        return round(weighted_sum / total_weight, 2)\n\n    def students(self) -> list[str]:\n        return sorted(student for student, grades in self._records.items() if grades)\n\n    def grades(self, student: str) -> dict[str, float]:\n        return dict(self._records.get(student, {}))\n```\n\n## Change request\nAdd a method `remove_assignment(self, name: str) -> None` that removes an assignment and its grades.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # assignment name -> (weight, kind)\n        self._assignments = {}\n        # student -> {assignment name: grade}\n        self._records = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(f\"Invalid assignment kind: {kind!r}\")\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the 2.0-5.0 scale\")\n        if assignment not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {assignment!r}\")\n        self._records.setdefault(student, {})[assignment] = grade\n\n    def remove_assignment(self, name: str) -> None:\n        if name not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {name!r}\")\n        del self._assignments[name]\n        for grades in self._records.values():\n            grades.pop(name, None)\n\n    def average(self, student: str) -> float:\n        student_grades = self._records.get(student, {})\n\n        # Determine the lowest quiz grade to drop (only if more than one quiz)\n        quizzes = [\n            (name, student_grades.get(name, 2.0))\n            for name, (_, kind) in self._assignments.items()\n            if kind == \"quiz\"\n        ]\n        dropped_quiz = None\n        if len(quizzes) > 1:\n            dropped_quiz = min(quizzes, key=lambda ng: ng[1])[0]\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _kind) in self._assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)\n            weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0:\n            return 0.0\n        return round(weighted_sum / total_weight, 2)\n\n    def students(self) -> list[str]:\n        return sorted(student for student, grades in self._records.items() if grades)\n\n    def grades(self, student: str) -> dict[str, float]:\n        return dict(self._records.get(student, {}))\n```",
+ "code": "class Gradebook:\n    def __init__(self) -> None:\n        # assignment name -> (weight, kind)\n        self._assignments = {}\n        # student -> {assignment name: grade}\n        self._records = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(f\"Invalid assignment kind: {kind!r}\")\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the 2.0-5.0 scale\")\n        if assignment not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {assignment!r}\")\n        self._records.setdefault(student, {})[assignment] = grade\n\n    def remove_assignment(self, name: str) -> None:\n        if name not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {name!r}\")\n        del self._assignments[name]\n        for grades in self._records.values():\n            grades.pop(name, None)\n\n    def average(self, student: str) -> float:\n        student_grades = self._records.get(student, {})\n\n        # Determine the lowest quiz grade to drop (only if more than one quiz)\n        quizzes = [\n            (name, student_grades.get(name, 2.0))\n            for name, (_, kind) in self._assignments.items()\n            if kind == \"quiz\"\n        ]\n        dropped_quiz = None\n        if len(quizzes) > 1:\n            dropped_quiz = min(quizzes, key=lambda ng: ng[1])[0]\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _kind) in self._assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)\n            weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0:\n            return 0.0\n        return round(weighted_sum / total_weight, 2)\n\n    def students(self) -> list[str]:\n        return sorted(student for student, grades in self._records.items() if grades)\n\n    def grades(self, student: str) -> dict[str, float]:\n        return dict(self._records.get(student, {}))\n",
+ "input_tokens": 554,
+ "output_tokens": 554,
+ "cost_usd": 0.000831,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.13,
+ "raw_api_response": {
+  "id": "f5b089d2-fa33-476d-ad76-7394828dc9f0",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # assignment name -> (weight, kind)\n        self._assignments = {}\n        # student -> {assignment name: grade}\n        self._records = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(f\"Invalid assignment kind: {kind!r}\")\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the 2.0-5.0 scale\")\n        if assignment not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {assignment!r}\")\n        self._records.setdefault(student, {})[assignment] = grade\n\n    def remove_assignment(self, name: str) -> None:\n        if name not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {name!r}\")\n        del self._assignments[name]\n        for grades in self._records.values():\n            grades.pop(name, None)\n\n    def average(self, student: str) -> float:\n        student_grades = self._records.get(student, {})\n\n        # Determine the lowest quiz grade to drop (only if more than one quiz)\n        quizzes = [\n            (name, student_grades.get(name, 2.0))\n            for name, (_, kind) in self._assignments.items()\n            if kind == \"quiz\"\n        ]\n        dropped_quiz = None\n        if len(quizzes) > 1:\n            dropped_quiz = min(quizzes, key=lambda ng: ng[1])[0]\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _kind) in self._assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)\n            weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0:\n            return 0.0\n        return round(weighted_sum / total_weight, 2)\n\n    def students(self) -> list[str]:\n        return sorted(student for student, grades in self._records.items() if grades)\n\n    def grades(self, student: str) -> dict[str, float]:\n        return dict(self._records.get(student, {}))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794526393,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 554,
+   "prompt_tokens": 554,
+   "total_tokens": 1108,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 384,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 384,
+   "prompt_cache_miss_tokens": 170
+  }
+ }
+}

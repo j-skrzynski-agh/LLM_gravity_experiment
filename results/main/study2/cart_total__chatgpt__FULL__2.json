@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:11:18+00:00",
+ "task": "cart_total",
+ "task_hash": "fd677849fb3b",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 2,
+ "requirement_order": [
+  "CR3",
+  "CR1",
+  "CR2"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write the code that calculates the final price of a shopping cart: products with prices and quantities, and customers can enter a discount code.\n\nRequirements:\n- The same discount code cannot be applied more than once to the same cart.\n- Money is not computed with binary floating point; Decimal or integer cents are used.\n- The final price can never be negative.",
+ "response": "Here\u2019s a Python implementation using integer cents and fixed-amount discount codes:\n\n```python\nfrom dataclasses import dataclass\n\n\ndef _nonnegative_int(value: int, name: str) -> None:\n    if type(value) is not int or value < 0:\n        raise ValueError(f\"{name} must be a nonnegative integer\")\n\n\n@dataclass(frozen=True)\nclass Product:\n    name: str\n    price_cents: int\n    quantity: int\n\n    def __post_init__(self) -> None:\n        _nonnegative_int(self.price_cents, \"price_cents\")\n        _nonnegative_int(self.quantity, \"quantity\")\n\n\nclass Cart:\n    def __init__(self, discount_codes: dict[str, int]) -> None:\n        # Normalize codes so that, for example, \"save10\" and \"SAVE10\"\n        # refer to the same discount.\n        self._discount_codes: dict[str, int] = {}\n        for code, amount_cents in discount_codes.items():\n            normalized = self._normalize_code(code)\n            _nonnegative_int(amount_cents, \"discount amount\")\n            if normalized in self._discount_codes:\n                raise ValueError(f\"Duplicate discount code: {normalized}\")\n            self._discount_codes[normalized] = amount_cents\n\n        self._products: list[Product] = []\n        self._applied_codes: set[str] = set()\n\n    @staticmethod\n    def _normalize_code(code: str) -> str:\n        normalized = code.strip().upper()\n        if not normalized:\n            raise ValueError(\"Discount code cannot be empty\")\n        return normalized\n\n    def add_product(self, product: Product) -> None:\n        self._products.append(product)\n\n    def apply_discount(self, code: str) -> None:\n        code = self._normalize_code(code)\n        if code not in self._discount_codes:\n            raise ValueError(\"Invalid discount code\")\n        if code in self._applied_codes:\n            raise ValueError(\"Discount code has already been applied\")\n        self._applied_codes.add(code)\n\n    def final_price_cents(self) -> int:\n        subtotal = sum(p.price_cents * p.quantity for p in self._products)\n        discount = sum(self._discount_codes[code] for code in self._applied_codes)\n        return max(0, subtotal - discount)\n\n\ncart = Cart({\"SAVE10\": 1000})  # $10.00 off\ncart.add_product(Product(\"Shirt\", price_cents=2500, quantity=2))\ncart.apply_discount(\"save10\")\n\ncents = cart.final_price_cents()\nprint(f\"${cents // 100}.{cents % 100:02d}\")  # $40.00\n```\n\nApplying the same code again raises a `ValueError`, and discounts cannot reduce the total below zero.",
+ "input_tokens": 77,
+ "output_tokens": 746,
+ "cost_usd": 0.003807,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 9.43,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja6l2J2g0ilOC7ZUGMsFhtpZppyX",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s a Python implementation using integer cents and fixed-amount discount codes:\n\n```python\nfrom dataclasses import dataclass\n\n\ndef _nonnegative_int(value: int, name: str) -> None:\n    if type(value) is not int or value < 0:\n        raise ValueError(f\"{name} must be a nonnegative integer\")\n\n\n@dataclass(frozen=True)\nclass Product:\n    name: str\n    price_cents: int\n    quantity: int\n\n    def __post_init__(self) -> None:\n        _nonnegative_int(self.price_cents, \"price_cents\")\n        _nonnegative_int(self.quantity, \"quantity\")\n\n\nclass Cart:\n    def __init__(self, discount_codes: dict[str, int]) -> None:\n        # Normalize codes so that, for example, \"save10\" and \"SAVE10\"\n        # refer to the same discount.\n        self._discount_codes: dict[str, int] = {}\n        for code, amount_cents in discount_codes.items():\n            normalized = self._normalize_code(code)\n            _nonnegative_int(amount_cents, \"discount amount\")\n            if normalized in self._discount_codes:\n                raise ValueError(f\"Duplicate discount code: {normalized}\")\n            self._discount_codes[normalized] = amount_cents\n\n        self._products: list[Product] = []\n        self._applied_codes: set[str] = set()\n\n    @staticmethod\n    def _normalize_code(code: str) -> str:\n        normalized = code.strip().upper()\n        if not normalized:\n            raise ValueError(\"Discount code cannot be empty\")\n        return normalized\n\n    def add_product(self, product: Product) -> None:\n        self._products.append(product)\n\n    def apply_discount(self, code: str) -> None:\n        code = self._normalize_code(code)\n        if code not in self._discount_codes:\n            raise ValueError(\"Invalid discount code\")\n        if code in self._applied_codes:\n            raise ValueError(\"Discount code has already been applied\")\n        self._applied_codes.add(code)\n\n    def final_price_cents(self) -> int:\n        subtotal = sum(p.price_cents * p.quantity for p in self._products)\n        discount = sum(self._discount_codes[code] for code in self._applied_codes)\n        return max(0, subtotal - discount)\n\n\ncart = Cart({\"SAVE10\": 1000})  # $10.00 off\ncart.add_product(Product(\"Shirt\", price_cents=2500, quantity=2))\ncart.apply_discount(\"save10\")\n\ncents = cart.final_price_cents()\nprint(f\"${cents // 100}.{cents % 100:02d}\")  # $40.00\n```\n\nApplying the same code again raises a `ValueError`, and discounts cannot reduce the total below zero.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532267,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 746,
+   "prompt_tokens": 77,
+   "total_tokens": 823,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 154,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "Prices and discounts are calculated using integer cents."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The final price is clamped to zero with max(0, subtotal - discount)."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "Applied codes are normalized and tracked in a set, and applying one again raises a ValueError."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "The code uses integer cents for all monetary calculations, as seen in Product.price_cents and discount amounts stored as int, and final_price_cents returns an int."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The final_price_cents method applies max(0, subtotal - discount), ensuring the result is never negative."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "The apply_discount method checks if the normalized code is already in self._applied_codes and raises ValueError if so, preventing duplicate application."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "All money values are integer cents, validated as int, and no floats are used in the calculation."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "final_price_cents returns max(0, subtotal - discount), so the result is never negative."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "apply_discount normalizes the code and raises ValueError if it is already in _applied_codes."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"CR1\":{\"met\":true,\"reason\":\"Prices and discounts are calculated using integer cents.\"},\"CR2\":{\"met\":true,\"reason\":\"The final price is clamped to zero with max(0, subtotal - discount).\"},\"CR3\":{\"met\":true,\"reason\":\"Applied codes are normalized and tracked in a set, and applying one again raises a ValueError.\"}}",
+  "qwen": "{\"_code\": true, \"CR1\": {\"met\": true, \"reason\": \"The code uses integer cents for all monetary calculations, as seen in Product.price_cents and discount amounts stored as int, and final_price_cents returns an int.\"}, \"CR2\": {\"met\": true, \"reason\": \"The final_price_cents method applies max(0, subtotal - discount), ensuring the result is never negative.\"}, \"CR3\": {\"met\": true, \"reason\": \"The apply_discount method checks if the normalized code is already in self._applied_codes and raises ValueError if so, preventing duplicate application.\"}}",
+  "claude": "{\"_code\": true, \"CR1\": {\"met\": true, \"reason\": \"All money values are integer cents, validated as int, and no floats are used in the calculation.\"}, \"CR2\": {\"met\": true, \"reason\": \"final_price_cents returns max(0, subtotal - discount), so the result is never negative.\"}, \"CR3\": {\"met\": true, \"reason\": \"apply_discount normalizes the code and raises ValueError if it is already in _applied_codes.\"}}"
+ },
+ "judge_cost_usd": 0.005685600000000001
+}

@@ -1,0 +1,45 @@
+app: notifications
+module: notifications
+
+description: |
+  A module that delivers notifications to users over several channels,
+  respecting user preferences and night-time quiet hours.
+
+api: |
+  from datetime import datetime, time
+
+  class Notifier:
+      CHANNELS = ("email", "sms", "push")
+
+      def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None: ...
+
+      def add_user(self, user: str) -> None: ...
+
+      def set_channel(self, user: str, channel: str, enabled: bool) -> None: ...
+
+      def send(self, user: str, message: str, at: datetime) -> list[str]:
+          """Send a message; returns the channels it was delivered to, in CHANNELS order."""
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: NT1
+    category: K
+    text: Calling set_channel with a channel that is not in CHANNELS raises ValueError.
+  - id: NT2
+    category: K
+    text: A message is not delivered over a channel the user has disabled.
+  - id: NT3
+    category: D
+    text: Quiet hours work also when they span midnight (e.g. from 22:00 to 7:00).
+  - id: NT4
+    category: S
+    text: During quiet hours, email is still delivered; only sms and push are muted.
+  - id: NT5
+    category: S
+    text: A newly added user has only the email channel enabled; sms and push are disabled by default.
+
+changes:
+  - 'Add a method `users(self) -> list[str]` that returns all users, sorted.'
+  - 'Add a method `enabled_channels(self, user: str) -> list[str]` that returns the channels the user has enabled.'
+  - 'Keep a history of sent messages and add a method `history(self, user: str) -> list[str]` that returns the messages sent to the user.'
+  - 'Add a method `remove_user(self, user: str) -> None` that removes a user.'

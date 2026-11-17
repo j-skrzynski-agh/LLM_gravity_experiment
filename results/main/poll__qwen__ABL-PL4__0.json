@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:44:08+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "qwen",
+ "condition": "ABL-PL4",
+ "rep": 0,
+ "requirement_order": [
+  "PL5",
+  "PL1",
+  "PL3",
+  "PL2"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": false,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. winner() returns None until at least 3 votes have been cast.\n2. Voting for an option that does not exist raises ValueError.\n3. The winner is the option with the most votes.\n4. Each voter can vote only once; a second vote by the same voter raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = set()\n        self.votes = {}  # option -> vote count\n        self.voters = {}  # voter -> option they voted for\n\n    def add_option(self, option: str) -> None:\n        self.options.add(option)\n        if option not in self.votes:\n            self.votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self.options:\n            raise ValueError(f\"Option '{option}' does not exist\")\n        if voter in self.voters:\n            raise ValueError(f\"Voter '{voter}' has already voted\")\n        \n        self.voters[voter] = option\n        self.votes[option] += 1\n\n    def winner(self) -> str | None:\n        if len(self.voters) < 3:\n            return None\n        \n        # Find the option with the maximum votes\n        max_votes = -1\n        winner_option = None\n        for option, vote_count in self.votes.items():\n            if vote_count > max_votes:\n                max_votes = vote_count\n                winner_option = option\n        \n        return winner_option\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = set()\n        self.votes = {}  # option -> vote count\n        self.voters = {}  # voter -> option they voted for\n\n    def add_option(self, option: str) -> None:\n        self.options.add(option)\n        if option not in self.votes:\n            self.votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self.options:\n            raise ValueError(f\"Option '{option}' does not exist\")\n        if voter in self.voters:\n            raise ValueError(f\"Voter '{voter}' has already voted\")\n        \n        self.voters[voter] = option\n        self.votes[option] += 1\n\n    def winner(self) -> str | None:\n        if len(self.voters) < 3:\n            return None\n        \n        # Find the option with the maximum votes\n        max_votes = -1\n        winner_option = None\n        for option, vote_count in self.votes.items():\n            if vote_count > max_votes:\n                max_votes = vote_count\n                winner_option = option\n        \n        return winner_option\n",
+ "input_tokens": 186,
+ "output_tokens": 268,
+ "cost_usd": 0.000396,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 6.21,
+ "raw_api_response": {
+  "id": "gen-1794894236-SknhdIVrF6SBtTU35uaN",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = set()\n        self.votes = {}  # option -> vote count\n        self.voters = {}  # voter -> option they voted for\n\n    def add_option(self, option: str) -> None:\n        self.options.add(option)\n        if option not in self.votes:\n            self.votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self.options:\n            raise ValueError(f\"Option '{option}' does not exist\")\n        if voter in self.voters:\n            raise ValueError(f\"Voter '{voter}' has already voted\")\n        \n        self.voters[voter] = option\n        self.votes[option] += 1\n\n    def winner(self) -> str | None:\n        if len(self.voters) < 3:\n            return None\n        \n        # Find the option with the maximum votes\n        max_votes = -1\n        winner_option = None\n        for option, vote_count in self.votes.items():\n            if vote_count > max_votes:\n                max_votes = vote_count\n                winner_option = option\n        \n        return winner_option\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794894236,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 268,
+   "prompt_tokens": 186,
+   "total_tokens": 454,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.0002574,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.0002574,
+    "upstream_inference_prompt_cost": 4.836e-05,
+    "upstream_inference_completions_cost": 0.00020904
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

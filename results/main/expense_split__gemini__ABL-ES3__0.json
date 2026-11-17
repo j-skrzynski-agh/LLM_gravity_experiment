@@ -1,0 +1,80 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:33:22+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "gemini",
+ "condition": "ABL-ES3",
+ "rep": 0,
+ "requirement_order": [
+  "ES2",
+  "ES1",
+  "ES5",
+  "ES4",
+  "ES6"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": false,
+  "ES4": true,
+  "ES5": true,
+  "ES6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. If participants are not given, the expense is split equally among all group members.\n2. Adding an expense whose payer or any participant is not a group member raises ValueError.\n3. When an amount cannot be split into equal cents, the leftover cents are borne by the payer: every other participant owes exactly the amount rounded down to the cent.\n4. settle_up() proposes at most (number of members - 1) payments.\n5. settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off and not included in the proposed payments.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport math\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = list(members)\n        self._members_set = set(self.members)\n        # Store balances in cents to avoid floating-point inaccuracy\n        self._cents: dict[str, int] = {m: 0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n        if payer not in self._members_set:\n            raise ValueError(f\"Payer '{payer}' is not a group member.\")\n\n        if participants is None:\n            parts = list(self.members)\n        else:\n            parts = list(participants)\n\n        if not parts:\n            raise ValueError(\"Participants list cannot be empty.\")\n\n        for p in parts:\n            if p not in self._members_set:\n                raise ValueError(f\"Participant '{p}' is not a group member.\")\n\n        # Total amount in cents\n        total_cents = round(amount * 100)\n        n = len(parts)\n\n        # Each participant owes the split rounded down to the nearest cent\n        base_share = total_cents // n\n        remainder = total_cents - base_share * n\n\n        # Apply base shares\n        for p in parts:\n            self._cents[p] -= base_share\n\n        # Payer paid the total amount\n        self._cents[payer] += total_cents\n\n        # Leftover cents are borne by the payer:\n        # If the payer is among participants, other participants pay base_share,\n        # and payer absorbs the remainder (effectively payer's share is base_share + remainder).\n        # Since we deducted base_share from all participants, and payer absorbs remainder,\n        # payer owes the remainder, meaning payer gets (total_cents - remainder) credited\n        # across others, which is base_share * n.\n        # If payer is not among participants, payer absorbs remainder means payer covers\n        # it as an expense or doesn't get reimbursed for it. Deducting remainder from payer\n        # ensures non-payers only owe base_share.\n        self._cents[payer] -= remainder\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n        return {m: self._cents[m] / 100.0 for m in self.members}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n        # Debtors have negative balance (owe money), Creditors have positive balance (owed money).\n        debtors: list[list] = []\n        creditors: list[list] = []\n\n        for m in self.members:\n            c = self._cents[m]\n            if c < 0:\n                debtors.append([m, -c])\n            elif c > 0:\n                creditors.append([m, c])\n\n        payments: list[tuple[str, str, float]] = []\n\n        d_idx = 0\n        c_idx = 0\n\n        while d_idx < len(debtors) and c_idx < len(creditors):\n            d_name, d_cents = debtors[d_idx]\n            c_name, c_cents = creditors[c_idx]\n\n            transfer = min(d_cents, c_cents)\n            if transfer >= 100:\n                payments.append((d_name, c_name, round(transfer / 100.0, 2)))\n\n            debtors[d_idx][1] -= transfer\n            creditors[c_idx][1] -= transfer\n\n            if debtors[d_idx][1] == 0:\n                d_idx += 1\n            if creditors[c_idx][1] == 0:\n                c_idx += 1\n\n        return payments\n```",
+ "code": "import math\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = list(members)\n        self._members_set = set(self.members)\n        # Store balances in cents to avoid floating-point inaccuracy\n        self._cents: dict[str, int] = {m: 0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n        if payer not in self._members_set:\n            raise ValueError(f\"Payer '{payer}' is not a group member.\")\n\n        if participants is None:\n            parts = list(self.members)\n        else:\n            parts = list(participants)\n\n        if not parts:\n            raise ValueError(\"Participants list cannot be empty.\")\n\n        for p in parts:\n            if p not in self._members_set:\n                raise ValueError(f\"Participant '{p}' is not a group member.\")\n\n        # Total amount in cents\n        total_cents = round(amount * 100)\n        n = len(parts)\n\n        # Each participant owes the split rounded down to the nearest cent\n        base_share = total_cents // n\n        remainder = total_cents - base_share * n\n\n        # Apply base shares\n        for p in parts:\n            self._cents[p] -= base_share\n\n        # Payer paid the total amount\n        self._cents[payer] += total_cents\n\n        # Leftover cents are borne by the payer:\n        # If the payer is among participants, other participants pay base_share,\n        # and payer absorbs the remainder (effectively payer's share is base_share + remainder).\n        # Since we deducted base_share from all participants, and payer absorbs remainder,\n        # payer owes the remainder, meaning payer gets (total_cents - remainder) credited\n        # across others, which is base_share * n.\n        # If payer is not among participants, payer absorbs remainder means payer covers\n        # it as an expense or doesn't get reimbursed for it. Deducting remainder from payer\n        # ensures non-payers only owe base_share.\n        self._cents[payer] -= remainder\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n        return {m: self._cents[m] / 100.0 for m in self.members}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n        # Debtors have negative balance (owe money), Creditors have positive balance (owed money).\n        debtors: list[list] = []\n        creditors: list[list] = []\n\n        for m in self.members:\n            c = self._cents[m]\n            if c < 0:\n                debtors.append([m, -c])\n            elif c > 0:\n                creditors.append([m, c])\n\n        payments: list[tuple[str, str, float]] = []\n\n        d_idx = 0\n        c_idx = 0\n\n        while d_idx < len(debtors) and c_idx < len(creditors):\n            d_name, d_cents = debtors[d_idx]\n            c_name, c_cents = creditors[c_idx]\n\n            transfer = min(d_cents, c_cents)\n            if transfer >= 100:\n                payments.append((d_name, c_name, round(transfer / 100.0, 2)))\n\n            debtors[d_idx][1] -= transfer\n            creditors[c_idx][1] -= transfer\n\n            if debtors[d_idx][1] == 0:\n                d_idx += 1\n            if creditors[c_idx][1] == 0:\n                c_idx += 1\n\n        return payments\n",
+ "input_tokens": 367,
+ "output_tokens": 949,
+ "cost_usd": 0.003834,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 7.98,
+ "raw_api_response": {
+  "id": "czP1apnqM8TUxN8PsrfkgAg",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport math\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = list(members)\n        self._members_set = set(self.members)\n        # Store balances in cents to avoid floating-point inaccuracy\n        self._cents: dict[str, int] = {m: 0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n        if payer not in self._members_set:\n            raise ValueError(f\"Payer '{payer}' is not a group member.\")\n\n        if participants is None:\n            parts = list(self.members)\n        else:\n            parts = list(participants)\n\n        if not parts:\n            raise ValueError(\"Participants list cannot be empty.\")\n\n        for p in parts:\n            if p not in self._members_set:\n                raise ValueError(f\"Participant '{p}' is not a group member.\")\n\n        # Total amount in cents\n        total_cents = round(amount * 100)\n        n = len(parts)\n\n        # Each participant owes the split rounded down to the nearest cent\n        base_share = total_cents // n\n        remainder = total_cents - base_share * n\n\n        # Apply base shares\n        for p in parts:\n            self._cents[p] -= base_share\n\n        # Payer paid the total amount\n        self._cents[payer] += total_cents\n\n        # Leftover cents are borne by the payer:\n        # If the payer is among participants, other participants pay base_share,\n        # and payer absorbs the remainder (effectively payer's share is base_share + remainder).\n        # Since we deducted base_share from all participants, and payer absorbs remainder,\n        # payer owes the remainder, meaning payer gets (total_cents - remainder) credited\n        # across others, which is base_share * n.\n        # If payer is not among participants, payer absorbs remainder means payer covers\n        # it as an expense or doesn't get reimbursed for it. Deducting remainder from payer\n        # ensures non-payers only owe base_share.\n        self._cents[payer] -= remainder\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n        return {m: self._cents[m] / 100.0 for m in self.members}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n        # Debtors have negative balance (owe money), Creditors have positive balance (owed money).\n        debtors: list[list] = []\n        creditors: list[list] = []\n\n        for m in self.members:\n            c = self._cents[m]\n            if c < 0:\n                debtors.append([m, -c])\n            elif c > 0:\n                creditors.append([m, c])\n\n        payments: list[tuple[str, str, float]] = []\n\n        d_idx = 0\n        c_idx = 0\n\n        while d_idx < len(debtors) and c_idx < len(creditors):\n            d_name, d_cents = debtors[d_idx]\n            c_name, c_cents = creditors[c_idx]\n\n            transfer = min(d_cents, c_cents)\n            if transfer >= 100:\n                payments.append((d_name, c_name, round(transfer / 100.0, 2)))\n\n            debtors[d_idx][1] -= transfer\n            creditors[c_idx][1] -= transfer\n\n            if debtors[d_idx][1] == 0:\n                d_idx += 1\n            if creditors[c_idx][1] == 0:\n                c_idx += 1\n\n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TikMSqczjirCqBYnMqmiaNKejZNUzrgRcK1SNEMWrEDFjUvWrM6VO918uuh0kFME9xBcVeKTDnhtqMB4Xj811Nk8aCXS9z/w5275ur4HelxVOaBlAXqIkMbe9zyiusMmsAx0="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794454395,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 949,
+   "prompt_tokens": 367,
+   "total_tokens": 1316,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

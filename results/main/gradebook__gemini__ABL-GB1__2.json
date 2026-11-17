@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:37:12+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "gemini",
+ "condition": "ABL-GB1",
+ "rep": 2,
+ "requirement_order": [
+  "GB3",
+  "GB4",
+  "GB2",
+  "GB5"
+ ],
+ "passed": {
+  "GB1": false,
+  "GB2": true,
+  "GB3": true,
+  "GB4": true,
+  "GB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA gradebook for a university course: assignments with weights, grades on the\nPolish 2.0-5.0 scale, and a final average per student.\n\n## API (implement exactly these names and signatures)\n```python\nclass Gradebook:\n    def __init__(self) -> None: ...\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n\n    def record(self, student: str, assignment: str, grade: float) -> None: ...\n\n    def average(self, student: str) -> float: ...\n```\n\n## Requirements\n1. The average is weighted by the weights of the assignments.\n2. If a student has more than one quiz, their lowest quiz grade is dropped when computing the average.\n3. average() is rounded to two decimal places.\n4. An assignment without a recorded grade counts as 2.0 in the average instead of being skipped.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `Gradebook` class according to the specifications:\n\n```python\nfrom typing import Dict, List, Tuple\n\n\nclass Gradebook:\n    def __init__(self) -> None:\n        # assignment_name -> (weight, kind)\n        self._assignments: Dict[str, Tuple[float, str]] = {}\n        # student_name -> {assignment_name: grade}\n        self._grades: Dict[str, Dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if student not in self._grades:\n            self._grades[student] = {}\n        self._grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        if not self._assignments:\n            return 0.0\n\n        student_grades = self._grades.get(student, {})\n\n        # Collect assignments and effective grades (default 2.0 if not recorded)\n        homeworks: List[Tuple[float, float]] = []  # (grade, weight)\n        quizzes: List[Tuple[float, float, str]] = []  # (grade, weight, name)\n\n        for name, (weight, kind) in self._assignments.items():\n            grade = student_grades.get(name, 2.0)\n            if kind == \"quiz\":\n                quizzes.append((grade, weight, name))\n            else:\n                homeworks.append((grade, weight))\n\n        # If more than one quiz exists, drop the one with the lowest grade\n        if len(quizzes) > 1:\n            # Find the quiz with the minimum grade.\n            # In case of ties, any single lowest-grade quiz is dropped.\n            min_quiz = min(quizzes, key=lambda item: item[0])\n            quizzes.remove(min_quiz)\n\n        total_weighted_sum = sum(grade * weight for grade, weight in homeworks)\n        total_weight = sum(weight for _, weight in homeworks)\n\n        total_weighted_sum += sum(grade * weight for grade, weight, _ in quizzes)\n        total_weight += sum(weight for _, weight, _ in quizzes)\n\n        if total_weight == 0:\n            return 0.0\n\n        return round(total_weighted_sum / total_weight, 2)\n```",
+ "code": "from typing import Dict, List, Tuple\n\n\nclass Gradebook:\n    def __init__(self) -> None:\n        # assignment_name -> (weight, kind)\n        self._assignments: Dict[str, Tuple[float, str]] = {}\n        # student_name -> {assignment_name: grade}\n        self._grades: Dict[str, Dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if student not in self._grades:\n            self._grades[student] = {}\n        self._grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        if not self._assignments:\n            return 0.0\n\n        student_grades = self._grades.get(student, {})\n\n        # Collect assignments and effective grades (default 2.0 if not recorded)\n        homeworks: List[Tuple[float, float]] = []  # (grade, weight)\n        quizzes: List[Tuple[float, float, str]] = []  # (grade, weight, name)\n\n        for name, (weight, kind) in self._assignments.items():\n            grade = student_grades.get(name, 2.0)\n            if kind == \"quiz\":\n                quizzes.append((grade, weight, name))\n            else:\n                homeworks.append((grade, weight))\n\n        # If more than one quiz exists, drop the one with the lowest grade\n        if len(quizzes) > 1:\n            # Find the quiz with the minimum grade.\n            # In case of ties, any single lowest-grade quiz is dropped.\n            min_quiz = min(quizzes, key=lambda item: item[0])\n            quizzes.remove(min_quiz)\n\n        total_weighted_sum = sum(grade * weight for grade, weight in homeworks)\n        total_weight = sum(weight for _, weight in homeworks)\n\n        total_weighted_sum += sum(grade * weight for grade, weight, _ in quizzes)\n        total_weight += sum(weight for _, weight, _ in quizzes)\n\n        if total_weight == 0:\n            return 0.0\n\n        return round(total_weighted_sum / total_weight, 2)\n",
+ "input_tokens": 246,
+ "output_tokens": 593,
+ "cost_usd": 0.00240825,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 7.56,
+ "raw_api_response": {
+  "id": "WzT1avO7KuOb3boPpOaCoAM",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `Gradebook` class according to the specifications:\n\n```python\nfrom typing import Dict, List, Tuple\n\n\nclass Gradebook:\n    def __init__(self) -> None:\n        # assignment_name -> (weight, kind)\n        self._assignments: Dict[str, Tuple[float, str]] = {}\n        # student_name -> {assignment_name: grade}\n        self._grades: Dict[str, Dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if student not in self._grades:\n            self._grades[student] = {}\n        self._grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        if not self._assignments:\n            return 0.0\n\n        student_grades = self._grades.get(student, {})\n\n        # Collect assignments and effective grades (default 2.0 if not recorded)\n        homeworks: List[Tuple[float, float]] = []  # (grade, weight)\n        quizzes: List[Tuple[float, float, str]] = []  # (grade, weight, name)\n\n        for name, (weight, kind) in self._assignments.items():\n            grade = student_grades.get(name, 2.0)\n            if kind == \"quiz\":\n                quizzes.append((grade, weight, name))\n            else:\n                homeworks.append((grade, weight))\n\n        # If more than one quiz exists, drop the one with the lowest grade\n        if len(quizzes) > 1:\n            # Find the quiz with the minimum grade.\n            # In case of ties, any single lowest-grade quiz is dropped.\n            min_quiz = min(quizzes, key=lambda item: item[0])\n            quizzes.remove(min_quiz)\n\n        total_weighted_sum = sum(grade * weight for grade, weight in homeworks)\n        total_weight = sum(weight for _, weight in homeworks)\n\n        total_weighted_sum += sum(grade * weight for grade, weight, _ in quizzes)\n        total_weight += sum(weight for _, weight, _ in quizzes)\n\n        if total_weight == 0:\n            return 0.0\n\n        return round(total_weighted_sum / total_weight, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TmrJfiLRfiBVLYzphVVtYdWYcO8HZeZ9bxkg40+40onHX/6wPnPgIcSfz+0Ui6CO6DIA1flkf2HnV9qxZ1FScm9cdjdL1F5wJv/0FIPaos7wj5rug7NuXqUAO302ktR3UVNY="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794454625,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 593,
+   "prompt_tokens": 246,
+   "total_tokens": 839,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

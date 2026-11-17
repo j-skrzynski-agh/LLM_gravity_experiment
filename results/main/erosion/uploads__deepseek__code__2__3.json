@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:49:31+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 2,
+ "step": 3,
+ "change": "Add an optional keyword parameter `owner: str = \"\"` at the end of the parameters of upload, and a method `files_of(self, owner: str) -> list[str]`.",
+ "start_file": "uploads__deepseek__FULL__2.json",
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self._usage = {}  # month -> dict[name -> size_bytes]\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n        month_files = self._usage.setdefault(month, {})\n        if name in month_files:\n            return\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n        month_files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        month_files = self._usage.get(month)\n        if month_files is not None:\n            month_files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return sum(self._usage.get(month, {}).values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"How many bytes can still be uploaded in the given month.\"\"\"\n        return self._limit_bytes - self.used_bytes(month)\n\n    def files(self) -> list[str]:\n        \"\"\"Return the names of stored files, sorted.\"\"\"\n        names = set()\n        for month_files in self._usage.values():\n            names.update(month_files)\n        return sorted(names)\n```\n\n## Change request\nAdd an optional keyword parameter `owner: str = \"\"` at the end of the parameters of upload, and a method `files_of(self, owner: str) -> list[str]`.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self._usage = {}  # month -> dict[name -> size_bytes]\n        self._owners = {}  # name -> owner\n\n    def upload(self, name: str, size_bytes: int, month: str, owner: str = \"\") -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n        month_files = self._usage.setdefault(month, {})\n        if name in month_files:\n            return\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n        month_files[name] = size_bytes\n        self._owners[name] = owner\n\n    def delete(self, name: str, month: str) -> None:\n        month_files = self._usage.get(month)\n        if month_files is not None:\n            month_files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return sum(self._usage.get(month, {}).values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"How many bytes can still be uploaded in the given month.\"\"\"\n        return self._limit_bytes - self.used_bytes(month)\n\n    def files(self) -> list[str]:\n        \"\"\"Return the names of stored files, sorted.\"\"\"\n        names = set()\n        for month_files in self._usage.values():\n            names.update(month_files)\n        return sorted(names)\n\n    def files_of(self, owner: str) -> list[str]:\n        \"\"\"Return the names of stored files belonging to the given owner, sorted.\"\"\"\n        return sorted(\n            name for name in self.files() if self._owners.get(name, \"\") == owner\n        )\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self._usage = {}  # month -> dict[name -> size_bytes]\n        self._owners = {}  # name -> owner\n\n    def upload(self, name: str, size_bytes: int, month: str, owner: str = \"\") -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n        month_files = self._usage.setdefault(month, {})\n        if name in month_files:\n            return\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n        month_files[name] = size_bytes\n        self._owners[name] = owner\n\n    def delete(self, name: str, month: str) -> None:\n        month_files = self._usage.get(month)\n        if month_files is not None:\n            month_files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return sum(self._usage.get(month, {}).values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"How many bytes can still be uploaded in the given month.\"\"\"\n        return self._limit_bytes - self.used_bytes(month)\n\n    def files(self) -> list[str]:\n        \"\"\"Return the names of stored files, sorted.\"\"\"\n        names = set()\n        for month_files in self._usage.values():\n            names.update(month_files)\n        return sorted(names)\n\n    def files_of(self, owner: str) -> list[str]:\n        \"\"\"Return the names of stored files belonging to the given owner, sorted.\"\"\"\n        return sorted(\n            name for name in self.files() if self._owners.get(name, \"\") == owner\n        )\n",
+ "input_tokens": 425,
+ "output_tokens": 431,
+ "cost_usd": 0.0006446999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.09,
+ "raw_api_response": {
+  "id": "c902b81d-f55b-4aa6-8ff3-ece867ebfc00",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self._usage = {}  # month -> dict[name -> size_bytes]\n        self._owners = {}  # name -> owner\n\n    def upload(self, name: str, size_bytes: int, month: str, owner: str = \"\") -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n        month_files = self._usage.setdefault(month, {})\n        if name in month_files:\n            return\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n        month_files[name] = size_bytes\n        self._owners[name] = owner\n\n    def delete(self, name: str, month: str) -> None:\n        month_files = self._usage.get(month)\n        if month_files is not None:\n            month_files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return sum(self._usage.get(month, {}).values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"How many bytes can still be uploaded in the given month.\"\"\"\n        return self._limit_bytes - self.used_bytes(month)\n\n    def files(self) -> list[str]:\n        \"\"\"Return the names of stored files, sorted.\"\"\"\n        names = set()\n        for month_files in self._usage.values():\n            names.update(month_files)\n        return sorted(names)\n\n    def files_of(self, owner: str) -> list[str]:\n        \"\"\"Return the names of stored files belonging to the given owner, sorted.\"\"\"\n        return sorted(\n            name for name in self.files() if self._owners.get(name, \"\") == owner\n        )\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794527362,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 431,
+   "prompt_tokens": 425,
+   "total_tokens": 856,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 256,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 256,
+   "prompt_cache_miss_tokens": 169
+  }
+ }
+}

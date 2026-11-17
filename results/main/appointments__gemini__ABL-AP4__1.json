@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:26:34+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "gemini",
+ "condition": "ABL-AP4",
+ "rep": 1,
+ "requirement_order": [
+  "AP3",
+  "AP2",
+  "AP5",
+  "AP1"
+ ],
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": false,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for booking appointments with doctors in a small clinic.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None: ...\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n\n    def cancel(self, appointment_id: int, now: datetime) -> None: ...\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n```\n\n## Requirements\n1. Appointments that only touch (one ends exactly when the other starts) do not overlap.\n2. Booking an appointment that overlaps another appointment of the same doctor raises ValueError.\n3. A patient can have at most one upcoming appointment; booking another one while the first is still upcoming raises ValueError.\n4. Booking an appointment that starts before `now` raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `Scheduler` class meeting all the specified requirements:\n\n```python\nfrom datetime import datetime\nfrom typing import Dict, Optional\n\n\nclass Appointment:\n    def __init__(\n        self,\n        appointment_id: int,\n        patient: str,\n        doctor: str,\n        start: datetime,\n        end: datetime,\n    ) -> None:\n        self.id = appointment_id\n        self.patient = patient\n        self.doctor = doctor\n        self.start = start\n        self.end = end\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._next_id: int = 1\n        self._appointments: Dict[int, Appointment] = {}\n\n    def book(\n        self,\n        patient: str,\n        doctor: str,\n        start: datetime,\n        end: datetime,\n        now: datetime,\n    ) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start >= end:\n            raise ValueError(\"Appointment start time must be before end time.\")\n\n        # Requirement 4: Booking an appointment that starts before `now` raises ValueError.\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past.\")\n\n        # Requirement 3: A patient can have at most one upcoming appointment;\n        # booking another one while the first is still upcoming raises ValueError.\n        # An appointment is \"upcoming\" if its start time is in the future relative to `now`.\n        for appt in self._appointments.values():\n            if appt.patient == patient and appt.start >= now:\n                raise ValueError(\n                    f\"Patient '{patient}' already has an upcoming appointment.\"\n                )\n\n        # Requirement 2: Booking an appointment that overlaps another appointment\n        # of the same doctor raises ValueError.\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\n                f\"Doctor '{doctor}' is not available during the requested time.\"\n            )\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = Appointment(\n            appt_id, patient, doctor, start, end\n        )\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self._appointments:\n            raise ValueError(f\"Appointment ID {appointment_id} does not exist.\")\n\n        appt = self._appointments[appointment_id]\n        if appt.start < now:\n            raise ValueError(\"Cannot cancel an appointment that has already started.\")\n\n        del self._appointments[appointment_id]\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        if start >= end:\n            raise ValueError(\"Start time must be before end time.\")\n\n        # Requirement 1: Appointments that only touch (one ends exactly when\n        # the other starts) do not overlap.\n        for appt in self._appointments.values():\n            if appt.doctor == doctor:\n                # Overlap condition: max(start1, start2) < min(end1, end2)\n                if max(start, appt.start) < min(end, appt.end):\n                    return False\n\n        return True\n```",
+ "code": "from datetime import datetime\nfrom typing import Dict, Optional\n\n\nclass Appointment:\n    def __init__(\n        self,\n        appointment_id: int,\n        patient: str,\n        doctor: str,\n        start: datetime,\n        end: datetime,\n    ) -> None:\n        self.id = appointment_id\n        self.patient = patient\n        self.doctor = doctor\n        self.start = start\n        self.end = end\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._next_id: int = 1\n        self._appointments: Dict[int, Appointment] = {}\n\n    def book(\n        self,\n        patient: str,\n        doctor: str,\n        start: datetime,\n        end: datetime,\n        now: datetime,\n    ) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start >= end:\n            raise ValueError(\"Appointment start time must be before end time.\")\n\n        # Requirement 4: Booking an appointment that starts before `now` raises ValueError.\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past.\")\n\n        # Requirement 3: A patient can have at most one upcoming appointment;\n        # booking another one while the first is still upcoming raises ValueError.\n        # An appointment is \"upcoming\" if its start time is in the future relative to `now`.\n        for appt in self._appointments.values():\n            if appt.patient == patient and appt.start >= now:\n                raise ValueError(\n                    f\"Patient '{patient}' already has an upcoming appointment.\"\n                )\n\n        # Requirement 2: Booking an appointment that overlaps another appointment\n        # of the same doctor raises ValueError.\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\n                f\"Doctor '{doctor}' is not available during the requested time.\"\n            )\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = Appointment(\n            appt_id, patient, doctor, start, end\n        )\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self._appointments:\n            raise ValueError(f\"Appointment ID {appointment_id} does not exist.\")\n\n        appt = self._appointments[appointment_id]\n        if appt.start < now:\n            raise ValueError(\"Cannot cancel an appointment that has already started.\")\n\n        del self._appointments[appointment_id]\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        if start >= end:\n            raise ValueError(\"Start time must be before end time.\")\n\n        # Requirement 1: Appointments that only touch (one ends exactly when\n        # the other starts) do not overlap.\n        for appt in self._appointments.values():\n            if appt.doctor == doctor:\n                # Overlap condition: max(start1, start2) < min(end1, end2)\n                if max(start, appt.start) < min(end, appt.end):\n                    return False\n\n        return True\n",
+ "input_tokens": 266,
+ "output_tokens": 770,
+ "cost_usd": 0.003087,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 7.07,
+ "raw_api_response": {
+  "id": "3jH1apvUJs-pnsEP3JLgiQo",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `Scheduler` class meeting all the specified requirements:\n\n```python\nfrom datetime import datetime\nfrom typing import Dict, Optional\n\n\nclass Appointment:\n    def __init__(\n        self,\n        appointment_id: int,\n        patient: str,\n        doctor: str,\n        start: datetime,\n        end: datetime,\n    ) -> None:\n        self.id = appointment_id\n        self.patient = patient\n        self.doctor = doctor\n        self.start = start\n        self.end = end\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._next_id: int = 1\n        self._appointments: Dict[int, Appointment] = {}\n\n    def book(\n        self,\n        patient: str,\n        doctor: str,\n        start: datetime,\n        end: datetime,\n        now: datetime,\n    ) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start >= end:\n            raise ValueError(\"Appointment start time must be before end time.\")\n\n        # Requirement 4: Booking an appointment that starts before `now` raises ValueError.\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past.\")\n\n        # Requirement 3: A patient can have at most one upcoming appointment;\n        # booking another one while the first is still upcoming raises ValueError.\n        # An appointment is \"upcoming\" if its start time is in the future relative to `now`.\n        for appt in self._appointments.values():\n            if appt.patient == patient and appt.start >= now:\n                raise ValueError(\n                    f\"Patient '{patient}' already has an upcoming appointment.\"\n                )\n\n        # Requirement 2: Booking an appointment that overlaps another appointment\n        # of the same doctor raises ValueError.\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\n                f\"Doctor '{doctor}' is not available during the requested time.\"\n            )\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = Appointment(\n            appt_id, patient, doctor, start, end\n        )\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self._appointments:\n            raise ValueError(f\"Appointment ID {appointment_id} does not exist.\")\n\n        appt = self._appointments[appointment_id]\n        if appt.start < now:\n            raise ValueError(\"Cannot cancel an appointment that has already started.\")\n\n        del self._appointments[appointment_id]\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        if start >= end:\n            raise ValueError(\"Start time must be before end time.\")\n\n        # Requirement 1: Appointments that only touch (one ends exactly when\n        # the other starts) do not overlap.\n        for appt in self._appointments.values():\n            if appt.doctor == doctor:\n                # Overlap condition: max(start1, start2) < min(end1, end2)\n                if max(start, appt.start) < min(end, appt.end):\n                    return False\n\n        return True\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TtX6giJllchZnFbwYEsLA1yUz9FBRLLZd8FuOdGKxB50s0CcGh/+Rwq/PKXMr1r/idZ1FZ9yATJ6GDGPO0H/m1cAMECAaw39/wTGilfld1cY9xReV2iK4pek6q6BFWX/e5Og="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794453988,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 770,
+   "prompt_tokens": 266,
+   "total_tokens": 1036,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

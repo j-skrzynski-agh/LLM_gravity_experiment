@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:13:24+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "gemini",
+ "condition": "ABL-UQ5",
+ "rep": 0,
+ "requirement_order": [
+  "UQ4",
+  "UQ3",
+  "UQ1",
+  "UQ2"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": true,
+  "UQ5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. Deleting a file does not give back quota in the current month.\n2. The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.\n3. Uploading a file of size 0 raises ValueError.\n4. An upload that would exceed the monthly limit raises ValueError, and the file is not counted.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `UploadQuota` module based on your requirements:\n\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        if monthly_limit_mib < 0:\n            raise ValueError(\"Monthly limit cannot be negative.\")\n        self.limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Tracks total bytes consumed towards quota per month: {month: total_bytes}\n        self._monthly_usage: dict[str, int] = {}\n        # Tracks active files per month: {month: {filename: size_bytes}}\n        self._files: dict[str, dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like '2026-01'.\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be strictly positive.\")\n\n        current_usage = self._monthly_usage.get(month, 0)\n        if current_usage + size_bytes > self.limit_bytes:\n            raise ValueError(\"Upload exceeds the monthly quota limit.\")\n\n        # Record file and update monthly quota usage\n        self._monthly_usage[month] = current_usage + size_bytes\n        if month not in self._files:\n            self._files[month] = {}\n        self._files[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deletes a file uploaded in a given month.\n        Deleting a file does not recover quota for the month.\n        \"\"\"\n        if month in self._files and name in self._files[month]:\n            del self._files[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._monthly_usage.get(month, 0)\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        if monthly_limit_mib < 0:\n            raise ValueError(\"Monthly limit cannot be negative.\")\n        self.limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Tracks total bytes consumed towards quota per month: {month: total_bytes}\n        self._monthly_usage: dict[str, int] = {}\n        # Tracks active files per month: {month: {filename: size_bytes}}\n        self._files: dict[str, dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like '2026-01'.\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be strictly positive.\")\n\n        current_usage = self._monthly_usage.get(month, 0)\n        if current_usage + size_bytes > self.limit_bytes:\n            raise ValueError(\"Upload exceeds the monthly quota limit.\")\n\n        # Record file and update monthly quota usage\n        self._monthly_usage[month] = current_usage + size_bytes\n        if month not in self._files:\n            self._files[month] = {}\n        self._files[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deletes a file uploaded in a given month.\n        Deleting a file does not recover quota for the month.\n        \"\"\"\n        if month in self._files and name in self._files[month]:\n            del self._files[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._monthly_usage.get(month, 0)\n",
+ "input_tokens": 259,
+ "output_tokens": 461,
+ "cost_usd": 0.001923,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 3.87,
+ "raw_api_response": {
+  "id": "2jz1apq3N5_dnsEPyrym-Q4",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `UploadQuota` module based on your requirements:\n\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        if monthly_limit_mib < 0:\n            raise ValueError(\"Monthly limit cannot be negative.\")\n        self.limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Tracks total bytes consumed towards quota per month: {month: total_bytes}\n        self._monthly_usage: dict[str, int] = {}\n        # Tracks active files per month: {month: {filename: size_bytes}}\n        self._files: dict[str, dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like '2026-01'.\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be strictly positive.\")\n\n        current_usage = self._monthly_usage.get(month, 0)\n        if current_usage + size_bytes > self.limit_bytes:\n            raise ValueError(\"Upload exceeds the monthly quota limit.\")\n\n        # Record file and update monthly quota usage\n        self._monthly_usage[month] = current_usage + size_bytes\n        if month not in self._files:\n            self._files[month] = {}\n        self._files[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deletes a file uploaded in a given month.\n        Deleting a file does not recover quota for the month.\n        \"\"\"\n        if month in self._files and name in self._files[month]:\n            del self._files[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._monthly_usage.get(month, 0)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TWjxdxuJH/A7r/7sP8+g8xXQBx4Xj7PlFCVYMGJvWY4H7QmEF6CQNkIM6Fi/BJlXzDGuN2UTkdrswZgEf7PYs5LaAf3g+xTL/ic6LgzQxjrZOJ08Vubr5x9OqYbJCMd2KwzA="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794456798,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 461,
+   "prompt_tokens": 259,
+   "total_tokens": 720,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:04:07+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "gemini",
+ "condition": "ABL-PK1",
+ "rep": 0,
+ "requirement_order": [
+  "PK5",
+  "PK4",
+  "PK2",
+  "PK3"
+ ],
+ "passed": {
+  "PK1": false,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA parking meter that computes the parking fee for a single stay.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None: ...\n\n    def fee(self, entry: datetime, exit: datetime) -> float: ...\n```\n\n## Requirements\n1. Stays longer than 24 hours are charged a flat penalty of 200.00 instead of the hourly rate.\n2. Stays of at most 15 minutes are free, but longer stays are charged for their whole duration, including the first 15 minutes.\n3. The fee is rounded to two decimal places.\n4. Every started hour is charged as a full hour.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `ParkingMeter` module based on your requirements:\n\n```python\nfrom datetime import datetime\nimport math\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Handle negative durations or zero if applicable\n        if total_seconds <= 0:\n            return 0.0\n\n        # Requirement 1: Stays longer than 24 hours are charged a flat penalty of 200.00\n        if total_seconds > 24 * 3600:\n            return 200.00\n\n        # Requirement 2: Stays of at most 15 minutes are free\n        if total_seconds <= 15 * 60:\n            return 0.0\n\n        # Requirement 4: Every started hour is charged as a full hour\n        hours = math.ceil(total_seconds / 3600.0)\n\n        # Requirement 3: Fee rounded to two decimal places\n        total_fee = hours * self.hourly_rate\n        return round(total_fee, 2)\n```",
+ "code": "from datetime import datetime\nimport math\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Handle negative durations or zero if applicable\n        if total_seconds <= 0:\n            return 0.0\n\n        # Requirement 1: Stays longer than 24 hours are charged a flat penalty of 200.00\n        if total_seconds > 24 * 3600:\n            return 200.00\n\n        # Requirement 2: Stays of at most 15 minutes are free\n        if total_seconds <= 15 * 60:\n            return 0.0\n\n        # Requirement 4: Every started hour is charged as a full hour\n        hours = math.ceil(total_seconds / 3600.0)\n\n        # Requirement 3: Fee rounded to two decimal places\n        total_fee = hours * self.hourly_rate\n        return round(total_fee, 2)\n",
+ "input_tokens": 198,
+ "output_tokens": 301,
+ "cost_usd": 0.00127725,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 2.81,
+ "raw_api_response": {
+  "id": "rzr1atf2LvKDxs0P8_OUmAQ",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `ParkingMeter` module based on your requirements:\n\n```python\nfrom datetime import datetime\nimport math\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Handle negative durations or zero if applicable\n        if total_seconds <= 0:\n            return 0.0\n\n        # Requirement 1: Stays longer than 24 hours are charged a flat penalty of 200.00\n        if total_seconds > 24 * 3600:\n            return 200.00\n\n        # Requirement 2: Stays of at most 15 minutes are free\n        if total_seconds <= 15 * 60:\n            return 0.0\n\n        # Requirement 4: Every started hour is charged as a full hour\n        hours = math.ceil(total_seconds / 3600.0)\n\n        # Requirement 3: Fee rounded to two decimal places\n        total_fee = hours * self.hourly_rate\n        return round(total_fee, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0T6O6bkZPjzxsl2cgm+A51F35RX4WYR+gIT7pBTS1lfURBVTsY6/dn27n2u91Gsu/5ppuVcyd+OcmnAVEiNby2J5oBrvTpc3ZcODmKomxOiQeFEtxw2WJE+QateQzi3IYKkL8="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794456242,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 301,
+   "prompt_tokens": 198,
+   "total_tokens": 499,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

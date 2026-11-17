@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:18:14+00:00",
+ "task": "sms_reminders",
+ "task_hash": "a05853d9ca25",
+ "model": "chatgpt",
+ "condition": "BARE",
+ "rep": 0,
+ "requirement_order": [],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write a script that sends our clients an SMS reminder at 9:00 the day before their appointment.",
+ "response": "Here\u2019s a Python example using Twilio. It assumes all appointments use the same time zone and that your SQLite database has an `appointments` table with `id`, `appointment_date` (`YYYY-MM-DD`), `phone`, `sms_consent` and `status` columns.\n\n```python\n#!/usr/bin/env python3\nimport logging\nimport os\nimport sqlite3\nfrom datetime import datetime, timedelta\nfrom zoneinfo import ZoneInfo\n\nfrom twilio.rest import Client\n\nlogging.basicConfig(level=logging.INFO)\n\nDB_PATH = os.environ.get(\"DB_PATH\", \"appointments.db\")\nTIME_ZONE = ZoneInfo(os.environ.get(\"APPOINTMENT_TIME_ZONE\", \"America/New_York\"))\n\nclient = Client(\n    os.environ[\"TWILIO_ACCOUNT_SID\"],\n    os.environ[\"TWILIO_AUTH_TOKEN\"],\n)\nfrom_number = os.environ[\"TWILIO_FROM_NUMBER\"]\n\ntomorrow = (datetime.now(TIME_ZONE).date() + timedelta(days=1)).isoformat()\n\nwith sqlite3.connect(DB_PATH) as db:\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS sms_reminders (\n            appointment_id INTEGER PRIMARY KEY,\n            sent_at TEXT NOT NULL,\n            message_sid TEXT NOT NULL\n        )\n    \"\"\")\n\n    appointments = db.execute(\"\"\"\n        SELECT a.id, a.phone\n        FROM appointments AS a\n        LEFT JOIN sms_reminders AS r ON r.appointment_id = a.id\n        WHERE a.appointment_date = ?\n          AND a.status = 'scheduled'\n          AND a.sms_consent = 1\n          AND r.appointment_id IS NULL\n    \"\"\", (tomorrow,)).fetchall()\n\n    for appointment_id, phone in appointments:\n        try:\n            message = client.messages.create(\n                from_=from_number,\n                to=phone,\n                body=(\n                    \"Reminder: You have an appointment tomorrow. \"\n                    \"Please contact us if you need to reschedule.\"\n                ),\n            )\n            db.execute(\n                \"INSERT INTO sms_reminders VALUES (?, ?, ?)\",\n                (appointment_id, datetime.now(TIME_ZONE).isoformat(), message.sid),\n            )\n            db.commit()\n            logging.info(\"Reminder submitted for appointment %s\", appointment_id)\n        except Exception:\n            logging.exception(\"Could not send reminder for appointment %s\", appointment_id)\n```\n\nInstall the dependency with `pip install twilio`, set the environment variables, then schedule the script for **9:00 a.m. in the appointment time zone**. For example, on a server configured for that time zone:\n\n```cron\n0 9 * * * flock -n /tmp/appointment-reminders.lock /path/to/python /path/to/reminders.py\n```\n\nMake the environment variables available to cron, including the Twilio credentials and `APPOINTMENT_TIME_ZONE`. The lock prevents overlapping runs. The tracking table prevents ordinary repeat sends, but a crash after Twilio accepts a message and before the database commit could cause a duplicate on rerun. Monitor failures and make sure consent and opt-out handling meet your local requirements.",
+ "input_tokens": 27,
+ "output_tokens": 809,
+ "cost_usd": 0.004072,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 10.19,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaDO8R5AgumnlyfnorNb27qegOr5",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s a Python example using Twilio. It assumes all appointments use the same time zone and that your SQLite database has an `appointments` table with `id`, `appointment_date` (`YYYY-MM-DD`), `phone`, `sms_consent` and `status` columns.\n\n```python\n#!/usr/bin/env python3\nimport logging\nimport os\nimport sqlite3\nfrom datetime import datetime, timedelta\nfrom zoneinfo import ZoneInfo\n\nfrom twilio.rest import Client\n\nlogging.basicConfig(level=logging.INFO)\n\nDB_PATH = os.environ.get(\"DB_PATH\", \"appointments.db\")\nTIME_ZONE = ZoneInfo(os.environ.get(\"APPOINTMENT_TIME_ZONE\", \"America/New_York\"))\n\nclient = Client(\n    os.environ[\"TWILIO_ACCOUNT_SID\"],\n    os.environ[\"TWILIO_AUTH_TOKEN\"],\n)\nfrom_number = os.environ[\"TWILIO_FROM_NUMBER\"]\n\ntomorrow = (datetime.now(TIME_ZONE).date() + timedelta(days=1)).isoformat()\n\nwith sqlite3.connect(DB_PATH) as db:\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS sms_reminders (\n            appointment_id INTEGER PRIMARY KEY,\n            sent_at TEXT NOT NULL,\n            message_sid TEXT NOT NULL\n        )\n    \"\"\")\n\n    appointments = db.execute(\"\"\"\n        SELECT a.id, a.phone\n        FROM appointments AS a\n        LEFT JOIN sms_reminders AS r ON r.appointment_id = a.id\n        WHERE a.appointment_date = ?\n          AND a.status = 'scheduled'\n          AND a.sms_consent = 1\n          AND r.appointment_id IS NULL\n    \"\"\", (tomorrow,)).fetchall()\n\n    for appointment_id, phone in appointments:\n        try:\n            message = client.messages.create(\n                from_=from_number,\n                to=phone,\n                body=(\n                    \"Reminder: You have an appointment tomorrow. \"\n                    \"Please contact us if you need to reschedule.\"\n                ),\n            )\n            db.execute(\n                \"INSERT INTO sms_reminders VALUES (?, ?, ?)\",\n                (appointment_id, datetime.now(TIME_ZONE).isoformat(), message.sid),\n            )\n            db.commit()\n            logging.info(\"Reminder submitted for appointment %s\", appointment_id)\n        except Exception:\n            logging.exception(\"Could not send reminder for appointment %s\", appointment_id)\n```\n\nInstall the dependency with `pip install twilio`, set the environment variables, then schedule the script for **9:00 a.m. in the appointment time zone**. For example, on a server configured for that time zone:\n\n```cron\n0 9 * * * flock -n /tmp/appointment-reminders.lock /path/to/python /path/to/reminders.py\n```\n\nMake the environment variables available to cron, including the Twilio credentials and `APPOINTMENT_TIME_ZONE`. The lock prevents overlapping runs. The tracking table prevents ordinary repeat sends, but a crash after Twilio accepts a message and before the database commit could cause a duplicate on rerun. Monitor failures and make sure consent and opt-out handling meet your local requirements.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532678,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 809,
+   "prompt_tokens": 27,
+   "total_tokens": 836,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 182,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "RM1": {
+     "met": false,
+     "reason": "The date calculation uses an explicit time zone, but the cron schedule relies on the server\u2019s time zone rather than explicitly setting the appointment time zone."
+    },
+    "RM2": {
+     "met": false,
+     "reason": "A crash after Twilio accepts a message but before the database commit can cause a duplicate on rerun."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The query selects only appointments whose status is 'scheduled'."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "RM1": {
+     "met": true,
+     "reason": "The script uses `zoneinfo.ZoneInfo` to explicitly set the time zone for datetime operations and schedules the script to run at 9:00 a.m. in the appointment time zone, ensuring correctness across DST transitions."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "The script queries only appointments with no corresponding entry in the `sms_reminders` table and inserts a record immediately after sending, preventing duplicate sends on subsequent runs."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The SQL query filters appointments where `status = 'scheduled'`, so cancelled appointments (assuming they have a different status like 'cancelled') are excluded."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "RM1": {
+     "met": false,
+     "reason": "The script computes tomorrow's date in an explicit ZoneInfo time zone, but it never sets the 9:00 time itself. That is left to cron running in the server's local time zone, so the code does not guarantee 9:00 local time across DST changes."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "An sms_reminders table records each sent appointment, and the query excludes appointments already in it via a LEFT JOIN, so a rerun does not resend."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The query only selects appointments with status = 'scheduled', so cancelled appointments get no reminder."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"RM1\":{\"met\":false,\"reason\":\"The date calculation uses an explicit time zone, but the cron schedule relies on the server\u2019s time zone rather than explicitly setting the appointment time zone.\"},\"RM2\":{\"met\":false,\"reason\":\"A crash after Twilio accepts a message but before the database commit can cause a duplicate on rerun.\"},\"RM3\":{\"met\":true,\"reason\":\"The query selects only appointments whose status is 'scheduled'.\"}}",
+  "qwen": "{\"_code\": true, \"RM1\": {\"met\": true, \"reason\": \"The script uses `zoneinfo.ZoneInfo` to explicitly set the time zone for datetime operations and schedules the script to run at 9:00 a.m. in the appointment time zone, ensuring correctness across DST transitions.\"}, \"RM2\": {\"met\": true, \"reason\": \"The script queries only appointments with no corresponding entry in the `sms_reminders` table and inserts a record immediately after sending, preventing duplicate sends on subsequent runs.\"}, \"RM3\": {\"met\": true, \"reason\": \"The SQL query filters appointments where `status = 'scheduled'`, so cancelled appointments (assuming they have a different status like 'cancelled') are excluded.\"}}",
+  "claude": "{\"_code\": true, \"RM1\": {\"met\": false, \"reason\": \"The script computes tomorrow's date in an explicit ZoneInfo time zone, but it never sets the 9:00 time itself. That is left to cron running in the server's local time zone, so the code does not guarantee 9:00 local time across DST changes.\"}, \"RM2\": {\"met\": true, \"reason\": \"An sms_reminders table records each sent appointment, and the query excludes appointments already in it via a LEFT JOIN, so a rerun does not resend.\"}, \"RM3\": {\"met\": true, \"reason\": \"The query only selects appointments with status = 'scheduled', so cancelled appointments get no reminder.\"}}"
+ },
+ "judge_cost_usd": 0.0086514
+}

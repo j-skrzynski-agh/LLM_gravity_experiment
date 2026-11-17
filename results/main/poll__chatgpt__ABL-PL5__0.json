@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T05:06:10+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "chatgpt",
+ "condition": "ABL-PL5",
+ "rep": 0,
+ "requirement_order": [
+  "PL4",
+  "PL1",
+  "PL2",
+  "PL3"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. In case of a tie, the tied option that was added last wins.\n2. Voting for an option that does not exist raises ValueError.\n3. Each voter can vote only once; a second vote by the same voter raises ValueError.\n4. The winner is the option with the most votes.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._votes: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._votes:\n            self._votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._votes:\n            raise ValueError(\"Option does not exist\")\n        if voter in self._voters:\n            raise ValueError(\"Voter has already voted\")\n        self._votes[option] += 1\n        self._voters.add(voter)\n\n    def winner(self) -> str | None:\n        return max(reversed(self._votes), key=self._votes.get, default=None)\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._votes: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._votes:\n            self._votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._votes:\n            raise ValueError(\"Option does not exist\")\n        if voter in self._voters:\n            raise ValueError(\"Voter has already voted\")\n        self._votes[option] += 1\n        self._voters.add(voter)\n\n    def winner(self) -> str | None:\n        return max(reversed(self._votes), key=self._votes.get, default=None)\n",
+ "input_tokens": 187,
+ "output_tokens": 250,
+ "cost_usd": 0.001437,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 3.82,
+ "raw_api_response": {
+  "id": "chatcmpl-EjHIYL1lCLezDwYtXdiU1QocvpfOp",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._votes: dict[str, int] = {}\n        self._voters: set[str] = set()\n\n    def add_option(self, option: str) -> None:\n        if option not in self._votes:\n            self._votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._votes:\n            raise ValueError(\"Option does not exist\")\n        if voter in self._voters:\n            raise ValueError(\"Voter has already voted\")\n        self._votes[option] += 1\n        self._voters.add(voter)\n\n    def winner(self) -> str | None:\n        return max(reversed(self._votes), key=self._votes.get, default=None)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794459962,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 250,
+   "prompt_tokens": 187,
+   "total_tokens": 437,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 54,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

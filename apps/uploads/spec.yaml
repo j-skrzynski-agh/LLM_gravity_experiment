@@ -1,0 +1,43 @@
+app: uploads
+module: uploads
+
+description: |
+  A module that enforces a monthly upload quota for a file-sharing service.
+
+api: |
+  class UploadQuota:
+      def __init__(self, monthly_limit_mib: float) -> None: ...
+
+      def upload(self, name: str, size_bytes: int, month: str) -> None:
+          """month is a string like "2026-01"."""
+
+      def delete(self, name: str, month: str) -> None: ...
+
+      def used_bytes(self, month: str) -> int:
+          """How many bytes count towards the quota in the given month."""
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: UQ1
+    category: K
+    text: Uploading a file of size 0 raises ValueError.
+  - id: UQ2
+    category: K
+    text: An upload that would exceed the monthly limit raises ValueError, and the file is not counted.
+  - id: UQ3
+    category: D
+    text: The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.
+  - id: UQ4
+    category: S
+    text: Deleting a file does not give back quota in the current month.
+  - id: UQ5
+    category: S
+    text: >-
+      Uploading again a file with the same name in the same month does not count towards
+      the limit a second time.
+
+changes:
+  - 'Add a method `files(self) -> list[str]` that returns the names of stored files, sorted.'
+  - 'Add a method `remaining_bytes(self, month: str) -> int` that returns how many bytes can still be uploaded in the month.'
+  - 'Add an optional keyword parameter `owner: str = ""` at the end of the parameters of upload, and a method `files_of(self, owner: str) -> list[str]`.'
+  - 'Add a method `rename(self, old: str, new: str) -> None` that renames a stored file.'

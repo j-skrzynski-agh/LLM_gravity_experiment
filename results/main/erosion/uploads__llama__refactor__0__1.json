@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:46:52+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "llama",
+ "variant": "refactor",
+ "rep": 0,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "uploads__llama__FULL__0.json",
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass UploadQuota:\n    \"\"\"\n    A class that enforces a monthly upload quota for a file-sharing service.\n\n    Attributes:\n    monthly_limit_mib (float): The monthly upload limit in MiB.\n\n    Methods:\n    upload(name: str, size_bytes: int, month: str): Upload a file and check if it exceeds the monthly limit.\n    delete(name: str, month: str): Delete a file.\n    used_bytes(month: str): Get the total bytes used in a given month.\n    \"\"\"\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        \"\"\"\n        Initialize the UploadQuota class with a monthly limit.\n\n        Args:\n        monthly_limit_mib (float): The monthly upload limit in MiB.\n        \"\"\"\n        self.monthly_limit_mib = monthly_limit_mib\n        self.monthly_limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self.uploads = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"\n        Upload a file and check if it exceeds the monthly limit.\n\n        Args:\n        name (str): The name of the file.\n        size_bytes (int): The size of the file in bytes.\n        month (str): The month of the upload in the format \"YYYY-MM\".\n\n        Raises:\n        ValueError: If the upload would exceed the monthly limit or if the file size is 0.\n        \"\"\"\n        if size_bytes == 0:\n            raise ValueError(\"File size cannot be 0\")\n        \n        if month not in self.uploads:\n            self.uploads[month] = {}\n        \n        if name in self.uploads[month]:\n            return\n        \n        used_bytes = sum(self.uploads[month].values())\n        if used_bytes + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed the monthly limit\")\n        \n        self.uploads[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Delete a file.\n\n        Args:\n        name (str): The name of the file.\n        month (str): The month of the upload in the format \"YYYY-MM\".\n        \"\"\"\n        if month in self.uploads and name in self.uploads[month]:\n            del self.uploads[month][name]\n            if not self.uploads[month]:\n                del self.uploads[month]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"\n        Get the total bytes used in a given month.\n\n        Args:\n        month (str): The month in the format \"YYYY-MM\".\n\n        Returns:\n        int: The total bytes used in the given month.\n        \"\"\"\n        return sum(self.uploads.get(month, {}).values())\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom typing import Dict\n\nclass UploadQuota:\n    \"\"\"\n    A class that enforces a monthly upload quota for a file-sharing service.\n\n    Attributes:\n    monthly_limit_mib (float): The monthly upload limit in MiB.\n\n    Methods:\n    upload(name: str, size_bytes: int, month: str): Upload a file and check if it exceeds the monthly limit.\n    delete(name: str, month: str): Delete a file.\n    used_bytes(month: str): Get the total bytes used in a given month.\n    \"\"\"\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        \"\"\"\n        Initialize the UploadQuota class with a monthly limit.\n\n        Args:\n        monthly_limit_mib (float): The monthly upload limit in MiB.\n        \"\"\"\n        self.monthly_limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self.uploads: Dict[str, Dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"\n        Upload a file and check if it exceeds the monthly limit.\n\n        Args:\n        name (str): The name of the file.\n        size_bytes (int): The size of the file in bytes.\n        month (str): The month of the upload in the format \"YYYY-MM\".\n\n        Raises:\n        ValueError: If the upload would exceed the monthly limit or if the file size is 0.\n        \"\"\"\n        if not size_bytes:\n            raise ValueError(\"File size cannot be 0\")\n        \n        self.uploads.setdefault(month, {})[name] = size_bytes\n        if sum(self.uploads[month].values()) > self.monthly_limit_bytes:\n            del self.uploads[month][name]\n            raise ValueError(\"Upload would exceed the monthly limit\")\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Delete a file.\n\n        Args:\n        name (str): The name of the file.\n        month (str): The month of the upload in the format \"YYYY-MM\".\n        \"\"\"\n        self.uploads.get(month, {}).pop(name, None)\n        if month in self.uploads and not self.uploads[month]:\n            del self.uploads[month]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"\n        Get the total bytes used in a given month.\n\n        Args:\n        month (str): The month in the format \"YYYY-MM\".\n\n        Returns:\n        int: The total bytes used in the given month.\n        \"\"\"\n        return sum(self.uploads.get(month, {}).values())\n```",
+ "code": "from typing import Dict\n\nclass UploadQuota:\n    \"\"\"\n    A class that enforces a monthly upload quota for a file-sharing service.\n\n    Attributes:\n    monthly_limit_mib (float): The monthly upload limit in MiB.\n\n    Methods:\n    upload(name: str, size_bytes: int, month: str): Upload a file and check if it exceeds the monthly limit.\n    delete(name: str, month: str): Delete a file.\n    used_bytes(month: str): Get the total bytes used in a given month.\n    \"\"\"\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        \"\"\"\n        Initialize the UploadQuota class with a monthly limit.\n\n        Args:\n        monthly_limit_mib (float): The monthly upload limit in MiB.\n        \"\"\"\n        self.monthly_limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self.uploads: Dict[str, Dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"\n        Upload a file and check if it exceeds the monthly limit.\n\n        Args:\n        name (str): The name of the file.\n        size_bytes (int): The size of the file in bytes.\n        month (str): The month of the upload in the format \"YYYY-MM\".\n\n        Raises:\n        ValueError: If the upload would exceed the monthly limit or if the file size is 0.\n        \"\"\"\n        if not size_bytes:\n            raise ValueError(\"File size cannot be 0\")\n        \n        self.uploads.setdefault(month, {})[name] = size_bytes\n        if sum(self.uploads[month].values()) > self.monthly_limit_bytes:\n            del self.uploads[month][name]\n            raise ValueError(\"Upload would exceed the monthly limit\")\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Delete a file.\n\n        Args:\n        name (str): The name of the file.\n        month (str): The month of the upload in the format \"YYYY-MM\".\n        \"\"\"\n        self.uploads.get(month, {}).pop(name, None)\n        if month in self.uploads and not self.uploads[month]:\n            del self.uploads[month]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"\n        Get the total bytes used in a given month.\n\n        Args:\n        month (str): The month in the format \"YYYY-MM\".\n\n        Returns:\n        int: The total bytes used in the given month.\n        \"\"\"\n        return sum(self.uploads.get(month, {}).values())\n",
+ "input_tokens": 684,
+ "output_tokens": 546,
+ "cost_usd": 0.00024312000000000002,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 8.28,
+ "raw_api_response": {
+  "id": "gen-1794944800-CGhdlJcnXUufQcd6uuE0",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom typing import Dict\n\nclass UploadQuota:\n    \"\"\"\n    A class that enforces a monthly upload quota for a file-sharing service.\n\n    Attributes:\n    monthly_limit_mib (float): The monthly upload limit in MiB.\n\n    Methods:\n    upload(name: str, size_bytes: int, month: str): Upload a file and check if it exceeds the monthly limit.\n    delete(name: str, month: str): Delete a file.\n    used_bytes(month: str): Get the total bytes used in a given month.\n    \"\"\"\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        \"\"\"\n        Initialize the UploadQuota class with a monthly limit.\n\n        Args:\n        monthly_limit_mib (float): The monthly upload limit in MiB.\n        \"\"\"\n        self.monthly_limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self.uploads: Dict[str, Dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"\n        Upload a file and check if it exceeds the monthly limit.\n\n        Args:\n        name (str): The name of the file.\n        size_bytes (int): The size of the file in bytes.\n        month (str): The month of the upload in the format \"YYYY-MM\".\n\n        Raises:\n        ValueError: If the upload would exceed the monthly limit or if the file size is 0.\n        \"\"\"\n        if not size_bytes:\n            raise ValueError(\"File size cannot be 0\")\n        \n        self.uploads.setdefault(month, {})[name] = size_bytes\n        if sum(self.uploads[month].values()) > self.monthly_limit_bytes:\n            del self.uploads[month][name]\n            raise ValueError(\"Upload would exceed the monthly limit\")\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Delete a file.\n\n        Args:\n        name (str): The name of the file.\n        month (str): The month of the upload in the format \"YYYY-MM\".\n        \"\"\"\n        self.uploads.get(month, {}).pop(name, None)\n        if month in self.uploads and not self.uploads[month]:\n            del self.uploads[month]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"\n        Get the total bytes used in a given month.\n\n        Args:\n        month (str): The month in the format \"YYYY-MM\".\n\n        Returns:\n        int: The total bytes used in the given month.\n        \"\"\"\n        return sum(self.uploads.get(month, {}).values())\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794944800,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 546,
+   "prompt_tokens": 684,
+   "total_tokens": 1230,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00143055,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00143055,
+    "upstream_inference_prompt_cost": 0.000200412,
+    "upstream_inference_completions_cost": 0.001230138
+   }
+  },
+  "provider": "Cloudflare"
+ }
+}

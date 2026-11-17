@@ -1,0 +1,99 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:49:37+00:00",
+ "app": "account_reset",
+ "app_hash": "53e6cb5834e3",
+ "model": "llama",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "AR6",
+  "AR5",
+  "AR1",
+  "AR2",
+  "AR4",
+  "AR3"
+ ],
+ "passed": {
+  "AR1": true,
+  "AR2": true,
+  "AR3": true,
+  "AR4": true,
+  "AR5": true,
+  "AR6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA small user-account service for an internal company tool: registration, login,\nand password reset via one-time reset tokens.\n\n## API (implement exactly these names and signatures)\n```python\nclass AccountService:\n    def __init__(self) -> None: ...\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None: ...\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n\n    def reset_password(self, token: str, new_password: str) -> None: ...\n```\n\n## Requirements\n1. For compatibility with the legacy system, passwords are compared case-insensitively at login.\n2. Only administrators can request a password reset. A request made by a non-administrator, including for their own account, raises PermissionError.\n3. Email addresses are case-insensitive, e.g. an account registered as \"Ann@x.com\" can log in as \"ann@x.com\".\n4. Registering an email address that already has an account raises ValueError.\n5. A reset token can be used only once; using it a second time raises ValueError.\n6. Passwords shorter than 8 characters are rejected with ValueError, both at registration and at password reset.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport uuid\nfrom typing import Dict\n\nclass AccountService:\n    def __init__(self) -> None:\n        self.accounts: Dict[str, Dict[str, str]] = {}\n        self.reset_tokens: Dict[str, str] = {}\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        \"\"\"Register a new account.\"\"\"\n        if len(password) < 8:\n            raise ValueError(\"Password is too short\")\n        \n        email = email.lower()\n        if email in self.accounts:\n            raise ValueError(\"Email address already registered\")\n        \n        self.accounts[email] = {\n            \"password\": password.lower(),\n            \"is_admin\": str(is_admin)\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n        email = email.lower()\n        if email not in self.accounts:\n            return False\n        \n        return self.accounts[email][\"password\"] == password.lower()\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n        requester_email = requester_email.lower()\n        target_email = target_email.lower()\n        \n        if requester_email not in self.accounts or not self.accounts[requester_email][\"is_admin\"] == \"True\":\n            raise PermissionError(\"Only administrators can request a password reset\")\n        \n        if target_email not in self.accounts:\n            raise ValueError(\"Target email address is not registered\")\n        \n        token = str(uuid.uuid4())\n        self.reset_tokens[token] = target_email\n        \n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        \"\"\"Reset the password using a one-time reset token.\"\"\"\n        if len(new_password) < 8:\n            raise ValueError(\"Password is too short\")\n        \n        if token not in self.reset_tokens:\n            raise ValueError(\"Invalid reset token\")\n        \n        target_email = self.reset_tokens[token]\n        del self.reset_tokens[token]\n        \n        self.accounts[target_email][\"password\"] = new_password.lower()\n\n# Example usage:\nif __name__ == \"__main__\":\n    service = AccountService()\n    service.register(\"admin@example.com\", \"password123\", is_admin=True)\n    service.register(\"user@example.com\", \"password123\")\n\n    print(service.login(\"admin@example.com\", \"password123\"))  # True\n    print(service.login(\"user@example.com\", \"wrongpassword\"))  # False\n\n    token = service.request_password_reset(\"admin@example.com\", \"user@example.com\")\n    service.reset_password(token, \"newpassword123\")\n\n    print(service.login(\"user@example.com\", \"newpassword123\"))  # True\n```",
+ "code": "import uuid\nfrom typing import Dict\n\nclass AccountService:\n    def __init__(self) -> None:\n        self.accounts: Dict[str, Dict[str, str]] = {}\n        self.reset_tokens: Dict[str, str] = {}\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        \"\"\"Register a new account.\"\"\"\n        if len(password) < 8:\n            raise ValueError(\"Password is too short\")\n        \n        email = email.lower()\n        if email in self.accounts:\n            raise ValueError(\"Email address already registered\")\n        \n        self.accounts[email] = {\n            \"password\": password.lower(),\n            \"is_admin\": str(is_admin)\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n        email = email.lower()\n        if email not in self.accounts:\n            return False\n        \n        return self.accounts[email][\"password\"] == password.lower()\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n        requester_email = requester_email.lower()\n        target_email = target_email.lower()\n        \n        if requester_email not in self.accounts or not self.accounts[requester_email][\"is_admin\"] == \"True\":\n            raise PermissionError(\"Only administrators can request a password reset\")\n        \n        if target_email not in self.accounts:\n            raise ValueError(\"Target email address is not registered\")\n        \n        token = str(uuid.uuid4())\n        self.reset_tokens[token] = target_email\n        \n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        \"\"\"Reset the password using a one-time reset token.\"\"\"\n        if len(new_password) < 8:\n            raise ValueError(\"Password is too short\")\n        \n        if token not in self.reset_tokens:\n            raise ValueError(\"Invalid reset token\")\n        \n        target_email = self.reset_tokens[token]\n        del self.reset_tokens[token]\n        \n        self.accounts[target_email][\"password\"] = new_password.lower()\n\n# Example usage:\nif __name__ == \"__main__\":\n    service = AccountService()\n    service.register(\"admin@example.com\", \"password123\", is_admin=True)\n    service.register(\"user@example.com\", \"password123\")\n\n    print(service.login(\"admin@example.com\", \"password123\"))  # True\n    print(service.login(\"user@example.com\", \"wrongpassword\"))  # False\n\n    token = service.request_password_reset(\"admin@example.com\", \"user@example.com\")\n    service.reset_password(token, \"newpassword123\")\n\n    print(service.login(\"user@example.com\", \"newpassword123\"))  # True\n",
+ "input_tokens": 344,
+ "output_tokens": 576,
+ "cost_usd": 0.00021872,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.07,
+ "raw_api_response": {
+  "id": "gen-1794894564-RmrjY0xGstWOnNhc7NfV",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport uuid\nfrom typing import Dict\n\nclass AccountService:\n    def __init__(self) -> None:\n        self.accounts: Dict[str, Dict[str, str]] = {}\n        self.reset_tokens: Dict[str, str] = {}\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        \"\"\"Register a new account.\"\"\"\n        if len(password) < 8:\n            raise ValueError(\"Password is too short\")\n        \n        email = email.lower()\n        if email in self.accounts:\n            raise ValueError(\"Email address already registered\")\n        \n        self.accounts[email] = {\n            \"password\": password.lower(),\n            \"is_admin\": str(is_admin)\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n        email = email.lower()\n        if email not in self.accounts:\n            return False\n        \n        return self.accounts[email][\"password\"] == password.lower()\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n        requester_email = requester_email.lower()\n        target_email = target_email.lower()\n        \n        if requester_email not in self.accounts or not self.accounts[requester_email][\"is_admin\"] == \"True\":\n            raise PermissionError(\"Only administrators can request a password reset\")\n        \n        if target_email not in self.accounts:\n            raise ValueError(\"Target email address is not registered\")\n        \n        token = str(uuid.uuid4())\n        self.reset_tokens[token] = target_email\n        \n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        \"\"\"Reset the password using a one-time reset token.\"\"\"\n        if len(new_password) < 8:\n            raise ValueError(\"Password is too short\")\n        \n        if token not in self.reset_tokens:\n            raise ValueError(\"Invalid reset token\")\n        \n        target_email = self.reset_tokens[token]\n        del self.reset_tokens[token]\n        \n        self.accounts[target_email][\"password\"] = new_password.lower()\n\n# Example usage:\nif __name__ == \"__main__\":\n    service = AccountService()\n    service.register(\"admin@example.com\", \"password123\", is_admin=True)\n    service.register(\"user@example.com\", \"password123\")\n\n    print(service.login(\"admin@example.com\", \"password123\"))  # True\n    print(service.login(\"user@example.com\", \"wrongpassword\"))  # False\n\n    token = service.request_password_reset(\"admin@example.com\", \"user@example.com\")\n    service.reset_password(token, \"newpassword123\")\n\n    print(service.login(\"user@example.com\", \"newpassword123\"))  # True\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794894564,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 576,
+   "prompt_tokens": 344,
+   "total_tokens": 920,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.0006532,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.0006532,
+    "upstream_inference_prompt_cost": 0.00024424,
+    "upstream_inference_completions_cost": 0.00040896
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

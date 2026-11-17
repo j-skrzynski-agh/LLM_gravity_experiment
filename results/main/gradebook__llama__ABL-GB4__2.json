@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:12:30+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "llama",
+ "condition": "ABL-GB4",
+ "rep": 2,
+ "requirement_order": [
+  "GB3",
+  "GB5",
+  "GB2",
+  "GB1"
+ ],
+ "passed": {
+  "GB1": true,
+  "GB2": true,
+  "GB3": true,
+  "GB4": false,
+  "GB5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA gradebook for a university course: assignments with weights, grades on the\nPolish 2.0-5.0 scale, and a final average per student.\n\n## API (implement exactly these names and signatures)\n```python\nclass Gradebook:\n    def __init__(self) -> None: ...\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n\n    def record(self, student: str, assignment: str, grade: float) -> None: ...\n\n    def average(self, student: str) -> float: ...\n```\n\n## Requirements\n1. The average is weighted by the weights of the assignments.\n2. An assignment without a recorded grade counts as 2.0 in the average instead of being skipped.\n3. average() is rounded to two decimal places.\n4. Recording a grade outside the scale 2.0 to 5.0 raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        \"\"\"\n        Initializes an empty gradebook.\n        \"\"\"\n        self.assignments = {}\n        self.grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"\n        Adds an assignment to the gradebook.\n\n        Args:\n            name (str): The name of the assignment.\n            weight (float): The weight of the assignment.\n            kind (str, optional): The type of assignment. Defaults to \"homework\".\n        \"\"\"\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n        for student in self.grades:\n            self.grades[student][name] = None\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        \"\"\"\n        Records a grade for a student on a specific assignment.\n\n        Args:\n            student (str): The name of the student.\n            assignment (str): The name of the assignment.\n            grade (float): The grade of the student on the assignment.\n\n        Raises:\n            ValueError: If the grade is not between 2.0 and 5.0.\n        \"\"\"\n        if grade < 2.0 or grade > 5.0:\n            raise ValueError(\"Grade must be between 2.0 and 5.0\")\n        \n        if student not in self.grades:\n            self.grades[student] = {}\n        \n        if assignment not in self.assignments:\n            raise ValueError(\"Assignment does not exist\")\n        \n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        \"\"\"\n        Calculates the weighted average grade of a student.\n\n        Args:\n            student (str): The name of the student.\n\n        Returns:\n            float: The weighted average grade of the student, rounded to two decimal places.\n        \"\"\"\n        if student not in self.grades:\n            raise ValueError(\"Student does not exist\")\n        \n        total_weight = sum(assignment[\"weight\"] for assignment in self.assignments.values())\n        total_grade = 0\n        \n        for assignment, grade in self.grades[student].items():\n            weight = self.assignments[assignment][\"weight\"]\n            if grade is None:\n                grade = 2.0\n            total_grade += grade * weight\n        \n        return round(total_grade / total_weight, 2)\n\n\n# Example usage\nif __name__ == \"__main__\":\n    gradebook = Gradebook()\n    gradebook.add_assignment(\"Assignment 1\", 0.3)\n    gradebook.add_assignment(\"Assignment 2\", 0.7)\n    gradebook.record(\"John Doe\", \"Assignment 1\", 4.0)\n    gradebook.record(\"John Doe\", \"Assignment 2\", 4.5)\n    print(gradebook.average(\"John Doe\"))\n```",
+ "code": "class Gradebook:\n    def __init__(self) -> None:\n        \"\"\"\n        Initializes an empty gradebook.\n        \"\"\"\n        self.assignments = {}\n        self.grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"\n        Adds an assignment to the gradebook.\n\n        Args:\n            name (str): The name of the assignment.\n            weight (float): The weight of the assignment.\n            kind (str, optional): The type of assignment. Defaults to \"homework\".\n        \"\"\"\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n        for student in self.grades:\n            self.grades[student][name] = None\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        \"\"\"\n        Records a grade for a student on a specific assignment.\n\n        Args:\n            student (str): The name of the student.\n            assignment (str): The name of the assignment.\n            grade (float): The grade of the student on the assignment.\n\n        Raises:\n            ValueError: If the grade is not between 2.0 and 5.0.\n        \"\"\"\n        if grade < 2.0 or grade > 5.0:\n            raise ValueError(\"Grade must be between 2.0 and 5.0\")\n        \n        if student not in self.grades:\n            self.grades[student] = {}\n        \n        if assignment not in self.assignments:\n            raise ValueError(\"Assignment does not exist\")\n        \n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        \"\"\"\n        Calculates the weighted average grade of a student.\n\n        Args:\n            student (str): The name of the student.\n\n        Returns:\n            float: The weighted average grade of the student, rounded to two decimal places.\n        \"\"\"\n        if student not in self.grades:\n            raise ValueError(\"Student does not exist\")\n        \n        total_weight = sum(assignment[\"weight\"] for assignment in self.assignments.values())\n        total_grade = 0\n        \n        for assignment, grade in self.grades[student].items():\n            weight = self.assignments[assignment][\"weight\"]\n            if grade is None:\n                grade = 2.0\n            total_grade += grade * weight\n        \n        return round(total_grade / total_weight, 2)\n\n\n# Example usage\nif __name__ == \"__main__\":\n    gradebook = Gradebook()\n    gradebook.add_assignment(\"Assignment 1\", 0.3)\n    gradebook.add_assignment(\"Assignment 2\", 0.7)\n    gradebook.record(\"John Doe\", \"Assignment 1\", 4.0)\n    gradebook.record(\"John Doe\", \"Assignment 2\", 4.5)\n    print(gradebook.average(\"John Doe\"))\n",
+ "input_tokens": 239,
+ "output_tokens": 600,
+ "cost_usd": 0.00021590000000000002,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 6.29,
+ "raw_api_response": {
+  "id": "gen-1794895938-qEwXt5yUTyW295uM3qz6",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        \"\"\"\n        Initializes an empty gradebook.\n        \"\"\"\n        self.assignments = {}\n        self.grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"\n        Adds an assignment to the gradebook.\n\n        Args:\n            name (str): The name of the assignment.\n            weight (float): The weight of the assignment.\n            kind (str, optional): The type of assignment. Defaults to \"homework\".\n        \"\"\"\n        self.assignments[name] = {\"weight\": weight, \"kind\": kind}\n        for student in self.grades:\n            self.grades[student][name] = None\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        \"\"\"\n        Records a grade for a student on a specific assignment.\n\n        Args:\n            student (str): The name of the student.\n            assignment (str): The name of the assignment.\n            grade (float): The grade of the student on the assignment.\n\n        Raises:\n            ValueError: If the grade is not between 2.0 and 5.0.\n        \"\"\"\n        if grade < 2.0 or grade > 5.0:\n            raise ValueError(\"Grade must be between 2.0 and 5.0\")\n        \n        if student not in self.grades:\n            self.grades[student] = {}\n        \n        if assignment not in self.assignments:\n            raise ValueError(\"Assignment does not exist\")\n        \n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        \"\"\"\n        Calculates the weighted average grade of a student.\n\n        Args:\n            student (str): The name of the student.\n\n        Returns:\n            float: The weighted average grade of the student, rounded to two decimal places.\n        \"\"\"\n        if student not in self.grades:\n            raise ValueError(\"Student does not exist\")\n        \n        total_weight = sum(assignment[\"weight\"] for assignment in self.assignments.values())\n        total_grade = 0\n        \n        for assignment, grade in self.grades[student].items():\n            weight = self.assignments[assignment][\"weight\"]\n            if grade is None:\n                grade = 2.0\n            total_grade += grade * weight\n        \n        return round(total_grade / total_weight, 2)\n\n\n# Example usage\nif __name__ == \"__main__\":\n    gradebook = Gradebook()\n    gradebook.add_assignment(\"Assignment 1\", 0.3)\n    gradebook.add_assignment(\"Assignment 2\", 0.7)\n    gradebook.record(\"John Doe\", \"Assignment 1\", 4.0)\n    gradebook.record(\"John Doe\", \"Assignment 2\", 4.5)\n    print(gradebook.average(\"John Doe\"))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794895938,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 600,
+   "prompt_tokens": 239,
+   "total_tokens": 839,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00059569,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00059569,
+    "upstream_inference_prompt_cost": 0.00016969,
+    "upstream_inference_completions_cost": 0.000426
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

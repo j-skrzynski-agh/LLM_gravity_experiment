@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:49:11+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "llama",
+ "condition": "ABL-PL3",
+ "rep": 1,
+ "requirement_order": [
+  "PL4",
+  "PL5",
+  "PL1",
+  "PL2"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. In case of a tie, the tied option that was added last wins.\n2. winner() returns None until at least 3 votes have been cast.\n3. Voting for an option that does not exist raises ValueError.\n4. Each voter can vote only once; a second vote by the same voter raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    \"\"\"\n    A simple poll class where options are added, people vote, and the winner is reported.\n\n    Attributes:\n        question (str): The question of the poll.\n        options (dict): A dictionary where keys are option names and values are the number of votes.\n        voters (set): A set of voters who have already voted.\n        option_order (list): A list to keep track of the order in which options were added.\n    \"\"\"\n\n    def __init__(self, question: str) -> None:\n        \"\"\"\n        Initialize the poll with a question.\n\n        Args:\n            question (str): The question of the poll.\n        \"\"\"\n        self.question = question\n        self.options = {}\n        self.voters = set()\n        self.option_order = []\n\n    def add_option(self, option: str) -> None:\n        \"\"\"\n        Add an option to the poll.\n\n        Args:\n            option (str): The name of the option.\n        \"\"\"\n        if option not in self.options:\n            self.options[option] = 0\n            self.option_order.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        \"\"\"\n        Cast a vote for an option.\n\n        Args:\n            voter (str): The name of the voter.\n            option (str): The name of the option.\n\n        Raises:\n            ValueError: If the option does not exist or if the voter has already voted.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self.voters:\n            raise ValueError(\"Voter has already voted\")\n        self.options[option] += 1\n        self.voters.add(voter)\n\n    def winner(self) -> str | None:\n        \"\"\"\n        Get the winner of the poll.\n\n        Returns:\n            str | None: The name of the winning option, or None if less than 3 votes have been cast.\n        \"\"\"\n        if len(self.voters) < 3:\n            return None\n        max_votes = max(self.options.values())\n        winning_options = [option for option, votes in self.options.items() if votes == max_votes]\n        # In case of a tie, the tied option that was added last wins\n        winning_option = next(option for option in reversed(self.option_order) if option in winning_options)\n        return winning_option\n```",
+ "code": "class Poll:\n    \"\"\"\n    A simple poll class where options are added, people vote, and the winner is reported.\n\n    Attributes:\n        question (str): The question of the poll.\n        options (dict): A dictionary where keys are option names and values are the number of votes.\n        voters (set): A set of voters who have already voted.\n        option_order (list): A list to keep track of the order in which options were added.\n    \"\"\"\n\n    def __init__(self, question: str) -> None:\n        \"\"\"\n        Initialize the poll with a question.\n\n        Args:\n            question (str): The question of the poll.\n        \"\"\"\n        self.question = question\n        self.options = {}\n        self.voters = set()\n        self.option_order = []\n\n    def add_option(self, option: str) -> None:\n        \"\"\"\n        Add an option to the poll.\n\n        Args:\n            option (str): The name of the option.\n        \"\"\"\n        if option not in self.options:\n            self.options[option] = 0\n            self.option_order.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        \"\"\"\n        Cast a vote for an option.\n\n        Args:\n            voter (str): The name of the voter.\n            option (str): The name of the option.\n\n        Raises:\n            ValueError: If the option does not exist or if the voter has already voted.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self.voters:\n            raise ValueError(\"Voter has already voted\")\n        self.options[option] += 1\n        self.voters.add(voter)\n\n    def winner(self) -> str | None:\n        \"\"\"\n        Get the winner of the poll.\n\n        Returns:\n            str | None: The name of the winning option, or None if less than 3 votes have been cast.\n        \"\"\"\n        if len(self.voters) < 3:\n            return None\n        max_votes = max(self.options.values())\n        winning_options = [option for option, votes in self.options.items() if votes == max_votes]\n        # In case of a tie, the tied option that was added last wins\n        winning_option = next(option for option in reversed(self.option_order) if option in winning_options)\n        return winning_option\n",
+ "input_tokens": 218,
+ "output_tokens": 489,
+ "cost_usd": 0.00017828,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 10.65,
+ "raw_api_response": {
+  "id": "gen-1794898136-JJBIVmrnyLW8F2dYKqNH",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    \"\"\"\n    A simple poll class where options are added, people vote, and the winner is reported.\n\n    Attributes:\n        question (str): The question of the poll.\n        options (dict): A dictionary where keys are option names and values are the number of votes.\n        voters (set): A set of voters who have already voted.\n        option_order (list): A list to keep track of the order in which options were added.\n    \"\"\"\n\n    def __init__(self, question: str) -> None:\n        \"\"\"\n        Initialize the poll with a question.\n\n        Args:\n            question (str): The question of the poll.\n        \"\"\"\n        self.question = question\n        self.options = {}\n        self.voters = set()\n        self.option_order = []\n\n    def add_option(self, option: str) -> None:\n        \"\"\"\n        Add an option to the poll.\n\n        Args:\n            option (str): The name of the option.\n        \"\"\"\n        if option not in self.options:\n            self.options[option] = 0\n            self.option_order.append(option)\n\n    def vote(self, voter: str, option: str) -> None:\n        \"\"\"\n        Cast a vote for an option.\n\n        Args:\n            voter (str): The name of the voter.\n            option (str): The name of the option.\n\n        Raises:\n            ValueError: If the option does not exist or if the voter has already voted.\n        \"\"\"\n        if option not in self.options:\n            raise ValueError(\"Option does not exist\")\n        if voter in self.voters:\n            raise ValueError(\"Voter has already voted\")\n        self.options[option] += 1\n        self.voters.add(voter)\n\n    def winner(self) -> str | None:\n        \"\"\"\n        Get the winner of the poll.\n\n        Returns:\n            str | None: The name of the winning option, or None if less than 3 votes have been cast.\n        \"\"\"\n        if len(self.voters) < 3:\n            return None\n        max_votes = max(self.options.values())\n        winning_options = [option for option, votes in self.options.items() if votes == max_votes]\n        # In case of a tie, the tied option that was added last wins\n        winning_option = next(option for option in reversed(self.option_order) if option in winning_options)\n        return winning_option\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794898136,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.31.0-tp2-260b81aa",
+  "usage": {
+   "completion_tokens": 489,
+   "prompt_tokens": 218,
+   "total_tokens": 707,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 128,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00028508,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00028508,
+    "upstream_inference_prompt_cost": 3.08e-05,
+    "upstream_inference_completions_cost": 0.00025428
+   }
+  },
+  "provider": "AkashML"
+ }
+}

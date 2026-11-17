@@ -1,0 +1,59 @@
+app: expense_split
+module: expenses
+
+description: |
+  A module for splitting shared expenses within a group of friends.
+  Members record who paid for what; the module computes how much each member
+  is owed or owes, and proposes payments to settle up.
+
+api: |
+  class Group:
+      def __init__(self, members: list[str]) -> None: ...
+
+      def add_expense(self, payer: str, amount: float,
+                      participants: list[str] | None = None) -> None:
+          """Record that `payer` paid `amount` on behalf of `participants`."""
+
+      def balances(self) -> dict[str, float]:
+          """Net balance per member. Positive = the member is owed money,
+          negative = the member owes money."""
+
+      def settle_up(self) -> list[tuple[str, str, float]]:
+          """Payments that settle the group, as (debtor, creditor, amount)."""
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: ES1
+    category: K
+    text: Adding an expense whose payer or any participant is not a group member raises ValueError.
+
+  - id: ES2
+    category: K
+    text: If participants are not given, the expense is split equally among all group members.
+
+  - id: ES3
+    category: K
+    text: Adding an expense with an amount that is zero or negative raises ValueError.
+
+  - id: ES4
+    category: D
+    text: settle_up() proposes at most (number of members - 1) payments.
+
+  - id: ES5
+    category: S
+    text: >-
+      When an amount cannot be split into equal cents, the leftover cents are borne by the payer:
+      every other participant owes exactly the amount rounded down to the cent.
+
+  - id: ES6
+    category: S
+    text: >-
+      settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off
+      and not included in the proposed payments.
+
+# Zmiany do eksperymentu erozji: niezwiązane z wymaganiami, wprowadzane po kolei.
+changes:
+  - 'Add an optional keyword parameter `description: str = ""` at the end of the parameters of add_expense, and a method `expenses(self) -> list[dict]` that returns all recorded expenses with keys payer, amount, participants and description.'
+  - 'Add a method `export_csv(self) -> str` that returns all recorded expenses as CSV text with a header row.'
+  - 'Add a method `total_paid(self, member: str) -> float` that returns the total amount a member has paid.'
+  - 'Add a method `remove_member(self, name: str) -> None` that removes a member whose balance is zero and raises ValueError otherwise.'

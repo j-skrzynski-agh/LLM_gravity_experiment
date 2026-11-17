@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T18:11:17+00:00",
+ "app": "notifications",
+ "app_hash": "3c8e19143fe2",
+ "model": "llama",
+ "variant": "code",
+ "rep": 2,
+ "step": 2,
+ "change": "Add a method `enabled_channels(self, user: str) -> list[str]` that returns the channels the user has enabled.",
+ "start_file": "notifications__llama__FULL__2.json",
+ "passed": {
+  "NT1": true,
+  "NT2": true,
+  "NT3": true,
+  "NT4": true,
+  "NT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        \"\"\"\n        Initialize the Notifier.\n\n        :param quiet_start: The start time of the quiet hours.\n        :param quiet_end: The end time of the quiet hours.\n        \"\"\"\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"\n        Add a new user with default channel settings.\n\n        :param user: The user to add.\n        \"\"\"\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"\n        Set the enabled state of a channel for a user.\n\n        :param user: The user to modify.\n        :param channel: The channel to modify.\n        :param enabled: The new enabled state of the channel.\n        :raises ValueError: If the channel is not in CHANNELS.\n        \"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"\n        Send a message to a user.\n\n        :param user: The user to send the message to.\n        :param message: The message to send.\n        :param at: The time to send the message.\n        :return: The channels the message was delivered to, in CHANNELS order.\n        \"\"\"\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self._is_quiet(at.time()):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def users(self) -> list[str]:\n        \"\"\"\n        Get all users, sorted.\n\n        :return: A list of all users, sorted alphabetically.\n        \"\"\"\n        return sorted(self.users.keys())\n\n    def _is_quiet(self, current_time: time) -> bool:\n        \"\"\"\n        Check if the current time is within quiet hours.\n\n        :param current_time: The current time.\n        :return: True if the current time is within quiet hours, False otherwise.\n        \"\"\"\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= current_time < self.quiet_end\n        else:\n            return self.quiet_start <= current_time or current_time < self.quiet_end\n\n\n# Example usage:\nif __name__ == \"__main__\":\n    notifier = Notifier()\n    notifier.add_user(\"user1\")\n    notifier.add_user(\"user3\")\n    notifier.add_user(\"user2\")\n    notifier.set_channel(\"user1\", \"sms\", True)\n    print(notifier.send(\"user1\", \"Hello, world!\", datetime(2024, 9, 16, 12, 0, 0)))\n    print(notifier.send(\"user1\", \"Hello, world!\", datetime(2024, 9, 16, 23, 0, 0)))\n    print(notifier.users())\n```\n\n## Change request\nAdd a method `enabled_channels(self, user: str) -> list[str]` that returns the channels the user has enabled.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        \"\"\"\n        Initialize the Notifier.\n\n        :param quiet_start: The start time of the quiet hours.\n        :param quiet_end: The end time of the quiet hours.\n        \"\"\"\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"\n        Add a new user with default channel settings.\n\n        :param user: The user to add.\n        \"\"\"\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"\n        Set the enabled state of a channel for a user.\n\n        :param user: The user to modify.\n        :param channel: The channel to modify.\n        :param enabled: The new enabled state of the channel.\n        :raises ValueError: If the channel is not in CHANNELS.\n        \"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"\n        Send a message to a user.\n\n        :param user: The user to send the message to.\n        :param message: The message to send.\n        :param at: The time to send the message.\n        :return: The channels the message was delivered to, in CHANNELS order.\n        \"\"\"\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self._is_quiet(at.time()):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def users(self) -> list[str]:\n        \"\"\"\n        Get all users, sorted.\n\n        :return: A list of all users, sorted alphabetically.\n        \"\"\"\n        return sorted(self.users.keys())\n\n    def enabled_channels(self, user: str) -> list[str]:\n        \"\"\"\n        Get the channels the user has enabled.\n\n        :param user: The user to get the enabled channels for.\n        :return: A list of channels the user has enabled, in CHANNELS order.\n        :raises KeyError: If the user does not exist.\n        \"\"\"\n        if user not in self.users:\n            raise KeyError(f\"User '{user}' does not exist\")\n        return [channel for channel in self.CHANNELS if self.users[user][channel]]\n\n    def _is_quiet(self, current_time: time) -> bool:\n        \"\"\"\n        Check if the current time is within quiet hours.\n\n        :param current_time: The current time.\n        :return: True if the current time is within quiet hours, False otherwise.\n        \"\"\"\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= current_time < self.quiet_end\n        else:\n            return self.quiet_start <= current_time or current_time < self.quiet_end\n\n\n# Example usage:\nif __name__ == \"__main__\":\n    notifier = Notifier()\n    notifier.add_user(\"user1\")\n    notifier.add_user(\"user3\")\n    notifier.add_user(\"user2\")\n    notifier.set_channel(\"user1\", \"sms\", True)\n    print(notifier.send(\"user1\", \"Hello, world!\", datetime(2024, 9, 16, 12, 0, 0)))\n    print(notifier.send(\"user1\", \"Hello, world!\", datetime(2024, 9, 16, 23, 0, 0)))\n    print(notifier.users())\n    print(notifier.enabled_channels(\"user1\"))\n```",
+ "code": "from datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        \"\"\"\n        Initialize the Notifier.\n\n        :param quiet_start: The start time of the quiet hours.\n        :param quiet_end: The end time of the quiet hours.\n        \"\"\"\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"\n        Add a new user with default channel settings.\n\n        :param user: The user to add.\n        \"\"\"\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"\n        Set the enabled state of a channel for a user.\n\n        :param user: The user to modify.\n        :param channel: The channel to modify.\n        :param enabled: The new enabled state of the channel.\n        :raises ValueError: If the channel is not in CHANNELS.\n        \"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"\n        Send a message to a user.\n\n        :param user: The user to send the message to.\n        :param message: The message to send.\n        :param at: The time to send the message.\n        :return: The channels the message was delivered to, in CHANNELS order.\n        \"\"\"\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self._is_quiet(at.time()):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def users(self) -> list[str]:\n        \"\"\"\n        Get all users, sorted.\n\n        :return: A list of all users, sorted alphabetically.\n        \"\"\"\n        return sorted(self.users.keys())\n\n    def enabled_channels(self, user: str) -> list[str]:\n        \"\"\"\n        Get the channels the user has enabled.\n\n        :param user: The user to get the enabled channels for.\n        :return: A list of channels the user has enabled, in CHANNELS order.\n        :raises KeyError: If the user does not exist.\n        \"\"\"\n        if user not in self.users:\n            raise KeyError(f\"User '{user}' does not exist\")\n        return [channel for channel in self.CHANNELS if self.users[user][channel]]\n\n    def _is_quiet(self, current_time: time) -> bool:\n        \"\"\"\n        Check if the current time is within quiet hours.\n\n        :param current_time: The current time.\n        :return: True if the current time is within quiet hours, False otherwise.\n        \"\"\"\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= current_time < self.quiet_end\n        else:\n            return self.quiet_start <= current_time or current_time < self.quiet_end\n\n\n# Example usage:\nif __name__ == \"__main__\":\n    notifier = Notifier()\n    notifier.add_user(\"user1\")\n    notifier.add_user(\"user3\")\n    notifier.add_user(\"user2\")\n    notifier.set_channel(\"user1\", \"sms\", True)\n    print(notifier.send(\"user1\", \"Hello, world!\", datetime(2024, 9, 16, 12, 0, 0)))\n    print(notifier.send(\"user1\", \"Hello, world!\", datetime(2024, 9, 16, 23, 0, 0)))\n    print(notifier.users())\n    print(notifier.enabled_channels(\"user1\"))\n",
+ "input_tokens": 812,
+ "output_tokens": 861,
+ "cost_usd": 0.00035672,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 6.02,
+ "raw_api_response": {
+  "id": "gen-1794939065-2WSud5jvqe1LyiXNkYc6",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        \"\"\"\n        Initialize the Notifier.\n\n        :param quiet_start: The start time of the quiet hours.\n        :param quiet_end: The end time of the quiet hours.\n        \"\"\"\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"\n        Add a new user with default channel settings.\n\n        :param user: The user to add.\n        \"\"\"\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"\n        Set the enabled state of a channel for a user.\n\n        :param user: The user to modify.\n        :param channel: The channel to modify.\n        :param enabled: The new enabled state of the channel.\n        :raises ValueError: If the channel is not in CHANNELS.\n        \"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"\n        Send a message to a user.\n\n        :param user: The user to send the message to.\n        :param message: The message to send.\n        :param at: The time to send the message.\n        :return: The channels the message was delivered to, in CHANNELS order.\n        \"\"\"\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self._is_quiet(at.time()):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def users(self) -> list[str]:\n        \"\"\"\n        Get all users, sorted.\n\n        :return: A list of all users, sorted alphabetically.\n        \"\"\"\n        return sorted(self.users.keys())\n\n    def enabled_channels(self, user: str) -> list[str]:\n        \"\"\"\n        Get the channels the user has enabled.\n\n        :param user: The user to get the enabled channels for.\n        :return: A list of channels the user has enabled, in CHANNELS order.\n        :raises KeyError: If the user does not exist.\n        \"\"\"\n        if user not in self.users:\n            raise KeyError(f\"User '{user}' does not exist\")\n        return [channel for channel in self.CHANNELS if self.users[user][channel]]\n\n    def _is_quiet(self, current_time: time) -> bool:\n        \"\"\"\n        Check if the current time is within quiet hours.\n\n        :param current_time: The current time.\n        :return: True if the current time is within quiet hours, False otherwise.\n        \"\"\"\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= current_time < self.quiet_end\n        else:\n            return self.quiet_start <= current_time or current_time < self.quiet_end\n\n\n# Example usage:\nif __name__ == \"__main__\":\n    notifier = Notifier()\n    notifier.add_user(\"user1\")\n    notifier.add_user(\"user3\")\n    notifier.add_user(\"user2\")\n    notifier.set_channel(\"user1\", \"sms\", True)\n    print(notifier.send(\"user1\", \"Hello, world!\", datetime(2024, 9, 16, 12, 0, 0)))\n    print(notifier.send(\"user1\", \"Hello, world!\", datetime(2024, 9, 16, 23, 0, 0)))\n    print(notifier.users())\n    print(notifier.enabled_channels(\"user1\"))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794939065,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 861,
+   "prompt_tokens": 812,
+   "total_tokens": 1673,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00060914,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00060914,
+    "upstream_inference_prompt_cost": 0.00017864,
+    "upstream_inference_completions_cost": 0.0004305
+   }
+  },
+  "provider": "Parasail"
+ }
+}

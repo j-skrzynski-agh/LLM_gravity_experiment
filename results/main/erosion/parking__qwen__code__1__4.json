@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T17:21:09+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "qwen",
+ "variant": "code",
+ "rep": 1,
+ "step": 4,
+ "change": "Add an attribute `currency` set to \"PLN\" by an optional constructor parameter `currency: str = \"PLN\"`, and include it in the receipt.",
+ "start_file": "parking__qwen__FULL__1.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n        self._collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        # Calculate duration in minutes\n        duration = exit - entry\n        total_minutes = duration.total_seconds() / 60.0\n        \n        # Check for flat penalty for stays longer than 24 hours (1440 minutes)\n        if total_minutes > 1440:\n            return round(200.00, 2)\n        \n        # Free for stays of at most 15 minutes\n        if total_minutes <= 15:\n            return 0.0\n        \n        # Charge for whole duration, with every started hour charged as full hour\n        # Convert total minutes to hours, rounding up to next whole hour\n        # Since we need to charge for every started hour, we use ceiling division\n        hours_charged = (total_minutes + 59) // 60  # This gives ceiling of total_minutes/60\n        \n        # Calculate fee and round to two decimal places\n        fee_amount = hours_charged * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def record(self, entry: datetime, exit: datetime) -> float:\n        fee_amount = self.fee(entry, exit)\n        self._collected_fees.append(fee_amount)\n        return fee_amount\n    \n    def total_collected(self) -> float:\n        return round(sum(self._collected_fees), 2)\n    \n    def estimate(self, hours: int) -> float:\n        # Handle edge case: 0 hours should be free (since <= 15 minutes is free)\n        if hours == 0:\n            return 0.0\n        \n        # Convert hours to minutes to check against the 24-hour penalty threshold\n        total_minutes = hours * 60\n        \n        # Check for flat penalty for stays longer than 24 hours (1440 minutes)\n        if total_minutes > 1440:\n            return round(200.00, 2)\n        \n        # Free for stays of at most 15 minutes (which is 0.25 hours, so hours=0 is covered above)\n        # For positive hours, minimum charge is for 1 hour\n        # Since we're given exact hours, we charge for exactly that many hours\n        # But note: the original logic charges for \"every started hour\", so for exact hours,\n        # it's simply hours * hourly_rate, unless it triggers the 24-hour penalty\n        fee_amount = hours * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        fee_amount = self.fee(entry, exit)\n        duration = exit - entry\n        total_minutes = int(duration.total_seconds() / 60.0)\n        return f\"Duration: {total_minutes} minutes, Fee: ${fee_amount:.2f}\"\n```\n\n## Change request\nAdd an attribute `currency` set to \"PLN\" by an optional constructor parameter `currency: str = \"PLN\"`, and include it in the receipt.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0, currency: str = \"PLN\") -> None:\n        self.hourly_rate = hourly_rate\n        self.currency = currency\n        self._collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        # Calculate duration in minutes\n        duration = exit - entry\n        total_minutes = duration.total_seconds() / 60.0\n        \n        # Check for flat penalty for stays longer than 24 hours (1440 minutes)\n        if total_minutes > 1440:\n            return round(200.00, 2)\n        \n        # Free for stays of at most 15 minutes\n        if total_minutes <= 15:\n            return 0.0\n        \n        # Charge for whole duration, with every started hour charged as full hour\n        # Convert total minutes to hours, rounding up to next whole hour\n        # Since we need to charge for every started hour, we use ceiling division\n        hours_charged = (total_minutes + 59) // 60  # This gives ceiling of total_minutes/60\n        \n        # Calculate fee and round to two decimal places\n        fee_amount = hours_charged * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def record(self, entry: datetime, exit: datetime) -> float:\n        fee_amount = self.fee(entry, exit)\n        self._collected_fees.append(fee_amount)\n        return fee_amount\n    \n    def total_collected(self) -> float:\n        return round(sum(self._collected_fees), 2)\n    \n    def estimate(self, hours: int) -> float:\n        # Handle edge case: 0 hours should be free (since <= 15 minutes is free)\n        if hours == 0:\n            return 0.0\n        \n        # Convert hours to minutes to check against the 24-hour penalty threshold\n        total_minutes = hours * 60\n        \n        # Check for flat penalty for stays longer than 24 hours (1440 minutes)\n        if total_minutes > 1440:\n            return round(200.00, 2)\n        \n        # Free for stays of at most 15 minutes (which is 0.25 hours, so hours=0 is covered above)\n        # For positive hours, minimum charge is for 1 hour\n        # Since we're given exact hours, we charge for exactly that many hours\n        # But note: the original logic charges for \"every started hour\", so for exact hours,\n        # it's simply hours * hourly_rate, unless it triggers the 24-hour penalty\n        fee_amount = hours * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        fee_amount = self.fee(entry, exit)\n        duration = exit - entry\n        total_minutes = int(duration.total_seconds() / 60.0)\n        return f\"Duration: {total_minutes} minutes, Fee: {fee_amount:.2f} {self.currency}\"\n```",
+ "code": "from datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0, currency: str = \"PLN\") -> None:\n        self.hourly_rate = hourly_rate\n        self.currency = currency\n        self._collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        # Calculate duration in minutes\n        duration = exit - entry\n        total_minutes = duration.total_seconds() / 60.0\n        \n        # Check for flat penalty for stays longer than 24 hours (1440 minutes)\n        if total_minutes > 1440:\n            return round(200.00, 2)\n        \n        # Free for stays of at most 15 minutes\n        if total_minutes <= 15:\n            return 0.0\n        \n        # Charge for whole duration, with every started hour charged as full hour\n        # Convert total minutes to hours, rounding up to next whole hour\n        # Since we need to charge for every started hour, we use ceiling division\n        hours_charged = (total_minutes + 59) // 60  # This gives ceiling of total_minutes/60\n        \n        # Calculate fee and round to two decimal places\n        fee_amount = hours_charged * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def record(self, entry: datetime, exit: datetime) -> float:\n        fee_amount = self.fee(entry, exit)\n        self._collected_fees.append(fee_amount)\n        return fee_amount\n    \n    def total_collected(self) -> float:\n        return round(sum(self._collected_fees), 2)\n    \n    def estimate(self, hours: int) -> float:\n        # Handle edge case: 0 hours should be free (since <= 15 minutes is free)\n        if hours == 0:\n            return 0.0\n        \n        # Convert hours to minutes to check against the 24-hour penalty threshold\n        total_minutes = hours * 60\n        \n        # Check for flat penalty for stays longer than 24 hours (1440 minutes)\n        if total_minutes > 1440:\n            return round(200.00, 2)\n        \n        # Free for stays of at most 15 minutes (which is 0.25 hours, so hours=0 is covered above)\n        # For positive hours, minimum charge is for 1 hour\n        # Since we're given exact hours, we charge for exactly that many hours\n        # But note: the original logic charges for \"every started hour\", so for exact hours,\n        # it's simply hours * hourly_rate, unless it triggers the 24-hour penalty\n        fee_amount = hours * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        fee_amount = self.fee(entry, exit)\n        duration = exit - entry\n        total_minutes = int(duration.total_seconds() / 60.0)\n        return f\"Duration: {total_minutes} minutes, Fee: {fee_amount:.2f} {self.currency}\"\n",
+ "input_tokens": 766,
+ "output_tokens": 707,
+ "cost_usd": 0.0011547999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 12.87,
+ "raw_api_response": {
+  "id": "gen-1794936051-Wma1rFrMNZw5EEsbse7o",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0, currency: str = \"PLN\") -> None:\n        self.hourly_rate = hourly_rate\n        self.currency = currency\n        self._collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        # Calculate duration in minutes\n        duration = exit - entry\n        total_minutes = duration.total_seconds() / 60.0\n        \n        # Check for flat penalty for stays longer than 24 hours (1440 minutes)\n        if total_minutes > 1440:\n            return round(200.00, 2)\n        \n        # Free for stays of at most 15 minutes\n        if total_minutes <= 15:\n            return 0.0\n        \n        # Charge for whole duration, with every started hour charged as full hour\n        # Convert total minutes to hours, rounding up to next whole hour\n        # Since we need to charge for every started hour, we use ceiling division\n        hours_charged = (total_minutes + 59) // 60  # This gives ceiling of total_minutes/60\n        \n        # Calculate fee and round to two decimal places\n        fee_amount = hours_charged * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def record(self, entry: datetime, exit: datetime) -> float:\n        fee_amount = self.fee(entry, exit)\n        self._collected_fees.append(fee_amount)\n        return fee_amount\n    \n    def total_collected(self) -> float:\n        return round(sum(self._collected_fees), 2)\n    \n    def estimate(self, hours: int) -> float:\n        # Handle edge case: 0 hours should be free (since <= 15 minutes is free)\n        if hours == 0:\n            return 0.0\n        \n        # Convert hours to minutes to check against the 24-hour penalty threshold\n        total_minutes = hours * 60\n        \n        # Check for flat penalty for stays longer than 24 hours (1440 minutes)\n        if total_minutes > 1440:\n            return round(200.00, 2)\n        \n        # Free for stays of at most 15 minutes (which is 0.25 hours, so hours=0 is covered above)\n        # For positive hours, minimum charge is for 1 hour\n        # Since we're given exact hours, we charge for exactly that many hours\n        # But note: the original logic charges for \"every started hour\", so for exact hours,\n        # it's simply hours * hourly_rate, unless it triggers the 24-hour penalty\n        fee_amount = hours * self.hourly_rate\n        return round(fee_amount, 2)\n    \n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        fee_amount = self.fee(entry, exit)\n        duration = exit - entry\n        total_minutes = int(duration.total_seconds() / 60.0)\n        return f\"Duration: {total_minutes} minutes, Fee: {fee_amount:.2f} {self.currency}\"\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794936051,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 707,
+   "prompt_tokens": 766,
+   "total_tokens": 1473,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 512,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.000644124,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.000644124,
+    "upstream_inference_prompt_cost": 9.2664e-05,
+    "upstream_inference_completions_cost": 0.00055146
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

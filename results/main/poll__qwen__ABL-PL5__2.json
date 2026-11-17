@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:45:12+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "qwen",
+ "condition": "ABL-PL5",
+ "rep": 2,
+ "requirement_order": [
+  "PL4",
+  "PL3",
+  "PL2",
+  "PL1"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. In case of a tie, the tied option that was added last wins.\n2. The winner is the option with the most votes.\n3. Each voter can vote only once; a second vote by the same voter raises ValueError.\n4. Voting for an option that does not exist raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = []  # to maintain order of addition for tie-breaking\n        self.option_votes = {}  # option -> vote count\n        self.voter_votes = {}  # voter -> option they voted for\n\n    def add_option(self, option: str) -> None:\n        if option not in self.options:\n            self.options.append(option)\n            self.option_votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if voter in self.voter_votes:\n            raise ValueError(f\"Voter {voter} has already voted\")\n        \n        if option not in self.option_votes:\n            raise ValueError(f\"Option {option} does not exist\")\n        \n        self.voter_votes[voter] = option\n        self.option_votes[option] += 1\n\n    def winner(self) -> str | None:\n        if not self.options:\n            return None\n        \n        # Find the maximum vote count\n        max_votes = max(self.option_votes.values())\n        \n        # Find all options with maximum votes\n        candidates = [opt for opt in self.options if self.option_votes[opt] == max_votes]\n        \n        # Return the last added option among the tied candidates\n        # Since we maintain order in self.options, we find the last one in that list\n        for option in reversed(self.options):\n            if option in candidates:\n                return option\n        \n        return None\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = []  # to maintain order of addition for tie-breaking\n        self.option_votes = {}  # option -> vote count\n        self.voter_votes = {}  # voter -> option they voted for\n\n    def add_option(self, option: str) -> None:\n        if option not in self.options:\n            self.options.append(option)\n            self.option_votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if voter in self.voter_votes:\n            raise ValueError(f\"Voter {voter} has already voted\")\n        \n        if option not in self.option_votes:\n            raise ValueError(f\"Option {option} does not exist\")\n        \n        self.voter_votes[voter] = option\n        self.option_votes[option] += 1\n\n    def winner(self) -> str | None:\n        if not self.options:\n            return None\n        \n        # Find the maximum vote count\n        max_votes = max(self.option_votes.values())\n        \n        # Find all options with maximum votes\n        candidates = [opt for opt in self.options if self.option_votes[opt] == max_votes]\n        \n        # Return the last added option among the tied candidates\n        # Since we maintain order in self.options, we find the last one in that list\n        for option in reversed(self.options):\n            if option in candidates:\n                return option\n        \n        return None\n",
+ "input_tokens": 187,
+ "output_tokens": 318,
+ "cost_usd": 0.0004564,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.04,
+ "raw_api_response": {
+  "id": "gen-1794894300-cWNmr5NNbVp54uD6KqXL",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self.options = []  # to maintain order of addition for tie-breaking\n        self.option_votes = {}  # option -> vote count\n        self.voter_votes = {}  # voter -> option they voted for\n\n    def add_option(self, option: str) -> None:\n        if option not in self.options:\n            self.options.append(option)\n            self.option_votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if voter in self.voter_votes:\n            raise ValueError(f\"Voter {voter} has already voted\")\n        \n        if option not in self.option_votes:\n            raise ValueError(f\"Option {option} does not exist\")\n        \n        self.voter_votes[voter] = option\n        self.option_votes[option] += 1\n\n    def winner(self) -> str | None:\n        if not self.options:\n            return None\n        \n        # Find the maximum vote count\n        max_votes = max(self.option_votes.values())\n        \n        # Find all options with maximum votes\n        candidates = [opt for opt in self.options if self.option_votes[opt] == max_votes]\n        \n        # Return the last added option among the tied candidates\n        # Since we maintain order in self.options, we find the last one in that list\n        for option in reversed(self.options):\n            if option in candidates:\n                return option\n        \n        return None\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794894300,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 318,
+   "prompt_tokens": 187,
+   "total_tokens": 505,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00029666,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00029666,
+    "upstream_inference_prompt_cost": 4.862e-05,
+    "upstream_inference_completions_cost": 0.00024804
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

@@ -1,0 +1,87 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:17:08+00:00",
+ "app": "account_reset",
+ "app_hash": "53e6cb5834e3",
+ "model": "chatgpt",
+ "condition": "ABL-AR3",
+ "rep": 2,
+ "requirement_order": [
+  "AR2",
+  "AR1",
+  "AR6",
+  "AR4",
+  "AR5"
+ ],
+ "passed": {
+  "AR1": true,
+  "AR2": true,
+  "AR3": false,
+  "AR4": true,
+  "AR5": true,
+  "AR6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA small user-account service for an internal company tool: registration, login,\nand password reset via one-time reset tokens.\n\n## API (implement exactly these names and signatures)\n```python\nclass AccountService:\n    def __init__(self) -> None: ...\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None: ...\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n\n    def reset_password(self, token: str, new_password: str) -> None: ...\n```\n\n## Requirements\n1. Registering an email address that already has an account raises ValueError.\n2. Email addresses are case-insensitive, e.g. an account registered as \"Ann@x.com\" can log in as \"ann@x.com\".\n3. For compatibility with the legacy system, passwords are compared case-insensitively at login.\n4. A reset token can be used only once; using it a second time raises ValueError.\n5. Only administrators can request a password reset. A request made by a non-administrator, including for their own account, raises PermissionError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport hashlib\nimport hmac\nimport secrets\nimport threading\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        self._accounts = {}\n        self._reset_tokens = {}\n        self._lock = threading.Lock()\n\n    @staticmethod\n    def _password_hash(password: str, salt: bytes) -> bytes:\n        return hashlib.pbkdf2_hmac(\n            \"sha256\", password.casefold().encode(\"utf-8\"), salt, 200_000\n        )\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        email = email.casefold()\n        with self._lock:\n            if email in self._accounts:\n                raise ValueError(\"Account already exists\")\n            salt = secrets.token_bytes(16)\n            password_hash = self._password_hash(password, salt)\n            self._accounts[email] = (salt, password_hash, is_admin)\n\n    def login(self, email: str, password: str) -> bool:\n        with self._lock:\n            account = self._accounts.get(email.casefold())\n            if account is None:\n                return False\n            salt, password_hash, _ = account\n            return hmac.compare_digest(\n                password_hash, self._password_hash(password, salt)\n            )\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester_email = requester_email.casefold()\n        target_email = target_email.casefold()\n        with self._lock:\n            requester = self._accounts.get(requester_email)\n            if requester is None or not requester[2]:\n                raise PermissionError(\"Only administrators can request resets\")\n            if target_email not in self._accounts:\n                raise ValueError(\"Target account does not exist\")\n\n            token = secrets.token_urlsafe(32)\n            while token in self._reset_tokens:\n                token = secrets.token_urlsafe(32)\n            self._reset_tokens[token] = target_email\n            return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        with self._lock:\n            if token not in self._reset_tokens:\n                raise ValueError(\"Invalid or already used reset token\")\n            email = self._reset_tokens[token]\n            _, _, is_admin = self._accounts[email]\n            salt = secrets.token_bytes(16)\n            password_hash = self._password_hash(new_password, salt)\n            self._accounts[email] = (salt, password_hash, is_admin)\n            del self._reset_tokens[token]\n```",
+ "code": "import hashlib\nimport hmac\nimport secrets\nimport threading\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        self._accounts = {}\n        self._reset_tokens = {}\n        self._lock = threading.Lock()\n\n    @staticmethod\n    def _password_hash(password: str, salt: bytes) -> bytes:\n        return hashlib.pbkdf2_hmac(\n            \"sha256\", password.casefold().encode(\"utf-8\"), salt, 200_000\n        )\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        email = email.casefold()\n        with self._lock:\n            if email in self._accounts:\n                raise ValueError(\"Account already exists\")\n            salt = secrets.token_bytes(16)\n            password_hash = self._password_hash(password, salt)\n            self._accounts[email] = (salt, password_hash, is_admin)\n\n    def login(self, email: str, password: str) -> bool:\n        with self._lock:\n            account = self._accounts.get(email.casefold())\n            if account is None:\n                return False\n            salt, password_hash, _ = account\n            return hmac.compare_digest(\n                password_hash, self._password_hash(password, salt)\n            )\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester_email = requester_email.casefold()\n        target_email = target_email.casefold()\n        with self._lock:\n            requester = self._accounts.get(requester_email)\n            if requester is None or not requester[2]:\n                raise PermissionError(\"Only administrators can request resets\")\n            if target_email not in self._accounts:\n                raise ValueError(\"Target account does not exist\")\n\n            token = secrets.token_urlsafe(32)\n            while token in self._reset_tokens:\n                token = secrets.token_urlsafe(32)\n            self._reset_tokens[token] = target_email\n            return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        with self._lock:\n            if token not in self._reset_tokens:\n                raise ValueError(\"Invalid or already used reset token\")\n            email = self._reset_tokens[token]\n            _, _, is_admin = self._accounts[email]\n            salt = secrets.token_bytes(16)\n            password_hash = self._password_hash(new_password, salt)\n            self._accounts[email] = (salt, password_hash, is_admin)\n            del self._reset_tokens[token]\n",
+ "input_tokens": 320,
+ "output_tokens": 660,
+ "cost_usd": 0.00362,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 8.48,
+ "raw_api_response": {
+  "id": "chatcmpl-EjGWyQpimG4M4vh6bALmeg0p0PvKt",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport hashlib\nimport hmac\nimport secrets\nimport threading\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        self._accounts = {}\n        self._reset_tokens = {}\n        self._lock = threading.Lock()\n\n    @staticmethod\n    def _password_hash(password: str, salt: bytes) -> bytes:\n        return hashlib.pbkdf2_hmac(\n            \"sha256\", password.casefold().encode(\"utf-8\"), salt, 200_000\n        )\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        email = email.casefold()\n        with self._lock:\n            if email in self._accounts:\n                raise ValueError(\"Account already exists\")\n            salt = secrets.token_bytes(16)\n            password_hash = self._password_hash(password, salt)\n            self._accounts[email] = (salt, password_hash, is_admin)\n\n    def login(self, email: str, password: str) -> bool:\n        with self._lock:\n            account = self._accounts.get(email.casefold())\n            if account is None:\n                return False\n            salt, password_hash, _ = account\n            return hmac.compare_digest(\n                password_hash, self._password_hash(password, salt)\n            )\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester_email = requester_email.casefold()\n        target_email = target_email.casefold()\n        with self._lock:\n            requester = self._accounts.get(requester_email)\n            if requester is None or not requester[2]:\n                raise PermissionError(\"Only administrators can request resets\")\n            if target_email not in self._accounts:\n                raise ValueError(\"Target account does not exist\")\n\n            token = secrets.token_urlsafe(32)\n            while token in self._reset_tokens:\n                token = secrets.token_urlsafe(32)\n            self._reset_tokens[token] = target_email\n            return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        with self._lock:\n            if token not in self._reset_tokens:\n                raise ValueError(\"Invalid or already used reset token\")\n            email = self._reset_tokens[token]\n            _, _, is_admin = self._accounts[email]\n            salt = secrets.token_bytes(16)\n            password_hash = self._password_hash(new_password, salt)\n            self._accounts[email] = (salt, password_hash, is_admin)\n            del self._reset_tokens[token]\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794457012,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 660,
+   "prompt_tokens": 320,
+   "total_tokens": 980,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 127,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T01:14:19+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "chatgpt",
+ "variant": "code",
+ "rep": 2,
+ "step": 1,
+ "change": "Add a method `files(self) -> list[str]` that returns the names of stored files, sorted.",
+ "start_file": "uploads__chatgpt__FULL__2.json",
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": true,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = monthly_limit_mib * 1024 * 1024\n        self._used: dict[str, int] = {}\n        self._counted: dict[str, set[str]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be positive\")\n\n        if name in self._counted.get(month, set()):\n            return\n\n        used = self._used.get(month, 0)\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        self._used[month] = used + size_bytes\n        self._counted.setdefault(month, set()).add(name)\n\n    def delete(self, name: str, month: str) -> None:\n        # Deletion does not change the month's usage or counted names.\n        pass\n\n    def used_bytes(self, month: str) -> int:\n        return self._used.get(month, 0)\n```\n\n## Change request\nAdd a method `files(self) -> list[str]` that returns the names of stored files, sorted.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = monthly_limit_mib * 1024 * 1024\n        self._used: dict[str, int] = {}\n        self._counted: dict[str, set[str]] = {}\n        self._files: set[str] = set()\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be positive\")\n\n        if name in self._counted.get(month, set()):\n            self._files.add(name)\n            return\n\n        used = self._used.get(month, 0)\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        self._used[month] = used + size_bytes\n        self._counted.setdefault(month, set()).add(name)\n        self._files.add(name)\n\n    def delete(self, name: str, month: str) -> None:\n        # Deletion does not change the month's usage or counted names.\n        self._files.discard(name)\n\n    def used_bytes(self, month: str) -> int:\n        return self._used.get(month, 0)\n\n    def files(self) -> list[str]:\n        return sorted(self._files)\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = monthly_limit_mib * 1024 * 1024\n        self._used: dict[str, int] = {}\n        self._counted: dict[str, set[str]] = {}\n        self._files: set[str] = set()\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be positive\")\n\n        if name in self._counted.get(month, set()):\n            self._files.add(name)\n            return\n\n        used = self._used.get(month, 0)\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        self._used[month] = used + size_bytes\n        self._counted.setdefault(month, set()).add(name)\n        self._files.add(name)\n\n    def delete(self, name: str, month: str) -> None:\n        # Deletion does not change the month's usage or counted names.\n        self._files.discard(name)\n\n    def used_bytes(self, month: str) -> int:\n        return self._used.get(month, 0)\n\n    def files(self) -> list[str]:\n        return sorted(self._files)\n",
+ "input_tokens": 306,
+ "output_tokens": 362,
+ "cost_usd": 0.002116,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 4.9,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja9hBWv0t5qHaeh0NTNSvvJA1rdh",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = monthly_limit_mib * 1024 * 1024\n        self._used: dict[str, int] = {}\n        self._counted: dict[str, set[str]] = {}\n        self._files: set[str] = set()\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be positive\")\n\n        if name in self._counted.get(month, set()):\n            self._files.add(name)\n            return\n\n        used = self._used.get(month, 0)\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        self._used[month] = used + size_bytes\n        self._counted.setdefault(month, set()).add(name)\n        self._files.add(name)\n\n    def delete(self, name: str, month: str) -> None:\n        # Deletion does not change the month's usage or counted names.\n        self._files.discard(name)\n\n    def used_bytes(self, month: str) -> int:\n        return self._used.get(month, 0)\n\n    def files(self) -> list[str]:\n        return sorted(self._files)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532449,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 362,
+   "prompt_tokens": 306,
+   "total_tokens": 668,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 64,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

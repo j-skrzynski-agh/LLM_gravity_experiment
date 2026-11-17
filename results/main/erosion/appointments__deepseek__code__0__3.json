@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:26:16+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 0,
+ "step": 3,
+ "change": "Add a method `count_bookings(self, patient: str) -> int` that returns how many appointments the patient has ever booked.",
+ "start_file": "appointments__deepseek__FULL__0.json",
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": true,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime, note: str = \"\") -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and not appt[\"cancelled\"] and appt[\"start\"] >= now:\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n            \"note\": note,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment id\")\n        if appt[\"cancelled\"]:\n            return\n        if (appt[\"start\"] - now).total_seconds() < 24 * 3600:\n            # Too late to cancel: keep slot blocked\n            return\n        appt[\"cancelled\"] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor or appt[\"cancelled\"]:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        result = [\n            {\n                \"id\": appt_id,\n                \"patient\": appt[\"patient\"],\n                \"start\": appt[\"start\"],\n                \"end\": appt[\"end\"],\n            }\n            for appt_id, appt in self._appointments.items()\n            if appt[\"doctor\"] == doctor and not appt[\"cancelled\"]\n        ]\n        result.sort(key=lambda a: a[\"start\"])\n        return result\n\n    def note(self, appointment_id: int) -> str:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment id\")\n        return appt[\"note\"]\n```\n\n## Change request\nAdd a method `count_bookings(self, patient: str) -> int` that returns how many appointments the patient has ever booked.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime, note: str = \"\") -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and not appt[\"cancelled\"] and appt[\"start\"] >= now:\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n            \"note\": note,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment id\")\n        if appt[\"cancelled\"]:\n            return\n        if (appt[\"start\"] - now).total_seconds() < 24 * 3600:\n            # Too late to cancel: keep slot blocked\n            return\n        appt[\"cancelled\"] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor or appt[\"cancelled\"]:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        result = [\n            {\n                \"id\": appt_id,\n                \"patient\": appt[\"patient\"],\n                \"start\": appt[\"start\"],\n                \"end\": appt[\"end\"],\n            }\n            for appt_id, appt in self._appointments.items()\n            if appt[\"doctor\"] == doctor and not appt[\"cancelled\"]\n        ]\n        result.sort(key=lambda a: a[\"start\"])\n        return result\n\n    def note(self, appointment_id: int) -> str:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment id\")\n        return appt[\"note\"]\n\n    def count_bookings(self, patient: str) -> int:\n        return sum(\n            1 for appt in self._appointments.values()\n            if appt[\"patient\"] == patient\n        )\n```",
+ "code": "from datetime import datetime\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime, note: str = \"\") -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and not appt[\"cancelled\"] and appt[\"start\"] >= now:\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n            \"note\": note,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment id\")\n        if appt[\"cancelled\"]:\n            return\n        if (appt[\"start\"] - now).total_seconds() < 24 * 3600:\n            # Too late to cancel: keep slot blocked\n            return\n        appt[\"cancelled\"] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor or appt[\"cancelled\"]:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        result = [\n            {\n                \"id\": appt_id,\n                \"patient\": appt[\"patient\"],\n                \"start\": appt[\"start\"],\n                \"end\": appt[\"end\"],\n            }\n            for appt_id, appt in self._appointments.items()\n            if appt[\"doctor\"] == doctor and not appt[\"cancelled\"]\n        ]\n        result.sort(key=lambda a: a[\"start\"])\n        return result\n\n    def note(self, appointment_id: int) -> str:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment id\")\n        return appt[\"note\"]\n\n    def count_bookings(self, patient: str) -> int:\n        return sum(\n            1 for appt in self._appointments.values()\n            if appt[\"patient\"] == patient\n        )\n",
+ "input_tokens": 664,
+ "output_tokens": 641,
+ "cost_usd": 0.0009683999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.23,
+ "raw_api_response": {
+  "id": "0b770c24-11a3-4c22-93fe-e08d592cdd79",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime, note: str = \"\") -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and not appt[\"cancelled\"] and appt[\"start\"] >= now:\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n            \"note\": note,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment id\")\n        if appt[\"cancelled\"]:\n            return\n        if (appt[\"start\"] - now).total_seconds() < 24 * 3600:\n            # Too late to cancel: keep slot blocked\n            return\n        appt[\"cancelled\"] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor or appt[\"cancelled\"]:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        result = [\n            {\n                \"id\": appt_id,\n                \"patient\": appt[\"patient\"],\n                \"start\": appt[\"start\"],\n                \"end\": appt[\"end\"],\n            }\n            for appt_id, appt in self._appointments.items()\n            if appt[\"doctor\"] == doctor and not appt[\"cancelled\"]\n        ]\n        result.sort(key=lambda a: a[\"start\"])\n        return result\n\n    def note(self, appointment_id: int) -> str:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment id\")\n        return appt[\"note\"]\n\n    def count_bookings(self, patient: str) -> int:\n        return sum(\n            1 for appt in self._appointments.values()\n            if appt[\"patient\"] == patient\n        )\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794525968,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 641,
+   "prompt_tokens": 664,
+   "total_tokens": 1305,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 664
+  }
+ }
+}

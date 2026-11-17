@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:04:48+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "deepseek",
+ "condition": "ABL-LY2",
+ "rep": 0,
+ "requirement_order": [
+  "LY4",
+  "LY3",
+  "LY5",
+  "LY1"
+ ],
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": true,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA customer loyalty program: customers earn points for purchases and redeem them later.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None: ...\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n\n    def redeem(self, customer: str, points: int, day: date) -> None: ...\n```\n\n## Requirements\n1. Points from a purchase become available only 14 days after the purchase.\n2. Customers earn 1 point for every full 10.00 spent (for example, 59.99 gives 5 points).\n3. Points can be redeemed only in multiples of 100; other amounts raise ValueError.\n4. A purchase with an amount of zero or less raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_date, points)\n        self._pending = {}\n        # customer -> list of (available_date, points) that are currently available\n        # We keep all earned points, and compute balance based on day.\n        # Actually, simpler: store entries (available_date, points) and redeemed total.\n        self._entries = {}  # customer -> list of (available_date, points)\n        self._redeemed = {}  # customer -> total points redeemed\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive.\")\n        points = int(amount // 10.0)\n        available_date = day + timedelta(days=14)\n        self._entries.setdefault(customer, []).append((available_date, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        entries = self._entries.get(customer, [])\n        earned = sum(p for (d, p) in entries if d <= day)\n        redeemed = self._redeemed.get(customer, 0)\n        return earned - redeemed\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100.\")\n        if points <= 0:\n            raise ValueError(\"Points to redeem must be positive.\")\n        if self.balance(customer, day) < points:\n            raise ValueError(\"Insufficient points balance.\")\n        self._redeemed[customer] = self._redeemed.get(customer, 0) + points\n```",
+ "code": "from datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_date, points)\n        self._pending = {}\n        # customer -> list of (available_date, points) that are currently available\n        # We keep all earned points, and compute balance based on day.\n        # Actually, simpler: store entries (available_date, points) and redeemed total.\n        self._entries = {}  # customer -> list of (available_date, points)\n        self._redeemed = {}  # customer -> total points redeemed\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive.\")\n        points = int(amount // 10.0)\n        available_date = day + timedelta(days=14)\n        self._entries.setdefault(customer, []).append((available_date, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        entries = self._entries.get(customer, [])\n        earned = sum(p for (d, p) in entries if d <= day)\n        redeemed = self._redeemed.get(customer, 0)\n        return earned - redeemed\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100.\")\n        if points <= 0:\n            raise ValueError(\"Points to redeem must be positive.\")\n        if self.balance(customer, day) < points:\n            raise ValueError(\"Insufficient points balance.\")\n        self._redeemed[customer] = self._redeemed.get(customer, 0) + points\n",
+ "input_tokens": 239,
+ "output_tokens": 386,
+ "cost_usd": 0.0005348999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.82,
+ "raw_api_response": {
+  "id": "fea732f6-ca54-44cc-b504-b7f6b68fe386",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_date, points)\n        self._pending = {}\n        # customer -> list of (available_date, points) that are currently available\n        # We keep all earned points, and compute balance based on day.\n        # Actually, simpler: store entries (available_date, points) and redeemed total.\n        self._entries = {}  # customer -> list of (available_date, points)\n        self._redeemed = {}  # customer -> total points redeemed\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive.\")\n        points = int(amount // 10.0)\n        available_date = day + timedelta(days=14)\n        self._entries.setdefault(customer, []).append((available_date, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        entries = self._entries.get(customer, [])\n        earned = sum(p for (d, p) in entries if d <= day)\n        redeemed = self._redeemed.get(customer, 0)\n        return earned - redeemed\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100.\")\n        if points <= 0:\n            raise ValueError(\"Points to redeem must be positive.\")\n        if self.balance(customer, day) < points:\n            raise ValueError(\"Insufficient points balance.\")\n        self._redeemed[customer] = self._redeemed.get(customer, 0) + points\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794452680,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 386,
+   "prompt_tokens": 239,
+   "total_tokens": 625,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 239
+  }
+ }
+}

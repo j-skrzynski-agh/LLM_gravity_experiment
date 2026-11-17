@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:37:36+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "deepseek",
+ "variant": "refactor",
+ "rep": 2,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "uploads__deepseek__FULL__2.json",
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self._usage = {}  # month -> dict[name -> size_bytes]\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n        month_files = self._usage.setdefault(month, {})\n        if name in month_files:\n            return\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n        month_files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        month_files = self._usage.get(month)\n        if month_files is not None:\n            month_files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return sum(self._usage.get(month, {}).values())\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self._usage: dict[str, dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"Record an upload; month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n\n        month_files = self._usage.setdefault(month, {})\n        if name in month_files:\n            return\n\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        month_files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        if month_files := self._usage.get(month):\n            month_files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"Total bytes counted towards the quota for the given month.\"\"\"\n        return sum(self._usage.get(month, {}).values())\n```\n\nKey changes:\n- Added a type annotation on `_usage`.\n- Used the walrus operator in `delete` for a more concise, idiomatic existence check.\n- Tightened docstrings and removed a redundant comment.",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self._usage: dict[str, dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"Record an upload; month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n\n        month_files = self._usage.setdefault(month, {})\n        if name in month_files:\n            return\n\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        month_files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        if month_files := self._usage.get(month):\n            month_files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"Total bytes counted towards the quota for the given month.\"\"\"\n        return sum(self._usage.get(month, {}).values())\n",
+ "input_tokens": 330,
+ "output_tokens": 300,
+ "cost_usd": 0.000459,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 1.84,
+ "raw_api_response": {
+  "id": "2b371dd8-05ba-4776-9ed2-e8b0e037ec7c",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        self._usage: dict[str, dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"Record an upload; month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n\n        month_files = self._usage.setdefault(month, {})\n        if name in month_files:\n            return\n\n        if self.used_bytes(month) + size_bytes > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        month_files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        if month_files := self._usage.get(month):\n            month_files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"Total bytes counted towards the quota for the given month.\"\"\"\n        return sum(self._usage.get(month, {}).values())\n```\n\nKey changes:\n- Added a type annotation on `_usage`.\n- Used the walrus operator in `delete` for a more concise, idiomatic existence check.\n- Tightened docstrings and removed a redundant comment.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794944248,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 300,
+   "prompt_tokens": 330,
+   "total_tokens": 630,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 128,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 128,
+   "prompt_cache_miss_tokens": 202
+  }
+ }
+}

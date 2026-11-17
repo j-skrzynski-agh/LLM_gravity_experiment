@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:12:10+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "gemini",
+ "condition": "ABL-UQ2",
+ "rep": 2,
+ "requirement_order": [
+  "UQ3",
+  "UQ5",
+  "UQ4",
+  "UQ1"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": false,
+  "UQ3": true,
+  "UQ4": true,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.\n2. Uploading again a file with the same name in the same month does not count towards the limit a second time.\n3. Deleting a file does not give back quota in the current month.\n4. Uploading a file of size 0 raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `UploadQuota` module satisfying all specifications and requirements is provided below:\n\n```python\nfrom collections import defaultdict\n\n\nclass QuotaExceededError(Exception):\n    \"\"\"Raised when an upload would exceed the monthly quota.\"\"\"\n    pass\n\n\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> name -> size_bytes\n        self._uploads: dict[str, dict[str, int]] = defaultdict(dict)\n        # month -> total bytes uploaded (including deleted files)\n        self._used_bytes: dict[str, int] = defaultdict(int)\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"Upload a file, counting towards the quota for the specified month.\n\n        month is a string like \"2026-01\".\n        \"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be strictly greater than 0 bytes.\")\n\n        month_uploads = self._uploads[month]\n\n        # Uploading again a file with the same name in the same month\n        # does not count towards the limit a second time.\n        if name in month_uploads:\n            return\n\n        if self._used_bytes[month] + size_bytes > self.limit_bytes:\n            raise QuotaExceededError(\"Monthly upload quota exceeded.\")\n\n        month_uploads[name] = size_bytes\n        self._used_bytes[month] += size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"Delete an uploaded file.\n\n        Deleting a file does not give back quota in the current month.\n        \"\"\"\n        if name in self._uploads[month]:\n            del self._uploads[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes[month]\n```",
+ "code": "from collections import defaultdict\n\n\nclass QuotaExceededError(Exception):\n    \"\"\"Raised when an upload would exceed the monthly quota.\"\"\"\n    pass\n\n\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> name -> size_bytes\n        self._uploads: dict[str, dict[str, int]] = defaultdict(dict)\n        # month -> total bytes uploaded (including deleted files)\n        self._used_bytes: dict[str, int] = defaultdict(int)\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"Upload a file, counting towards the quota for the specified month.\n\n        month is a string like \"2026-01\".\n        \"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be strictly greater than 0 bytes.\")\n\n        month_uploads = self._uploads[month]\n\n        # Uploading again a file with the same name in the same month\n        # does not count towards the limit a second time.\n        if name in month_uploads:\n            return\n\n        if self._used_bytes[month] + size_bytes > self.limit_bytes:\n            raise QuotaExceededError(\"Monthly upload quota exceeded.\")\n\n        month_uploads[name] = size_bytes\n        self._used_bytes[month] += size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"Delete an uploaded file.\n\n        Deleting a file does not give back quota in the current month.\n        \"\"\"\n        if name in self._uploads[month]:\n            del self._uploads[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes[month]\n",
+ "input_tokens": 264,
+ "output_tokens": 477,
+ "cost_usd": 0.00198675,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 6.59,
+ "raw_api_response": {
+  "id": "jjz1auXYPNeDkdUPnoCW6Ao",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `UploadQuota` module satisfying all specifications and requirements is provided below:\n\n```python\nfrom collections import defaultdict\n\n\nclass QuotaExceededError(Exception):\n    \"\"\"Raised when an upload would exceed the monthly quota.\"\"\"\n    pass\n\n\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> name -> size_bytes\n        self._uploads: dict[str, dict[str, int]] = defaultdict(dict)\n        # month -> total bytes uploaded (including deleted files)\n        self._used_bytes: dict[str, int] = defaultdict(int)\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"Upload a file, counting towards the quota for the specified month.\n\n        month is a string like \"2026-01\".\n        \"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be strictly greater than 0 bytes.\")\n\n        month_uploads = self._uploads[month]\n\n        # Uploading again a file with the same name in the same month\n        # does not count towards the limit a second time.\n        if name in month_uploads:\n            return\n\n        if self._used_bytes[month] + size_bytes > self.limit_bytes:\n            raise QuotaExceededError(\"Monthly upload quota exceeded.\")\n\n        month_uploads[name] = size_bytes\n        self._used_bytes[month] += size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"Delete an uploaded file.\n\n        Deleting a file does not give back quota in the current month.\n        \"\"\"\n        if name in self._uploads[month]:\n            del self._uploads[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes[month]\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0T3FuGNnteQGp92kAN4d2JiH0hH8EQDnf8CnQqWzXt1iL+/WsG2T43xnpQ/3TqvYERbcOhTkYSR7F14CMX1FxQX1Nac5h6aNphAfmabzYDVMhOXxt88QCLtGrMMNbSPdOHlzE="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794456723,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 477,
+   "prompt_tokens": 264,
+   "total_tokens": 741,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

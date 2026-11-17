@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:37:44+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "deepseek",
+ "variant": "refactor",
+ "rep": 0,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "appointments__deepseek__FULL__0.json",
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": true,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and not appt[\"cancelled\"] and appt[\"start\"] >= now:\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment id\")\n        if appt[\"cancelled\"]:\n            return\n        if (appt[\"start\"] - now).total_seconds() < 24 * 3600:\n            # Too late to cancel: keep slot blocked\n            return\n        appt[\"cancelled\"] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor or appt[\"cancelled\"]:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                return False\n        return True\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments: dict[int, dict] = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        if any(\n            appt[\"patient\"] == patient\n            and not appt[\"cancelled\"]\n            and appt[\"start\"] >= now\n            for appt in self._appointments.values()\n        ):\n            raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        try:\n            appt = self._appointments[appointment_id]\n        except KeyError:\n            raise ValueError(\"Unknown appointment id\") from None\n\n        if appt[\"cancelled\"]:\n            return\n        if appt[\"start\"] - now < timedelta(hours=24):\n            # Too late to cancel: keep slot blocked\n            return\n        appt[\"cancelled\"] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        return not any(\n            appt[\"doctor\"] == doctor\n            and not appt[\"cancelled\"]\n            and start < appt[\"end\"]\n            and appt[\"start\"] < end\n            for appt in self._appointments.values()\n        )\n```\n\nKey changes:\n- Used `dict[int, dict]` type annotation on `_appointments` for clarity.\n- Replaced explicit `for`/`if`-return loops with generator expressions inside `any(...)`, and inverted the result in `is_free` via `not any(...)`.\n- Switched from `.get()` + `None` check to a `try`/`except KeyError` with `raise ... from None`, which is more idiomatic for dict lookup failures.\n- Replaced `(x - y).total_seconds() < 24 * 3600` with the more readable `x - y < timedelta(hours=24)`.\n- Public API (class name, method names, signatures, and behavior) is unchanged.",
+ "code": "from datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments: dict[int, dict] = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        if any(\n            appt[\"patient\"] == patient\n            and not appt[\"cancelled\"]\n            and appt[\"start\"] >= now\n            for appt in self._appointments.values()\n        ):\n            raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        try:\n            appt = self._appointments[appointment_id]\n        except KeyError:\n            raise ValueError(\"Unknown appointment id\") from None\n\n        if appt[\"cancelled\"]:\n            return\n        if appt[\"start\"] - now < timedelta(hours=24):\n            # Too late to cancel: keep slot blocked\n            return\n        appt[\"cancelled\"] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        return not any(\n            appt[\"doctor\"] == doctor\n            and not appt[\"cancelled\"]\n            and start < appt[\"end\"]\n            and appt[\"start\"] < end\n            for appt in self._appointments.values()\n        )\n",
+ "input_tokens": 501,
+ "output_tokens": 603,
+ "cost_usd": 0.0008738999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.87,
+ "raw_api_response": {
+  "id": "ac711f5f-d1d4-42d4-b076-bff6205f18d6",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments: dict[int, dict] = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        if any(\n            appt[\"patient\"] == patient\n            and not appt[\"cancelled\"]\n            and appt[\"start\"] >= now\n            for appt in self._appointments.values()\n        ):\n            raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"cancelled\": False,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        try:\n            appt = self._appointments[appointment_id]\n        except KeyError:\n            raise ValueError(\"Unknown appointment id\") from None\n\n        if appt[\"cancelled\"]:\n            return\n        if appt[\"start\"] - now < timedelta(hours=24):\n            # Too late to cancel: keep slot blocked\n            return\n        appt[\"cancelled\"] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        return not any(\n            appt[\"doctor\"] == doctor\n            and not appt[\"cancelled\"]\n            and start < appt[\"end\"]\n            and appt[\"start\"] < end\n            for appt in self._appointments.values()\n        )\n```\n\nKey changes:\n- Used `dict[int, dict]` type annotation on `_appointments` for clarity.\n- Replaced explicit `for`/`if`-return loops with generator expressions inside `any(...)`, and inverted the result in `is_free` via `not any(...)`.\n- Switched from `.get()` + `None` check to a `try`/`except KeyError` with `raise ... from None`, which is more idiomatic for dict lookup failures.\n- Replaced `(x - y).total_seconds() < 24 * 3600` with the more readable `x - y < timedelta(hours=24)`.\n- Public API (class name, method names, signatures, and behavior) is unchanged.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794944256,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 603,
+   "prompt_tokens": 501,
+   "total_tokens": 1104,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 256,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 256,
+   "prompt_cache_miss_tokens": 245
+  }
+ }
+}

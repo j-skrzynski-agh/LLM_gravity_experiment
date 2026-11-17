@@ -1,0 +1,46 @@
+app: cart
+module: cart
+
+description: |
+  A shopping cart for an online shop: items, percentage discounts, vouchers and shipping.
+
+api: |
+  class Cart:
+      def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None: ...
+
+      def add(self, name: str, unit_price: float, quantity: int = 1) -> None: ...
+
+      def apply_discount(self, percent: float) -> None:
+          """Register a percentage discount on the whole cart. Can be called several times."""
+
+      def apply_voucher(self, amount: float) -> None:
+          """Register a voucher worth a fixed amount. Can be called several times."""
+
+      def total(self) -> float:
+          """Amount to pay: items after discounts plus shipping."""
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: CT1
+    category: K
+    text: Adding an item with a quantity of zero or less raises ValueError.
+  - id: CT2
+    category: K
+    text: total() is rounded to two decimal places.
+  - id: CT3
+    category: D
+    text: A voucher never makes the price of the items negative; the unused part of the voucher is lost.
+  - id: CT4
+    category: S
+    text: >-
+      Discounts and vouchers do not add up: only the single one that saves the customer
+      the most money is applied.
+  - id: CT5
+    category: S
+    text: The free shipping threshold is checked against the value of the items before discounts.
+
+changes:
+  - 'Add a method `items(self) -> list[dict]` that returns the items with keys name, unit_price and quantity.'
+  - 'Add a method `item_count(self) -> int` that returns the total quantity of all items.'
+  - 'Add a method `remove(self, name: str) -> None` that removes an item from the cart.'
+  - 'Add an optional keyword parameter `category: str = ""` at the end of the parameters of add, and a method `value_by_category(self) -> dict[str, float]` that returns the value of items per category before discounts.'

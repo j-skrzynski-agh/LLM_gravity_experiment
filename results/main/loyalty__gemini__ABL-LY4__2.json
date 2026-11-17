@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:56:31+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "gemini",
+ "condition": "ABL-LY4",
+ "rep": 2,
+ "requirement_order": [
+  "LY1",
+  "LY3",
+  "LY2",
+  "LY5"
+ ],
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": false,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA customer loyalty program: customers earn points for purchases and redeem them later.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None: ...\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n\n    def redeem(self, customer: str, points: int, day: date) -> None: ...\n```\n\n## Requirements\n1. A purchase with an amount of zero or less raises ValueError.\n2. Customers earn 1 point for every full 10.00 spent (for example, 59.99 gives 5 points).\n3. Redeeming more points than the available balance raises ValueError.\n4. Points can be redeemed only in multiples of 100; other amounts raise ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date\nfrom collections import defaultdict\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self._balances: dict[str, int] = defaultdict(int)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n        points = int(amount // 10)\n        self._balances[customer] += points\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        return self._balances[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        if points <= 0 or points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in positive multiples of 100.\")\n        if points > self._balances[customer]:\n            raise ValueError(\"Cannot redeem more points than the available balance.\")\n        self._balances[customer] -= points\n```",
+ "code": "from datetime import date\nfrom collections import defaultdict\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self._balances: dict[str, int] = defaultdict(int)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n        points = int(amount // 10)\n        self._balances[customer] += points\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        return self._balances[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        if points <= 0 or points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in positive multiples of 100.\")\n        if points > self._balances[customer]:\n            raise ValueError(\"Cannot redeem more points than the available balance.\")\n        self._balances[customer] -= points\n",
+ "input_tokens": 254,
+ "output_tokens": 771,
+ "cost_usd": 0.00308175,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 6.57,
+ "raw_api_response": {
+  "id": "4zj1avroINjl7M8PsIL88As",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date\nfrom collections import defaultdict\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self._balances: dict[str, int] = defaultdict(int)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n        points = int(amount // 10)\n        self._balances[customer] += points\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        return self._balances[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        if points <= 0 or points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in positive multiples of 100.\")\n        if points > self._balances[customer]:\n            raise ValueError(\"Cannot redeem more points than the available balance.\")\n        self._balances[customer] -= points\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "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"
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794455785,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 273,
+   "prompt_tokens": 254,
+   "total_tokens": 1025,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

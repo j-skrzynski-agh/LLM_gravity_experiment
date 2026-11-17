@@ -1,0 +1,39 @@
+{
+ "experiment": "mock",
+ "run_id": "20261112-011350-6c93",
+ "timestamp": "2026-11-12T01:16:45+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "mock",
+ "condition": "ABL-ES1",
+ "rep": 0,
+ "requirement_order": [
+  "ES5",
+  "ES2",
+  "ES6",
+  "ES3",
+  "ES4"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": true,
+  "ES4": true,
+  "ES5": true,
+  "ES6": true
+ },
+ "crashed": false,
+ "model_id": "reference",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. When an amount cannot be split into equal cents, the leftover cents are borne by the payer: every other participant owes exactly the amount rounded down to the cent.\n2. If participants are not given, the expense is split equally among all group members.\n3. settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off and not included in the proposed payments.\n4. Adding an expense with an amount that is zero or negative raises ValueError.\n5. settle_up() proposes at most (number of members - 1) payments.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\n\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania ES1\u2013ES6.\"\"\"\n\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        if not members:\n            raise ValueError(\"group needs members\")\n        self.members = list(members)\n        self._cents = {m: 0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"amount must be positive\")\n        if payer not in self._cents:\n            raise ValueError(f\"unknown payer {payer}\")\n        parts = list(self.members) if participants is None else list(participants)\n        if not parts or any(p not in self._cents for p in parts):\n            raise ValueError(\"invalid participants\")\n        total = int(round(amount * 100))\n        base = total // len(parts)          # zaokr\u0105glenie w d\u00f3\u0142; reszta zostaje u p\u0142ac\u0105cego (ES5)\n        for p in parts:\n            if p != payer:\n                self._cents[p] -= base\n                self._cents[payer] += base\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(c / 100, 2) for m, c in self._cents.items()}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = [[m, -c] for m, c in self._cents.items() if c < 0]\n        creditors = [[m, c] for m, c in self._cents.items() if c > 0]\n        payments = []\n        while debtors and creditors:\n            debtors.sort(key=lambda x: -x[1])\n            creditors.sort(key=lambda x: -x[1])\n            d, c = debtors[0], creditors[0]\n            amount = min(d[1], c[1])\n            payments.append((d[0], c[0], amount))\n            d[1] -= amount\n            c[1] -= amount\n            debtors = [x for x in debtors if x[1] > 0]\n            creditors = [x for x in creditors if x[1] > 0]\n        # ES6: drobne d\u0142ugi poni\u017cej 1.00 s\u0105 umarzane\n        return [(d, c, round(a / 100, 2)) for d, c, a in payments if a >= 100]\n```",
+ "code": "\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania ES1\u2013ES6.\"\"\"\n\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        if not members:\n            raise ValueError(\"group needs members\")\n        self.members = list(members)\n        self._cents = {m: 0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"amount must be positive\")\n        if payer not in self._cents:\n            raise ValueError(f\"unknown payer {payer}\")\n        parts = list(self.members) if participants is None else list(participants)\n        if not parts or any(p not in self._cents for p in parts):\n            raise ValueError(\"invalid participants\")\n        total = int(round(amount * 100))\n        base = total // len(parts)          # zaokr\u0105glenie w d\u00f3\u0142; reszta zostaje u p\u0142ac\u0105cego (ES5)\n        for p in parts:\n            if p != payer:\n                self._cents[p] -= base\n                self._cents[payer] += base\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(c / 100, 2) for m, c in self._cents.items()}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = [[m, -c] for m, c in self._cents.items() if c < 0]\n        creditors = [[m, c] for m, c in self._cents.items() if c > 0]\n        payments = []\n        while debtors and creditors:\n            debtors.sort(key=lambda x: -x[1])\n            creditors.sort(key=lambda x: -x[1])\n            d, c = debtors[0], creditors[0]\n            amount = min(d[1], c[1])\n            payments.append((d[0], c[0], amount))\n            d[1] -= amount\n            c[1] -= amount\n            debtors = [x for x in debtors if x[1] > 0]\n            creditors = [x for x in creditors if x[1] > 0]\n        # ES6: drobne d\u0142ugi poni\u017cej 1.00 s\u0105 umarzane\n        return [(d, c, round(a / 100, 2)) for d, c, a in payments if a >= 100]\n",
+ "input_tokens": 379,
+ "output_tokens": 490,
+ "cost_usd": 0.0,
+ "stop_reason": "stop",
+ "truncated": false,
+ "seconds": 0.0,
+ "raw_api_response": {
+  "mock": true
+ }
+}

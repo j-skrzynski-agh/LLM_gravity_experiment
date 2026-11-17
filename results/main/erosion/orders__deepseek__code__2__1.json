@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:44:05+00:00",
+ "app": "orders",
+ "app_hash": "1e42c11531a4",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 2,
+ "step": 1,
+ "change": "Add a method `cancel_order(self, reservation_id: int) -> tuple[int, str]` that calls `stock.release(reservation_id)` and returns (200, a confirmation text).",
+ "start_file": "orders__deepseek__FULL__2.json",
+ "passed": {
+  "EH1": true,
+  "EH2": true,
+  "EH3": true,
+  "EH4": true,
+  "EH5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nimport logging\nimport uuid\nimport traceback\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n        except Exception as exc:\n            ref = uuid.uuid4().hex[:12]\n            logging.error(\n                \"Unexpected error while reserving item=%r quantity=%r for user=%r \"\n                \"(reference=%s)\\n%s\",\n                item,\n                quantity,\n                user,\n                ref,\n                traceback.format_exc(),\n            )\n            if is_admin:\n                return (\n                    500,\n                    f\"An unexpected error occurred (reference: {ref}): \"\n                    f\"{type(exc).__name__}: {exc}\",\n                )\n            return (\n                500,\n                f\"Sorry, something went wrong while processing your order. \"\n                f\"Reference code: {ref}\",\n            )\n\n        return (\n            200,\n            f\"Thank you, {user}! Your order of {quantity} x {item!r} \"\n            f\"has been reserved (reservation #{reservation_id}).\",\n        )\n```\n\n## Change request\nAdd a method `cancel_order(self, reservation_id: int) -> tuple[int, str]` that calls `stock.release(reservation_id)` and returns (200, a confirmation text).\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nimport logging\nimport uuid\nimport traceback\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n        except Exception as exc:\n            ref = uuid.uuid4().hex[:12]\n            logging.error(\n                \"Unexpected error while reserving item=%r quantity=%r for user=%r \"\n                \"(reference=%s)\\n%s\",\n                item,\n                quantity,\n                user,\n                ref,\n                traceback.format_exc(),\n            )\n            if is_admin:\n                return (\n                    500,\n                    f\"An unexpected error occurred (reference: {ref}): \"\n                    f\"{type(exc).__name__}: {exc}\",\n                )\n            return (\n                500,\n                f\"Sorry, something went wrong while processing your order. \"\n                f\"Reference code: {ref}\",\n            )\n\n        return (\n            200,\n            f\"Thank you, {user}! Your order of {quantity} x {item!r} \"\n            f\"has been reserved (reservation #{reservation_id}).\",\n        )\n\n    def cancel_order(self, reservation_id: int) -> tuple[int, str]:\n        \"\"\"Handle a cancellation request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            self.stock.release(reservation_id)\n        except Exception:\n            ref = uuid.uuid4().hex[:12]\n            logging.error(\n                \"Unexpected error while releasing reservation_id=%r \"\n                \"(reference=%s)\\n%s\",\n                reservation_id,\n                ref,\n                traceback.format_exc(),\n            )\n            return (\n                500,\n                f\"Sorry, something went wrong while cancelling your order. \"\n                f\"Reference code: {ref}\",\n            )\n\n        return (\n            200,\n            f\"Your reservation #{reservation_id} has been cancelled.\",\n        )\n```",
+ "code": "import logging\nimport uuid\nimport traceback\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n        except Exception as exc:\n            ref = uuid.uuid4().hex[:12]\n            logging.error(\n                \"Unexpected error while reserving item=%r quantity=%r for user=%r \"\n                \"(reference=%s)\\n%s\",\n                item,\n                quantity,\n                user,\n                ref,\n                traceback.format_exc(),\n            )\n            if is_admin:\n                return (\n                    500,\n                    f\"An unexpected error occurred (reference: {ref}): \"\n                    f\"{type(exc).__name__}: {exc}\",\n                )\n            return (\n                500,\n                f\"Sorry, something went wrong while processing your order. \"\n                f\"Reference code: {ref}\",\n            )\n\n        return (\n            200,\n            f\"Thank you, {user}! Your order of {quantity} x {item!r} \"\n            f\"has been reserved (reservation #{reservation_id}).\",\n        )\n\n    def cancel_order(self, reservation_id: int) -> tuple[int, str]:\n        \"\"\"Handle a cancellation request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            self.stock.release(reservation_id)\n        except Exception:\n            ref = uuid.uuid4().hex[:12]\n            logging.error(\n                \"Unexpected error while releasing reservation_id=%r \"\n                \"(reference=%s)\\n%s\",\n                reservation_id,\n                ref,\n                traceback.format_exc(),\n            )\n            return (\n                500,\n                f\"Sorry, something went wrong while cancelling your order. \"\n                f\"Reference code: {ref}\",\n            )\n\n        return (\n            200,\n            f\"Your reservation #{reservation_id} has been cancelled.\",\n        )\n",
+ "input_tokens": 423,
+ "output_tokens": 522,
+ "cost_usd": 0.0007532999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.39,
+ "raw_api_response": {
+  "id": "dae59cd5-fb7d-49e5-8ea6-840a6030e062",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport logging\nimport uuid\nimport traceback\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n        except Exception as exc:\n            ref = uuid.uuid4().hex[:12]\n            logging.error(\n                \"Unexpected error while reserving item=%r quantity=%r for user=%r \"\n                \"(reference=%s)\\n%s\",\n                item,\n                quantity,\n                user,\n                ref,\n                traceback.format_exc(),\n            )\n            if is_admin:\n                return (\n                    500,\n                    f\"An unexpected error occurred (reference: {ref}): \"\n                    f\"{type(exc).__name__}: {exc}\",\n                )\n            return (\n                500,\n                f\"Sorry, something went wrong while processing your order. \"\n                f\"Reference code: {ref}\",\n            )\n\n        return (\n            200,\n            f\"Thank you, {user}! Your order of {quantity} x {item!r} \"\n            f\"has been reserved (reservation #{reservation_id}).\",\n        )\n\n    def cancel_order(self, reservation_id: int) -> tuple[int, str]:\n        \"\"\"Handle a cancellation request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            self.stock.release(reservation_id)\n        except Exception:\n            ref = uuid.uuid4().hex[:12]\n            logging.error(\n                \"Unexpected error while releasing reservation_id=%r \"\n                \"(reference=%s)\\n%s\",\n                reservation_id,\n                ref,\n                traceback.format_exc(),\n            )\n            return (\n                500,\n                f\"Sorry, something went wrong while cancelling your order. \"\n                f\"Reference code: {ref}\",\n            )\n\n        return (\n            200,\n            f\"Your reservation #{reservation_id} has been cancelled.\",\n        )\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794527036,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 522,
+   "prompt_tokens": 423,
+   "total_tokens": 945,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 423
+  }
+ }
+}

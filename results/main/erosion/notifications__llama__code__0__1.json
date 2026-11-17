@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T18:09:05+00:00",
+ "app": "notifications",
+ "app_hash": "3c8e19143fe2",
+ "model": "llama",
+ "variant": "code",
+ "rep": 0,
+ "step": 1,
+ "change": "Add a method `users(self) -> list[str]` that returns all users, sorted.",
+ "start_file": "notifications__llama__FULL__0.json",
+ "passed": {
+  "NT1": true,
+  "NT2": true,
+  "NT3": true,
+  "NT4": true,
+  "NT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self.is_quiet(at.time()):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def is_quiet(self, current_time: time) -> bool:\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= current_time < self.quiet_end\n        else:\n            return self.quiet_start <= current_time or current_time < self.quiet_end\n\n\n# Example usage\nif __name__ == \"__main__\":\n    notifier = Notifier()\n    notifier.add_user(\"user1\")\n    notifier.set_channel(\"user1\", \"sms\", True)\n    print(notifier.send(\"user1\", \"Hello\", datetime(2024, 1, 1, 12, 0)))  # Should print ['email', 'sms', 'push']\n    print(notifier.send(\"user1\", \"Hello\", datetime(2024, 1, 1, 23, 0)))  # Should print ['email']\n```\n\n## Change request\nAdd a method `users(self) -> list[str]` that returns all users, sorted.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self.is_quiet(at.time()):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def is_quiet(self, current_time: time) -> bool:\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= current_time < self.quiet_end\n        else:\n            return self.quiet_start <= current_time or current_time < self.quiet_end\n\n    def users(self) -> list[str]:\n        return sorted(self.users.keys())\n\n\n# Example usage\nif __name__ == \"__main__\":\n    notifier = Notifier()\n    notifier.add_user(\"user1\")\n    notifier.add_user(\"user3\")\n    notifier.add_user(\"user2\")\n    notifier.set_channel(\"user1\", \"sms\", True)\n    print(notifier.send(\"user1\", \"Hello\", datetime(2024, 1, 1, 12, 0)))  # Should print ['email', 'sms']\n    print(notifier.send(\"user1\", \"Hello\", datetime(2024, 1, 1, 23, 0)))  # Should print ['email']\n    print(notifier.users())  # Should print ['user1', 'user2', 'user3']\n```",
+ "code": "from datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self.is_quiet(at.time()):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def is_quiet(self, current_time: time) -> bool:\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= current_time < self.quiet_end\n        else:\n            return self.quiet_start <= current_time or current_time < self.quiet_end\n\n    def users(self) -> list[str]:\n        return sorted(self.users.keys())\n\n\n# Example usage\nif __name__ == \"__main__\":\n    notifier = Notifier()\n    notifier.add_user(\"user1\")\n    notifier.add_user(\"user3\")\n    notifier.add_user(\"user2\")\n    notifier.set_channel(\"user1\", \"sms\", True)\n    print(notifier.send(\"user1\", \"Hello\", datetime(2024, 1, 1, 12, 0)))  # Should print ['email', 'sms']\n    print(notifier.send(\"user1\", \"Hello\", datetime(2024, 1, 1, 23, 0)))  # Should print ['email']\n    print(notifier.users())  # Should print ['user1', 'user2', 'user3']\n",
+ "input_tokens": 518,
+ "output_tokens": 506,
+ "cost_usd": 0.00021372000000000003,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.98,
+ "raw_api_response": {
+  "id": "gen-1794938934-BksCMf12dgK8DE1uSKe7",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self.is_quiet(at.time()):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def is_quiet(self, current_time: time) -> bool:\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= current_time < self.quiet_end\n        else:\n            return self.quiet_start <= current_time or current_time < self.quiet_end\n\n    def users(self) -> list[str]:\n        return sorted(self.users.keys())\n\n\n# Example usage\nif __name__ == \"__main__\":\n    notifier = Notifier()\n    notifier.add_user(\"user1\")\n    notifier.add_user(\"user3\")\n    notifier.add_user(\"user2\")\n    notifier.set_channel(\"user1\", \"sms\", True)\n    print(notifier.send(\"user1\", \"Hello\", datetime(2024, 1, 1, 12, 0)))  # Should print ['email', 'sms']\n    print(notifier.send(\"user1\", \"Hello\", datetime(2024, 1, 1, 23, 0)))  # Should print ['email']\n    print(notifier.users())  # Should print ['user1', 'user2', 'user3']\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794938934,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 506,
+   "prompt_tokens": 518,
+   "total_tokens": 1024,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00072704,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00072704,
+    "upstream_inference_prompt_cost": 0.00036778,
+    "upstream_inference_completions_cost": 0.00035926
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

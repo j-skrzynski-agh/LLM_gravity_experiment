@@ -1,0 +1,39 @@
+app: poll
+module: poll
+
+description: |
+  A simple poll: options are added, people vote, and the winner is reported.
+
+api: |
+  class Poll:
+      def __init__(self, question: str) -> None: ...
+
+      def add_option(self, option: str) -> None: ...
+
+      def vote(self, voter: str, option: str) -> None: ...
+
+      def winner(self) -> str | None: ...
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: PL1
+    category: K
+    text: Voting for an option that does not exist raises ValueError.
+  - id: PL2
+    category: K
+    text: Each voter can vote only once; a second vote by the same voter raises ValueError.
+  - id: PL3
+    category: D
+    text: The winner is the option with the most votes.
+  - id: PL4
+    category: S
+    text: In case of a tie, the tied option that was added last wins.
+  - id: PL5
+    category: S
+    text: winner() returns None until at least 3 votes have been cast.
+
+changes:
+  - 'Add a method `results(self) -> dict[str, int]` that returns the number of votes per option.'
+  - 'Add a method `voters(self) -> list[str]` that returns the names of people who have voted, sorted.'
+  - 'Add a method `remove_option(self, option: str) -> None` that removes an option with no votes and raises ValueError otherwise.'
+  - 'Add a method `summary(self) -> str` that returns a short text with the question and the vote counts.'

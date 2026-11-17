@@ -1,0 +1,126 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:52:17+00:00",
+ "task": "workshop_signup",
+ "task_hash": "0c55ad8ae293",
+ "model": "gemini",
+ "condition": "FULL",
+ "rep": 2,
+ "requirement_order": [
+  "WS2",
+  "WS3",
+  "WS1"
+ ],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Make a small web app for signing up for our workshop. There are 20 seats; people enter their name and email and get a seat.\n\nRequirements:\n- The same email address cannot take more than one seat.\n- Participants' names and email addresses are not visible to other visitors.\n- Simultaneous sign-ups cannot take more than 20 seats (the seat check and booking are atomic, e.g. a transaction or lock).",
+ "response": "Here is a complete, self-contained Node.js web application using Express and SQLite. \n\nSQLite's built-in locking mechanism, paired with an **exclusive, atomic database transaction**, guarantees that simultaneous requests cannot overbook beyond 20 seats and cannot insert duplicate emails.\n\n### 1. Setup\n\nCreate a new directory, navigate into it, and install dependencies:\n\n```bash\nmkdir workshop-signup\ncd workshop-signup\nnpm init -y\nnpm install express better-sqlite3\n```\n\n> **Why `better-sqlite3`?** It is synchronous and runs within standard, rigorous SQLite transactions (`BEGIN IMMEDIATE`), avoiding the race conditions that asynchronous database drivers can introduce during concurrent writes.\n\n---\n\n### 2. The Application (`server.js`)\n\nSave the following code as `server.js`:\n\n```javascript\nconst express = require('express');\nconst Database = require('better-sqlite3');\n\nconst app = express();\nconst db = new Database('workshop.db');\n\nconst TOTAL_SEATS = 20;\n\n// Enable WAL mode for high concurrency between reads and writes\ndb.pragma('journal_mode = WAL');\n\n// Initialize database table\ndb.exec(`\n  CREATE TABLE IF NOT EXISTS signups (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    name TEXT NOT NULL,\n    email TEXT NOT NULL UNIQUE COLLATE NOCASE,\n    created_at DATETIME DEFAULT CURRENT_TIMESTAMP\n  )\n`);\n\n// Prepared statements\nconst countStmt = db.prepare('SELECT COUNT(*) AS count FROM signups');\nconst insertStmt = db.prepare('INSERT INTO signups (name, email) VALUES (?, ?)');\n\n/**\n * ATOMIC TRANSACTION\n * db.transaction() with 'immediate' acquires a reserved lock immediately.\n * This guarantees no other request can read the seat count and insert\n * between this transaction's check and insert steps.\n */\nconst registerUser = db.transaction((name, email) => {\n  const { count } = countStmt.get();\n\n  if (count >= TOTAL_SEATS) {\n    const error = new Error('Workshop is fully booked.');\n    error.code = 'FULL';\n    throw error;\n  }\n\n  insertStmt.run(name, email);\n  return TOTAL_SEATS - (count + 1);\n});\n\napp.use(express.json());\n\n// API: Get remaining seat count (Privacy safe: no personal data returned)\napp.get('/api/status', (req, res) => {\n  const { count } = countStmt.get();\n  res.json({\n    totalSeats: TOTAL_SEATS,\n    seatsRemaining: Math.max(0, TOTAL_SEATS - count),\n  });\n});\n\n// API: Register for a seat\napp.post('/api/signup', (req, res) => {\n  let { name, email } = req.body;\n\n  if (!name || !email) {\n    return res.status(400).json({ error: 'Name and email are required.' });\n  }\n\n  name = name.trim();\n  email = email.trim().toLowerCase();\n\n  // Basic email pattern check\n  const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n  if (!emailRegex.test(email)) {\n    return res.status(400).json({ error: 'Invalid email address.' });\n  }\n\n  try {\n    // Run the atomic transaction\n    const seatsLeft = registerUser.immediate(name, email);\n    return res.status(201).json({\n      message: 'Seat confirmed! See you at the workshop.',\n      seatsRemaining: seatsLeft,\n    });\n  } catch (err) {\n    // Handle database UNIQUE constraint violation\n    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {\n      return res.status(409).json({ error: 'This email has already registered.' });\n    }\n    // Handle capacity reached\n    if (err.code === 'FULL') {\n      return res.status(409).json({ error: 'Sorry, the workshop is now full.' });\n    }\n    console.error('Registration error:', err);\n    return res.status(500).json({ error: 'Internal server error.' });\n  }\n});\n\n// Serve frontend UI\napp.get('/', (req, res) => {\n  res.send(`\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Workshop Registration</title>\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f4f6f8; }\n    .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }\n    h1 { margin-top: 0; font-size: 1.5rem; text-align: center; }\n    .seats-badge { text-align: center; margin-bottom: 1.5rem; font-weight: bold; color: #2563eb; }\n    .form-group { margin-bottom: 1rem; }\n    label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #374151; }\n    input { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; }\n    button { width: 100%; padding: 0.75rem; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }\n    button:disabled { background: #9ca3af; cursor: not-allowed; }\n    .msg { margin-top: 1rem; padding: 0.75rem; border-radius: 4px; font-size: 0.875rem; text-align: center; }\n    .success { background: #dcfce7; color: #166534; }\n    .error { background: #fee2e2; color: #991b1b; }\n  </style>\n</head>\n<body>\n  <div class=\"card\">\n    <h1>Workshop Sign-up</h1>\n    <div class=\"seats-badge\" id=\"seatStatus\">Loading seats...</div>\n    \n    <form id=\"signupForm\">\n      <div class=\"form-group\">\n        <label for=\"name\">Full Name</label>\n        <input type=\"text\" id=\"name\" required autocomplete=\"name\" />\n      </div>\n      <div class=\"form-group\">\n        <label for=\"email\">Email Address</label>\n        <input type=\"email\" id=\"email\" required autocomplete=\"email\" />\n      </div>\n      <button type=\"submit\" id=\"submitBtn\">Reserve Seat</button>\n    </form>\n    <div id=\"message\"></div>\n  </div>\n\n  <script>\n    async function updateStatus() {\n      const res = await fetch('/api/status');\n      const data = await res.json();\n      const statusEl = document.getElementById('seatStatus');\n      const btn = document.getElementById('submitBtn');\n\n      if (data.seatsRemaining <= 0) {\n        statusEl.textContent = 'Workshop is Full (0 / ' + data.totalSeats + ' seats left)';\n        statusEl.style.color = '#dc2626';\n        btn.disabled = true;\n      } else {\n        statusEl.textContent = data.seatsRemaining + ' of ' + data.totalSeats + ' seats remaining';\n        btn.disabled = false;\n      }\n    }\n\n    document.getElementById('signupForm').addEventListener('submit', async (e) => {\n      e.preventDefault();\n      const messageEl = document.getElementById('message');\n      const btn = document.getElementById('submitBtn');\n      messageEl.className = '';\n      messageEl.textContent = '';\n      btn.disabled = true;\n\n      const payload = {\n        name: document.getElementById('name').value,\n        email: document.getElementById('email').value\n      };\n\n      try {\n        const res = await fetch('/api/signup', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify(payload)\n        });\n        const data = await res.json();\n\n        if (res.ok) {\n          messageEl.className = 'msg success';\n          messageEl.textContent = data.message;\n          document.getElementById('signupForm').reset();\n        } else {\n          messageEl.className = 'msg error';\n          messageEl.textContent = data.error;\n        }\n      } catch (err) {\n        messageEl.className = 'msg error';\n        messageEl.textContent = 'Network error. Please try again.';\n      } finally {\n        updateStatus();\n      }\n    });\n\n    updateStatus();\n  </script>\n</body>\n</html>\n  `);\n});\n\nconst PORT = process.env.PORT || 3000;\napp.listen(PORT, () => {\n  console.log(`Server listening at http://localhost:${PORT}`);\n});\n```\n\n---\n\n### 3. Run the App\n\n```bash\nnode server.js\n```\nOpen your browser and visit **`http://localhost:3000`**.\n\n---\n\n### How Requirements Are Met\n\n1. **Email Uniqueness:** The table has a `UNIQUE` constraint on the `email` column with `COLLATE NOCASE`. Attempting to register the same email address (even with different capitalization, e.g., `user@test.com` vs `USER@test.com`) is rejected with a `409 Conflict`.\n2. **Privacy:** The frontend never fetches any user data. The `/api/status` endpoint only returns the total count of available seats, ensuring participant lists are not exposed to the public.\n3. **Atomic Concurrency Protection:** \n   - `registerUser.immediate(...)` uses SQLite's `BEGIN IMMEDIATE` statement.\n   - When requests hit the server concurrently, the first one locks the database for write access. Subsequent requests wait their turn; they cannot read an outdated seat count while an insertion is taking place. Once 20 seats are committed, any pending or future transaction hits `count >= TOTAL_SEATS` and aborts.",
+ "input_tokens": 94,
+ "output_tokens": 2484,
+ "cost_usd": 0.0093855,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 18.24,
+ "raw_api_response": {
+  "id": "LV_2asmFEsaIxs0Pm_jM0Qg",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a complete, self-contained Node.js web application using Express and SQLite. \n\nSQLite's built-in locking mechanism, paired with an **exclusive, atomic database transaction**, guarantees that simultaneous requests cannot overbook beyond 20 seats and cannot insert duplicate emails.\n\n### 1. Setup\n\nCreate a new directory, navigate into it, and install dependencies:\n\n```bash\nmkdir workshop-signup\ncd workshop-signup\nnpm init -y\nnpm install express better-sqlite3\n```\n\n> **Why `better-sqlite3`?** It is synchronous and runs within standard, rigorous SQLite transactions (`BEGIN IMMEDIATE`), avoiding the race conditions that asynchronous database drivers can introduce during concurrent writes.\n\n---\n\n### 2. The Application (`server.js`)\n\nSave the following code as `server.js`:\n\n```javascript\nconst express = require('express');\nconst Database = require('better-sqlite3');\n\nconst app = express();\nconst db = new Database('workshop.db');\n\nconst TOTAL_SEATS = 20;\n\n// Enable WAL mode for high concurrency between reads and writes\ndb.pragma('journal_mode = WAL');\n\n// Initialize database table\ndb.exec(`\n  CREATE TABLE IF NOT EXISTS signups (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    name TEXT NOT NULL,\n    email TEXT NOT NULL UNIQUE COLLATE NOCASE,\n    created_at DATETIME DEFAULT CURRENT_TIMESTAMP\n  )\n`);\n\n// Prepared statements\nconst countStmt = db.prepare('SELECT COUNT(*) AS count FROM signups');\nconst insertStmt = db.prepare('INSERT INTO signups (name, email) VALUES (?, ?)');\n\n/**\n * ATOMIC TRANSACTION\n * db.transaction() with 'immediate' acquires a reserved lock immediately.\n * This guarantees no other request can read the seat count and insert\n * between this transaction's check and insert steps.\n */\nconst registerUser = db.transaction((name, email) => {\n  const { count } = countStmt.get();\n\n  if (count >= TOTAL_SEATS) {\n    const error = new Error('Workshop is fully booked.');\n    error.code = 'FULL';\n    throw error;\n  }\n\n  insertStmt.run(name, email);\n  return TOTAL_SEATS - (count + 1);\n});\n\napp.use(express.json());\n\n// API: Get remaining seat count (Privacy safe: no personal data returned)\napp.get('/api/status', (req, res) => {\n  const { count } = countStmt.get();\n  res.json({\n    totalSeats: TOTAL_SEATS,\n    seatsRemaining: Math.max(0, TOTAL_SEATS - count),\n  });\n});\n\n// API: Register for a seat\napp.post('/api/signup', (req, res) => {\n  let { name, email } = req.body;\n\n  if (!name || !email) {\n    return res.status(400).json({ error: 'Name and email are required.' });\n  }\n\n  name = name.trim();\n  email = email.trim().toLowerCase();\n\n  // Basic email pattern check\n  const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n  if (!emailRegex.test(email)) {\n    return res.status(400).json({ error: 'Invalid email address.' });\n  }\n\n  try {\n    // Run the atomic transaction\n    const seatsLeft = registerUser.immediate(name, email);\n    return res.status(201).json({\n      message: 'Seat confirmed! See you at the workshop.',\n      seatsRemaining: seatsLeft,\n    });\n  } catch (err) {\n    // Handle database UNIQUE constraint violation\n    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {\n      return res.status(409).json({ error: 'This email has already registered.' });\n    }\n    // Handle capacity reached\n    if (err.code === 'FULL') {\n      return res.status(409).json({ error: 'Sorry, the workshop is now full.' });\n    }\n    console.error('Registration error:', err);\n    return res.status(500).json({ error: 'Internal server error.' });\n  }\n});\n\n// Serve frontend UI\napp.get('/', (req, res) => {\n  res.send(`\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Workshop Registration</title>\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f4f6f8; }\n    .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }\n    h1 { margin-top: 0; font-size: 1.5rem; text-align: center; }\n    .seats-badge { text-align: center; margin-bottom: 1.5rem; font-weight: bold; color: #2563eb; }\n    .form-group { margin-bottom: 1rem; }\n    label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #374151; }\n    input { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; }\n    button { width: 100%; padding: 0.75rem; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }\n    button:disabled { background: #9ca3af; cursor: not-allowed; }\n    .msg { margin-top: 1rem; padding: 0.75rem; border-radius: 4px; font-size: 0.875rem; text-align: center; }\n    .success { background: #dcfce7; color: #166534; }\n    .error { background: #fee2e2; color: #991b1b; }\n  </style>\n</head>\n<body>\n  <div class=\"card\">\n    <h1>Workshop Sign-up</h1>\n    <div class=\"seats-badge\" id=\"seatStatus\">Loading seats...</div>\n    \n    <form id=\"signupForm\">\n      <div class=\"form-group\">\n        <label for=\"name\">Full Name</label>\n        <input type=\"text\" id=\"name\" required autocomplete=\"name\" />\n      </div>\n      <div class=\"form-group\">\n        <label for=\"email\">Email Address</label>\n        <input type=\"email\" id=\"email\" required autocomplete=\"email\" />\n      </div>\n      <button type=\"submit\" id=\"submitBtn\">Reserve Seat</button>\n    </form>\n    <div id=\"message\"></div>\n  </div>\n\n  <script>\n    async function updateStatus() {\n      const res = await fetch('/api/status');\n      const data = await res.json();\n      const statusEl = document.getElementById('seatStatus');\n      const btn = document.getElementById('submitBtn');\n\n      if (data.seatsRemaining <= 0) {\n        statusEl.textContent = 'Workshop is Full (0 / ' + data.totalSeats + ' seats left)';\n        statusEl.style.color = '#dc2626';\n        btn.disabled = true;\n      } else {\n        statusEl.textContent = data.seatsRemaining + ' of ' + data.totalSeats + ' seats remaining';\n        btn.disabled = false;\n      }\n    }\n\n    document.getElementById('signupForm').addEventListener('submit', async (e) => {\n      e.preventDefault();\n      const messageEl = document.getElementById('message');\n      const btn = document.getElementById('submitBtn');\n      messageEl.className = '';\n      messageEl.textContent = '';\n      btn.disabled = true;\n\n      const payload = {\n        name: document.getElementById('name').value,\n        email: document.getElementById('email').value\n      };\n\n      try {\n        const res = await fetch('/api/signup', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify(payload)\n        });\n        const data = await res.json();\n\n        if (res.ok) {\n          messageEl.className = 'msg success';\n          messageEl.textContent = data.message;\n          document.getElementById('signupForm').reset();\n        } else {\n          messageEl.className = 'msg error';\n          messageEl.textContent = data.error;\n        }\n      } catch (err) {\n        messageEl.className = 'msg error';\n        messageEl.textContent = 'Network error. Please try again.';\n      } finally {\n        updateStatus();\n      }\n    });\n\n    updateStatus();\n  </script>\n</body>\n</html>\n  `);\n});\n\nconst PORT = process.env.PORT || 3000;\napp.listen(PORT, () => {\n  console.log(`Server listening at http://localhost:${PORT}`);\n});\n```\n\n---\n\n### 3. Run the App\n\n```bash\nnode server.js\n```\nOpen your browser and visit **`http://localhost:3000`**.\n\n---\n\n### How Requirements Are Met\n\n1. **Email Uniqueness:** The table has a `UNIQUE` constraint on the `email` column with `COLLATE NOCASE`. Attempting to register the same email address (even with different capitalization, e.g., `user@test.com` vs `USER@test.com`) is rejected with a `409 Conflict`.\n2. **Privacy:** The frontend never fetches any user data. The `/api/status` endpoint only returns the total count of available seats, ensuring participant lists are not exposed to the public.\n3. **Atomic Concurrency Protection:** \n   - `registerUser.immediate(...)` uses SQLite's `BEGIN IMMEDIATE` statement.\n   - When requests hit the server concurrently, the first one locks the database for write access. Subsequent requests wait their turn; they cannot read an outdated seat count while an insertion is taking place. Once 20 seats are committed, any pending or future transaction hits `count >= TOTAL_SEATS` and aborts.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TeQzlEm8pYGNl2tt5acrKIJrIxisUnrDrkR6wE3IkUXe62AgEa7s7tTgOlqWv/cVvBrO+xJWPKRCgPWlmPJqS7ZLLWYgEiYguR+Tw2oTN2k4mItWRvwnAXxMajCQA77SxJxU="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794531135,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 2484,
+   "prompt_tokens": 94,
+   "total_tokens": 2578,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "An immediate SQLite transaction atomically checks the seat count and inserts the registration, preventing concurrent sign-ups from exceeding 20 seats."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "A case-insensitive unique constraint on the email column prevents duplicate registrations."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The public endpoints do not return participant names or email addresses."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "The code uses an immediate transaction with a synchronous SQLite database to atomically check seat count and insert a new signup, preventing overbooking under concurrent requests."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The database schema enforces a UNIQUE constraint on the email column with NOCASE collation, and the application catches and returns a 409 error for duplicate email attempts."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The frontend only fetches seat counts via /api/status (no personal data), and no API endpoint exposes names or emails to clients; the signup form submits data but never retrieves or displays other users' information."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "registerUser.immediate runs the count check and insert inside a BEGIN IMMEDIATE transaction, so concurrent sign-ups cannot exceed 20 seats."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The email column has a UNIQUE constraint with COLLATE NOCASE, and the email is also lowercased. A duplicate returns a 409 from the handler."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "No endpoint returns participant names or emails; /api/status returns only seat counts, and the signup response contains no personal data."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"WS1\":{\"met\":true,\"reason\":\"An immediate SQLite transaction atomically checks the seat count and inserts the registration, preventing concurrent sign-ups from exceeding 20 seats.\"},\"WS2\":{\"met\":true,\"reason\":\"A case-insensitive unique constraint on the email column prevents duplicate registrations.\"},\"WS3\":{\"met\":true,\"reason\":\"The public endpoints do not return participant names or email addresses.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"WS1\": {\"met\": true, \"reason\": \"The code uses an immediate transaction with a synchronous SQLite database to atomically check seat count and insert a new signup, preventing overbooking under concurrent requests.\"},\n  \"WS2\": {\"met\": true, \"reason\": \"The database schema enforces a UNIQUE constraint on the email column with NOCASE collation, and the application catches and returns a 409 error for duplicate email attempts.\"},\n  \"WS3\": {\"met\": true, \"reason\": \"The frontend only fetches seat counts via /api/status (no personal data), and no API endpoint exposes names or emails to clients; the signup form submits data but never retrieves or displays other users' information.\"}\n}",
+  "claude": "{\"_code\": true, \"WS1\": {\"met\": true, \"reason\": \"registerUser.immediate runs the count check and insert inside a BEGIN IMMEDIATE transaction, so concurrent sign-ups cannot exceed 20 seats.\"}, \"WS2\": {\"met\": true, \"reason\": \"The email column has a UNIQUE constraint with COLLATE NOCASE, and the email is also lowercased. A duplicate returns a 409 from the handler.\"}, \"WS3\": {\"met\": true, \"reason\": \"No endpoint returns participant names or emails; /api/status returns only seat counts, and the signup response contains no personal data.\"}}"
+ },
+ "judge_cost_usd": 0.013792200000000001
+}

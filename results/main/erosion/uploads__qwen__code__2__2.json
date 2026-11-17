@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T17:28:13+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "qwen",
+ "variant": "code",
+ "rep": 2,
+ "step": 2,
+ "change": "Add a method `remaining_bytes(self, month: str) -> int` that returns how many bytes can still be uploaded in the month.",
+ "start_file": "uploads__qwen__FULL__2.json",
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Store uploads per month: {month: {filename: size_bytes}}\n        self.uploads = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0\")\n        \n        # Initialize month entry if it doesn't exist\n        if month not in self.uploads:\n            self.uploads[month] = {}\n        \n        # If file already exists in this month, no change needed\n        if name in self.uploads[month]:\n            return\n        \n        # Calculate current usage for this month\n        current_usage = sum(self.uploads[month].values())\n        \n        # Check if adding this file would exceed the limit\n        if current_usage + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file to this month's uploads\n        self.uploads[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Only remove if the month and file exist\n        if month in self.uploads and name in self.uploads[month]:\n            del self.uploads[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        if month not in self.uploads:\n            return 0\n        return sum(self.uploads[month].values())\n\n    def files(self) -> list[str]:\n        \"\"\"Return the names of stored files, sorted.\"\"\"\n        all_files = set()\n        for month_uploads in self.uploads.values():\n            all_files.update(month_uploads.keys())\n        return sorted(list(all_files))\n```\n\n## Change request\nAdd a method `remaining_bytes(self, month: str) -> int` that returns how many bytes can still be uploaded in the month.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Store uploads per month: {month: {filename: size_bytes}}\n        self.uploads = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0\")\n        \n        # Initialize month entry if it doesn't exist\n        if month not in self.uploads:\n            self.uploads[month] = {}\n        \n        # If file already exists in this month, no change needed\n        if name in self.uploads[month]:\n            return\n        \n        # Calculate current usage for this month\n        current_usage = sum(self.uploads[month].values())\n        \n        # Check if adding this file would exceed the limit\n        if current_usage + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file to this month's uploads\n        self.uploads[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Only remove if the month and file exist\n        if month in self.uploads and name in self.uploads[month]:\n            del self.uploads[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        if month not in self.uploads:\n            return 0\n        return sum(self.uploads[month].values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"How many bytes can still be uploaded in the month.\"\"\"\n        used = self.used_bytes(month)\n        return max(0, self.monthly_limit_bytes - used)\n\n    def files(self) -> list[str]:\n        \"\"\"Return the names of stored files, sorted.\"\"\"\n        all_files = set()\n        for month_uploads in self.uploads.values():\n            all_files.update(month_uploads.keys())\n        return sorted(list(all_files))\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Store uploads per month: {month: {filename: size_bytes}}\n        self.uploads = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0\")\n        \n        # Initialize month entry if it doesn't exist\n        if month not in self.uploads:\n            self.uploads[month] = {}\n        \n        # If file already exists in this month, no change needed\n        if name in self.uploads[month]:\n            return\n        \n        # Calculate current usage for this month\n        current_usage = sum(self.uploads[month].values())\n        \n        # Check if adding this file would exceed the limit\n        if current_usage + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file to this month's uploads\n        self.uploads[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Only remove if the month and file exist\n        if month in self.uploads and name in self.uploads[month]:\n            del self.uploads[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        if month not in self.uploads:\n            return 0\n        return sum(self.uploads[month].values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"How many bytes can still be uploaded in the month.\"\"\"\n        used = self.used_bytes(month)\n        return max(0, self.monthly_limit_bytes - used)\n\n    def files(self) -> list[str]:\n        \"\"\"Return the names of stored files, sorted.\"\"\"\n        all_files = set()\n        for month_uploads in self.uploads.values():\n            all_files.update(month_uploads.keys())\n        return sorted(list(all_files))\n",
+ "input_tokens": 485,
+ "output_tokens": 462,
+ "cost_usd": 0.0007484,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 10.51,
+ "raw_api_response": {
+  "id": "gen-1794936478-MxKyUqcjbCH6apjIdDiv",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = monthly_limit_mib * 1024 * 1024\n        # Store uploads per month: {month: {filename: size_bytes}}\n        self.uploads = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"Cannot upload a file of size 0\")\n        \n        # Initialize month entry if it doesn't exist\n        if month not in self.uploads:\n            self.uploads[month] = {}\n        \n        # If file already exists in this month, no change needed\n        if name in self.uploads[month]:\n            return\n        \n        # Calculate current usage for this month\n        current_usage = sum(self.uploads[month].values())\n        \n        # Check if adding this file would exceed the limit\n        if current_usage + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file to this month's uploads\n        self.uploads[month][name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Only remove if the month and file exist\n        if month in self.uploads and name in self.uploads[month]:\n            del self.uploads[month][name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        if month not in self.uploads:\n            return 0\n        return sum(self.uploads[month].values())\n\n    def remaining_bytes(self, month: str) -> int:\n        \"\"\"How many bytes can still be uploaded in the month.\"\"\"\n        used = self.used_bytes(month)\n        return max(0, self.monthly_limit_bytes - used)\n\n    def files(self) -> list[str]:\n        \"\"\"Return the names of stored files, sorted.\"\"\"\n        all_files = set()\n        for month_uploads in self.uploads.values():\n            all_files.update(month_uploads.keys())\n        return sorted(list(all_files))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794936478,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 462,
+   "prompt_tokens": 485,
+   "total_tokens": 947,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 256,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.000433212,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.000433212,
+    "upstream_inference_prompt_cost": 7.2852e-05,
+    "upstream_inference_completions_cost": 0.00036036
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

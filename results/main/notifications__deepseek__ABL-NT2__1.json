@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:07:33+00:00",
+ "app": "notifications",
+ "app_hash": "3c8e19143fe2",
+ "model": "deepseek",
+ "condition": "ABL-NT2",
+ "rep": 1,
+ "requirement_order": [
+  "NT1",
+  "NT4",
+  "NT3",
+  "NT5"
+ ],
+ "passed": {
+  "NT1": true,
+  "NT2": true,
+  "NT3": true,
+  "NT4": true,
+  "NT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that delivers notifications to users over several channels,\nrespecting user preferences and night-time quiet hours.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None: ...\n\n    def add_user(self, user: str) -> None: ...\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None: ...\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n```\n\n## Requirements\n1. Calling set_channel with a channel that is not in CHANNELS raises ValueError.\n2. During quiet hours, email is still delivered; only sms and push are muted.\n3. Quiet hours work also when they span midnight (e.g. from 22:00 to 7:00).\n4. A newly added user has only the email channel enabled; sms and push are disabled by default.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        self.users[user] = {channel: channel == \"email\" for channel in self.CHANNELS}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Unknown channel: {channel!r}\")\n        if user not in self.users:\n            raise KeyError(f\"Unknown user: {user!r}\")\n        self.users[user][channel] = enabled\n\n    def _in_quiet_hours(self, at: datetime) -> bool:\n        current = at.time()\n        if self.quiet_start <= self.quiet_end:\n            return self.quiet_start <= current < self.quiet_end\n        # Quiet hours span midnight.\n        return current >= self.quiet_start or current < self.quiet_end\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        if user not in self.users:\n            raise KeyError(f\"Unknown user: {user!r}\")\n        quiet = self._in_quiet_hours(at)\n        delivered = []\n        for channel in self.CHANNELS:\n            if not self.users[user][channel]:\n                continue\n            if quiet and channel != \"email\":\n                continue\n            delivered.append(channel)\n        return delivered\n```",
+ "code": "from datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        self.users[user] = {channel: channel == \"email\" for channel in self.CHANNELS}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Unknown channel: {channel!r}\")\n        if user not in self.users:\n            raise KeyError(f\"Unknown user: {user!r}\")\n        self.users[user][channel] = enabled\n\n    def _in_quiet_hours(self, at: datetime) -> bool:\n        current = at.time()\n        if self.quiet_start <= self.quiet_end:\n            return self.quiet_start <= current < self.quiet_end\n        # Quiet hours span midnight.\n        return current >= self.quiet_start or current < self.quiet_end\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        if user not in self.users:\n            raise KeyError(f\"Unknown user: {user!r}\")\n        quiet = self._in_quiet_hours(at)\n        delivered = []\n        for channel in self.CHANNELS:\n            if not self.users[user][channel]:\n                continue\n            if quiet and channel != \"email\":\n                continue\n            delivered.append(channel)\n        return delivered\n",
+ "input_tokens": 288,
+ "output_tokens": 387,
+ "cost_usd": 0.0005507999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 1.74,
+ "raw_api_response": {
+  "id": "4e08a376-1653-4b85-bc85-12b23d895d44",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        self.users[user] = {channel: channel == \"email\" for channel in self.CHANNELS}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Unknown channel: {channel!r}\")\n        if user not in self.users:\n            raise KeyError(f\"Unknown user: {user!r}\")\n        self.users[user][channel] = enabled\n\n    def _in_quiet_hours(self, at: datetime) -> bool:\n        current = at.time()\n        if self.quiet_start <= self.quiet_end:\n            return self.quiet_start <= current < self.quiet_end\n        # Quiet hours span midnight.\n        return current >= self.quiet_start or current < self.quiet_end\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        if user not in self.users:\n            raise KeyError(f\"Unknown user: {user!r}\")\n        quiet = self._in_quiet_hours(at)\n        delivered = []\n        for channel in self.CHANNELS:\n            if not self.users[user][channel]:\n                continue\n            if quiet and channel != \"email\":\n                continue\n            delivered.append(channel)\n        return delivered\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794452846,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 387,
+   "prompt_tokens": 288,
+   "total_tokens": 675,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 288
+  }
+ }
+}

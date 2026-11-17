@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:45:27+00:00",
+ "app": "leave",
+ "app_hash": "c3276e419d06",
+ "model": "gemini",
+ "condition": "ABL-LV2",
+ "rep": 0,
+ "requirement_order": [
+  "LV1",
+  "LV4",
+  "LV5",
+  "LV3"
+ ],
+ "passed": {
+  "LV1": true,
+  "LV2": true,
+  "LV3": true,
+  "LV4": true,
+  "LV5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that tracks employees' annual leave requests.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None: ...\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n\n    def remaining(self, employee: str, year: int) -> int: ...\n```\n\n## Requirements\n1. A request whose end date is before its start date raises ValueError.\n2. A request made less than 3 days before its start date is rejected with ValueError.\n3. Unused leave days do not carry over to the next year.\n4. Weekends and the given holidays do not use leave days.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `LeaveTracker` module meeting all specifications:\n\n```python\nfrom datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays is not None else set()\n        # Maps employee name -> dict of year -> set of dates taken as leave\n        self.employee_leaves: dict[str, dict[int, set[date]]] = defaultdict(lambda: defaultdict(set))\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date.\")\n\n        # A request made less than 3 days before its start date is rejected\n        if start - today < timedelta(days=3):\n            raise ValueError(\"Leave requests must be made at least 3 days in advance.\")\n\n        # Determine all candidate leave days (weekdays not in holidays)\n        leave_days_by_year: dict[int, list[date]] = defaultdict(list)\n        current = start\n        while current <= end:\n            # Monday is 0, Sunday is 6; weekday < 5 means Monday through Friday\n            if current.weekday() < 5 and current not in self.holidays:\n                leave_days_by_year[current.year].append(current)\n            current += timedelta(days=1)\n\n        # Check that the employee has enough remaining leave days in each relevant year\n        # Also accounts for previously booked days if re-requested (avoids double counting)\n        for year, days in leave_days_by_year.items():\n            existing_days = self.employee_leaves[employee][year]\n            new_days = [d for d in days if d not in existing_days]\n            rem = self.remaining(employee, year)\n            if len(new_days) > rem:\n                raise ValueError(\n                    f\"Insufficient leave balance for {employee} in year {year}: \"\n                    f\"requested {len(new_days)} days, {rem} remaining.\"\n                )\n\n        # Record the leave days\n        total_used = 0\n        for year, days in leave_days_by_year.items():\n            for d in days:\n                if d not in self.employee_leaves[employee][year]:\n                    self.employee_leaves[employee][year].add(d)\n                    total_used += 1\n\n        return total_used\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"Returns the number of unused leave days remaining for an employee in a given year.\"\"\"\n        used = len(self.employee_leaves[employee][year])\n        return max(0, self.days_per_year - used)\n```",
+ "code": "from datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays is not None else set()\n        # Maps employee name -> dict of year -> set of dates taken as leave\n        self.employee_leaves: dict[str, dict[int, set[date]]] = defaultdict(lambda: defaultdict(set))\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date.\")\n\n        # A request made less than 3 days before its start date is rejected\n        if start - today < timedelta(days=3):\n            raise ValueError(\"Leave requests must be made at least 3 days in advance.\")\n\n        # Determine all candidate leave days (weekdays not in holidays)\n        leave_days_by_year: dict[int, list[date]] = defaultdict(list)\n        current = start\n        while current <= end:\n            # Monday is 0, Sunday is 6; weekday < 5 means Monday through Friday\n            if current.weekday() < 5 and current not in self.holidays:\n                leave_days_by_year[current.year].append(current)\n            current += timedelta(days=1)\n\n        # Check that the employee has enough remaining leave days in each relevant year\n        # Also accounts for previously booked days if re-requested (avoids double counting)\n        for year, days in leave_days_by_year.items():\n            existing_days = self.employee_leaves[employee][year]\n            new_days = [d for d in days if d not in existing_days]\n            rem = self.remaining(employee, year)\n            if len(new_days) > rem:\n                raise ValueError(\n                    f\"Insufficient leave balance for {employee} in year {year}: \"\n                    f\"requested {len(new_days)} days, {rem} remaining.\"\n                )\n\n        # Record the leave days\n        total_used = 0\n        for year, days in leave_days_by_year.items():\n            for d in days:\n                if d not in self.employee_leaves[employee][year]:\n                    self.employee_leaves[employee][year].add(d)\n                    total_used += 1\n\n        return total_used\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"Returns the number of unused leave days remaining for an employee in a given year.\"\"\"\n        used = len(self.employee_leaves[employee][year])\n        return max(0, self.days_per_year - used)\n",
+ "input_tokens": 232,
+ "output_tokens": 693,
+ "cost_usd": 0.00277275,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 9.11,
+ "raw_api_response": {
+  "id": "Sjb1aoOjDoPokdUPi__MWA",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `LeaveTracker` module meeting all specifications:\n\n```python\nfrom datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays is not None else set()\n        # Maps employee name -> dict of year -> set of dates taken as leave\n        self.employee_leaves: dict[str, dict[int, set[date]]] = defaultdict(lambda: defaultdict(set))\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date.\")\n\n        # A request made less than 3 days before its start date is rejected\n        if start - today < timedelta(days=3):\n            raise ValueError(\"Leave requests must be made at least 3 days in advance.\")\n\n        # Determine all candidate leave days (weekdays not in holidays)\n        leave_days_by_year: dict[int, list[date]] = defaultdict(list)\n        current = start\n        while current <= end:\n            # Monday is 0, Sunday is 6; weekday < 5 means Monday through Friday\n            if current.weekday() < 5 and current not in self.holidays:\n                leave_days_by_year[current.year].append(current)\n            current += timedelta(days=1)\n\n        # Check that the employee has enough remaining leave days in each relevant year\n        # Also accounts for previously booked days if re-requested (avoids double counting)\n        for year, days in leave_days_by_year.items():\n            existing_days = self.employee_leaves[employee][year]\n            new_days = [d for d in days if d not in existing_days]\n            rem = self.remaining(employee, year)\n            if len(new_days) > rem:\n                raise ValueError(\n                    f\"Insufficient leave balance for {employee} in year {year}: \"\n                    f\"requested {len(new_days)} days, {rem} remaining.\"\n                )\n\n        # Record the leave days\n        total_used = 0\n        for year, days in leave_days_by_year.items():\n            for d in days:\n                if d not in self.employee_leaves[employee][year]:\n                    self.employee_leaves[employee][year].add(d)\n                    total_used += 1\n\n        return total_used\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"Returns the number of unused leave days remaining for an employee in a given year.\"\"\"\n        used = len(self.employee_leaves[employee][year])\n        return max(0, self.days_per_year - used)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TE9x8sZE11s54Rcn7NFPchdkTB/5wdw2AZ2smKwbWx/yTLVjbAYD/YlHe0SKWBu8tz039clU8irEwpPkzPTM21hQ2noCY+yVqw55voBW2WrAB4MjPib8Lju6IfrQ57kkQLsU="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794455121,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 693,
+   "prompt_tokens": 232,
+   "total_tokens": 925,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

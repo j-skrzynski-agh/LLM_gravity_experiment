@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:19:23+00:00",
+ "task": "sms_reminders",
+ "task_hash": "a05853d9ca25",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 1,
+ "requirement_order": [
+  "RM2",
+  "RM3",
+  "RM1"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write a script that sends our clients an SMS reminder at 9:00 the day before their appointment.\n\nRequirements:\n- Running the script again does not send the same reminder twice (sent reminders are recorded).\n- No reminder is sent for cancelled appointments.\n- Times are handled with an explicit time zone, so 9:00 stays 9:00 local time across daylight saving changes.",
+ "response": "Below is a Python example using SQLite and Twilio. It assumes all appointments use one local time zone and that appointment start times are stored as ISO 8601 UTC timestamps.\n\nInstall the dependencies with `pip install twilio`, then set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` in the environment.\n\n```python\n#!/usr/bin/env python3\nimport os\nimport sqlite3\nfrom datetime import datetime, timedelta, timezone\nfrom zoneinfo import ZoneInfo\n\nfrom twilio.rest import Client\n\nDB_PATH = \"appointments.db\"\nLOCAL_TZ = ZoneInfo(\"America/New_York\")  # Change to your IANA time zone.\n\ntwilio = Client(\n    os.environ[\"TWILIO_ACCOUNT_SID\"],\n    os.environ[\"TWILIO_AUTH_TOKEN\"],\n)\nfrom_number = os.environ[\"TWILIO_FROM_NUMBER\"]\n\ndb = sqlite3.connect(DB_PATH, timeout=30)\ndb.execute(\"\"\"\n    CREATE TABLE IF NOT EXISTS reminders (\n        appointment_id INTEGER PRIMARY KEY,\n        status TEXT NOT NULL,\n        recorded_at TEXT NOT NULL,\n        twilio_sid TEXT\n    )\n\"\"\")\ndb.commit()\n\n\ndef utc_now():\n    return datetime.now(timezone.utc).isoformat()\n\n\ndef local_start(value):\n    start = datetime.fromisoformat(value.replace(\"Z\", \"+00:00\"))\n    if start.tzinfo is None:\n        raise ValueError(\"Appointment timestamp must include a UTC offset\")\n    return start.astimezone(LOCAL_TZ)\n\n\ndef run():\n    now = datetime.now(LOCAL_TZ)\n\n    # Schedule the script to run every minute. Only send during 9:00 local.\n    if (now.hour, now.minute) != (9, 0):\n        return\n\n    target_date = now.date() + timedelta(days=1)\n\n    # Expected appointments columns: id, phone, start_utc, status.\n    rows = db.execute(\"\"\"\n        SELECT id, phone, start_utc\n        FROM appointments\n        WHERE status = 'scheduled'\n    \"\"\").fetchall()\n\n    for appointment_id, phone, start_utc in rows:\n        if local_start(start_utc).date() != target_date:\n            continue\n\n        # Claim before sending. The primary key prevents another run from\n        # claiming this appointment, including concurrent runs.\n        claimed = db.execute(\"\"\"\n            INSERT OR IGNORE INTO reminders\n                (appointment_id, status, recorded_at)\n            VALUES (?, 'claimed', ?)\n        \"\"\", (appointment_id, utc_now())).rowcount\n        db.commit()\n\n        if not claimed:\n            continue\n\n        # Lock SQLite writers while rechecking and sending. Cancellation and\n        # rescheduling must also be performed through this same database.\n        db.execute(\"BEGIN IMMEDIATE\")\n        try:\n            row = db.execute(\"\"\"\n                SELECT phone, start_utc, status\n                FROM appointments WHERE id = ?\n            \"\"\", (appointment_id,)).fetchone()\n\n            if (\n                row is None\n                or row[2] != \"scheduled\"\n                or local_start(row[1]).date() != target_date\n            ):\n                db.execute(\"\"\"\n                    UPDATE reminders SET status = 'skipped'\n                    WHERE appointment_id = ?\n                \"\"\", (appointment_id,))\n                db.commit()\n                continue\n\n            phone, start_utc, _ = row\n            start = local_start(start_utc)\n            message = twilio.messages.create(\n                from_=from_number,\n                to=phone,\n                body=f\"Reminder: Your appointment is tomorrow at \"\n                     f\"{start:%I:%M %p}.\",\n            )\n            db.execute(\"\"\"\n                UPDATE reminders SET status = 'sent', twilio_sid = ?\n                WHERE appointment_id = ?\n            \"\"\", (message.sid, appointment_id))\n            db.commit()\n        except Exception:\n            db.rollback()\n            # The provider may have accepted the message despite an error.\n            # Do not retry automatically; investigate before resetting a claim.\n            raise\n\n\nif __name__ == \"__main__\":\n    try:\n        run()\n    finally:\n        db.close()\n```\n\nSchedule it every minute, for example with cron:\n\n```cron\n* * * * * /usr/bin/python3 /path/to/reminders.py\n```\n\nProvide the environment variables to the scheduled process and use an absolute database path in production.\n\n**Operational trade-off:** Claims are recorded before sending, so a crash or ambiguous Twilio error can leave a reminder unsent but claimed. Investigate such claims before retrying. This favors avoiding duplicate SMS over guaranteeing delivery. A missed 9:00 scheduler run also won\u2019t be caught up automatically.",
+ "input_tokens": 83,
+ "output_tokens": 1290,
+ "cost_usd": 0.006533,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 16.45,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaESs0qyUU2H1wFfBXgASm7KCg04",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Below is a Python example using SQLite and Twilio. It assumes all appointments use one local time zone and that appointment start times are stored as ISO 8601 UTC timestamps.\n\nInstall the dependencies with `pip install twilio`, then set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` in the environment.\n\n```python\n#!/usr/bin/env python3\nimport os\nimport sqlite3\nfrom datetime import datetime, timedelta, timezone\nfrom zoneinfo import ZoneInfo\n\nfrom twilio.rest import Client\n\nDB_PATH = \"appointments.db\"\nLOCAL_TZ = ZoneInfo(\"America/New_York\")  # Change to your IANA time zone.\n\ntwilio = Client(\n    os.environ[\"TWILIO_ACCOUNT_SID\"],\n    os.environ[\"TWILIO_AUTH_TOKEN\"],\n)\nfrom_number = os.environ[\"TWILIO_FROM_NUMBER\"]\n\ndb = sqlite3.connect(DB_PATH, timeout=30)\ndb.execute(\"\"\"\n    CREATE TABLE IF NOT EXISTS reminders (\n        appointment_id INTEGER PRIMARY KEY,\n        status TEXT NOT NULL,\n        recorded_at TEXT NOT NULL,\n        twilio_sid TEXT\n    )\n\"\"\")\ndb.commit()\n\n\ndef utc_now():\n    return datetime.now(timezone.utc).isoformat()\n\n\ndef local_start(value):\n    start = datetime.fromisoformat(value.replace(\"Z\", \"+00:00\"))\n    if start.tzinfo is None:\n        raise ValueError(\"Appointment timestamp must include a UTC offset\")\n    return start.astimezone(LOCAL_TZ)\n\n\ndef run():\n    now = datetime.now(LOCAL_TZ)\n\n    # Schedule the script to run every minute. Only send during 9:00 local.\n    if (now.hour, now.minute) != (9, 0):\n        return\n\n    target_date = now.date() + timedelta(days=1)\n\n    # Expected appointments columns: id, phone, start_utc, status.\n    rows = db.execute(\"\"\"\n        SELECT id, phone, start_utc\n        FROM appointments\n        WHERE status = 'scheduled'\n    \"\"\").fetchall()\n\n    for appointment_id, phone, start_utc in rows:\n        if local_start(start_utc).date() != target_date:\n            continue\n\n        # Claim before sending. The primary key prevents another run from\n        # claiming this appointment, including concurrent runs.\n        claimed = db.execute(\"\"\"\n            INSERT OR IGNORE INTO reminders\n                (appointment_id, status, recorded_at)\n            VALUES (?, 'claimed', ?)\n        \"\"\", (appointment_id, utc_now())).rowcount\n        db.commit()\n\n        if not claimed:\n            continue\n\n        # Lock SQLite writers while rechecking and sending. Cancellation and\n        # rescheduling must also be performed through this same database.\n        db.execute(\"BEGIN IMMEDIATE\")\n        try:\n            row = db.execute(\"\"\"\n                SELECT phone, start_utc, status\n                FROM appointments WHERE id = ?\n            \"\"\", (appointment_id,)).fetchone()\n\n            if (\n                row is None\n                or row[2] != \"scheduled\"\n                or local_start(row[1]).date() != target_date\n            ):\n                db.execute(\"\"\"\n                    UPDATE reminders SET status = 'skipped'\n                    WHERE appointment_id = ?\n                \"\"\", (appointment_id,))\n                db.commit()\n                continue\n\n            phone, start_utc, _ = row\n            start = local_start(start_utc)\n            message = twilio.messages.create(\n                from_=from_number,\n                to=phone,\n                body=f\"Reminder: Your appointment is tomorrow at \"\n                     f\"{start:%I:%M %p}.\",\n            )\n            db.execute(\"\"\"\n                UPDATE reminders SET status = 'sent', twilio_sid = ?\n                WHERE appointment_id = ?\n            \"\"\", (message.sid, appointment_id))\n            db.commit()\n        except Exception:\n            db.rollback()\n            # The provider may have accepted the message despite an error.\n            # Do not retry automatically; investigate before resetting a claim.\n            raise\n\n\nif __name__ == \"__main__\":\n    try:\n        run()\n    finally:\n        db.close()\n```\n\nSchedule it every minute, for example with cron:\n\n```cron\n* * * * * /usr/bin/python3 /path/to/reminders.py\n```\n\nProvide the environment variables to the scheduled process and use an absolute database path in production.\n\n**Operational trade-off:** Claims are recorded before sending, so a crash or ambiguous Twilio error can leave a reminder unsent but claimed. Investigate such claims before retrying. This favors avoiding duplicate SMS over guaranteeing delivery. A missed 9:00 scheduler run also won\u2019t be caught up automatically.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532744,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1290,
+   "prompt_tokens": 83,
+   "total_tokens": 1373,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 336,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "RM1": {
+     "met": true,
+     "reason": "The script uses an explicit IANA time zone for the 9:00 check and appointment dates, including daylight saving transitions."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "A persistent primary-keyed claim prevents subsequent runs from sending another reminder for the same appointment."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The script checks that each appointment is scheduled and rechecks its status under a SQLite write lock before sending."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "RM1": {
+     "met": true,
+     "reason": "The code uses `ZoneInfo('America/New_York')` for `LOCAL_TZ` and performs all time comparisons in that local time zone, including the `now.hour == 9 and now.minute == 0` check and `local_start(start_utc).date()` \u2014 ensuring 9:00 remains consistent across DST transitions."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "The code inserts into the `reminders` table with `INSERT OR IGNORE` using `appointment_id` as primary key to claim before sending, and updates status to `'sent'` only after successful SMS delivery, preventing duplicate sends on re-runs."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The code filters appointments by `status = 'scheduled'` in the initial query and re-checks `row[2] != 'scheduled'` inside the transaction before sending; cancelled appointments (with non-'scheduled' status) are marked `'skipped'` and not sent."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "RM1": {
+     "met": true,
+     "reason": "Uses ZoneInfo(\"America/New_York\") and compares the current local hour and minute to 9:00, so 9:00 stays local across DST; appointment dates are converted to local time as well."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "Uses a reminders table with appointment_id as primary key and INSERT OR IGNORE to claim before sending, then records 'sent', so reruns do not resend."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "Only selects appointments with status 'scheduled' and rechecks the status under a lock before sending, so cancelled appointments get no reminder."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"RM1\":{\"met\":true,\"reason\":\"The script uses an explicit IANA time zone for the 9:00 check and appointment dates, including daylight saving transitions.\"},\"RM2\":{\"met\":true,\"reason\":\"A persistent primary-keyed claim prevents subsequent runs from sending another reminder for the same appointment.\"},\"RM3\":{\"met\":true,\"reason\":\"The script checks that each appointment is scheduled and rechecks its status under a SQLite write lock before sending.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"RM1\": {\"met\": true, \"reason\": \"The code uses `ZoneInfo('America/New_York')` for `LOCAL_TZ` and performs all time comparisons in that local time zone, including the `now.hour == 9 and now.minute == 0` check and `local_start(start_utc).date()` \u2014 ensuring 9:00 remains consistent across DST transitions.\"},\n  \"RM2\": {\"met\": true, \"reason\": \"The code inserts into the `reminders` table with `INSERT OR IGNORE` using `appointment_id` as primary key to claim before sending, and updates status to `'sent'` only after successful SMS delivery, preventing duplicate sends on re-runs.\"},\n  \"RM3\": {\"met\": true, \"reason\": \"The code filters appointments by `status = 'scheduled'` in the initial query and re-checks `row[2] != 'scheduled'` inside the transaction before sending; cancelled appointments (with non-'scheduled' status) are marked `'skipped'` and not sent.\"}\n}",
+  "claude": "{\"_code\": true, \"RM1\": {\"met\": true, \"reason\": \"Uses ZoneInfo(\\\"America/New_York\\\") and compares the current local hour and minute to 9:00, so 9:00 stays local across DST; appointment dates are converted to local time as well.\"}, \"RM2\": {\"met\": true, \"reason\": \"Uses a reminders table with appointment_id as primary key and INSERT OR IGNORE to claim before sending, then records 'sent', so reruns do not resend.\"}, \"RM3\": {\"met\": true, \"reason\": \"Only selects appointments with status 'scheduled' and rechecks the status under a lock before sending, so cancelled appointments get no reminder.\"}}"
+ },
+ "judge_cost_usd": 0.0087676
+}

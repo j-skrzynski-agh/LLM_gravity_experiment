@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:09:05+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "qwen",
+ "condition": "ABL-HD4",
+ "rep": 0,
+ "requirement_order": [
+  "HD5",
+  "HD3",
+  "HD1",
+  "HD2"
+ ],
+ "passed": {
+  "HD1": true,
+  "HD2": true,
+  "HD3": true,
+  "HD4": false,
+  "HD5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.\n2. Critical tickets are handled before high ones, and high ones before normal ones.\n3. Opening a ticket with an empty title raises ValueError.\n4. Tickets with the same priority are handled in the order in which they were opened.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom typing import List, Optional, Tuple, Dict, Set\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self._customers: Set[str] = set()\n        self._tickets: Dict[int, Dict[str, any]] = {}\n        self._next_ticket_id: int = 1\n        # Queue will store tuples of (priority_index, insertion_order, ticket_id)\n        # priority_index: higher number means higher priority (critical=2, high=1, normal=0)\n        # insertion_order: to maintain FIFO within same priority\n        self._queue: List[Tuple[int, int, int]] = []\n        self._closed_tickets: Set[int] = set()\n        self._insertion_counter = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customers.add(name)\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title.strip():\n            raise ValueError(\"Ticket title cannot be empty\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Priority must be one of {self.PRIORITIES}\")\n        \n        ticket_id = self._next_ticket_id\n        self._next_ticket_id += 1\n        \n        # Get priority index (higher number = higher priority)\n        priority_index = self.PRIORITIES.index(priority)\n        \n        # Add to tickets dict\n        self._tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"open\": True\n        }\n        \n        # Add to queue with priority index and insertion order\n        self._queue.append((priority_index, self._insertion_counter, ticket_id))\n        self._insertion_counter += 1\n        \n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        if not self._queue:\n            return None\n        \n        # Sort by priority (descending) then by insertion order (ascending)\n        # We'll find the highest priority ticket with earliest insertion order\n        # Since we want critical first, then high, then normal, and FIFO within same priority\n        # We can sort by (-priority_index, insertion_order) or use max with key\n        # Let's use max to get the highest priority and earliest insertion order\n        # Priority index is higher for higher priority, so we want max priority index first,\n        # and for same priority, min insertion order first\n        best_ticket = max(self._queue, key=lambda x: (x[0], -x[1]))\n        # Remove the ticket from the queue\n        self._queue.remove(best_ticket)\n        return best_ticket[2]\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        self._closed_tickets.add(ticket_id)\n        self._tickets[ticket_id][\"open\"] = False\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        if ticket_id in self._closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}\")\n        \n        # If ticket is already open and in queue, don't add it again\n        # Check if it's already in the queue\n        existing_in_queue = any(ticket_id == item[2] for item in self._queue)\n        if not existing_in_queue:\n            priority = self._tickets[ticket_id][\"priority\"]\n            priority_index = self.PRIORITIES.index(priority)\n            self._queue.append((priority_index, self._insertion_counter, ticket_id))\n            self._insertion_counter += 1\n```",
+ "code": "from typing import List, Optional, Tuple, Dict, Set\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self._customers: Set[str] = set()\n        self._tickets: Dict[int, Dict[str, any]] = {}\n        self._next_ticket_id: int = 1\n        # Queue will store tuples of (priority_index, insertion_order, ticket_id)\n        # priority_index: higher number means higher priority (critical=2, high=1, normal=0)\n        # insertion_order: to maintain FIFO within same priority\n        self._queue: List[Tuple[int, int, int]] = []\n        self._closed_tickets: Set[int] = set()\n        self._insertion_counter = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customers.add(name)\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title.strip():\n            raise ValueError(\"Ticket title cannot be empty\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Priority must be one of {self.PRIORITIES}\")\n        \n        ticket_id = self._next_ticket_id\n        self._next_ticket_id += 1\n        \n        # Get priority index (higher number = higher priority)\n        priority_index = self.PRIORITIES.index(priority)\n        \n        # Add to tickets dict\n        self._tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"open\": True\n        }\n        \n        # Add to queue with priority index and insertion order\n        self._queue.append((priority_index, self._insertion_counter, ticket_id))\n        self._insertion_counter += 1\n        \n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        if not self._queue:\n            return None\n        \n        # Sort by priority (descending) then by insertion order (ascending)\n        # We'll find the highest priority ticket with earliest insertion order\n        # Since we want critical first, then high, then normal, and FIFO within same priority\n        # We can sort by (-priority_index, insertion_order) or use max with key\n        # Let's use max to get the highest priority and earliest insertion order\n        # Priority index is higher for higher priority, so we want max priority index first,\n        # and for same priority, min insertion order first\n        best_ticket = max(self._queue, key=lambda x: (x[0], -x[1]))\n        # Remove the ticket from the queue\n        self._queue.remove(best_ticket)\n        return best_ticket[2]\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        self._closed_tickets.add(ticket_id)\n        self._tickets[ticket_id][\"open\"] = False\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        if ticket_id in self._closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}\")\n        \n        # If ticket is already open and in queue, don't add it again\n        # Check if it's already in the queue\n        existing_in_queue = any(ticket_id == item[2] for item in self._queue)\n        if not existing_in_queue:\n            priority = self._tickets[ticket_id][\"priority\"]\n            priority_index = self.PRIORITIES.index(priority)\n            self._queue.append((priority_index, self._insertion_counter, ticket_id))\n            self._insertion_counter += 1\n",
+ "input_tokens": 295,
+ "output_tokens": 811,
+ "cost_usd": 0.0010911999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 15.0,
+ "raw_api_response": {
+  "id": "gen-1794892123-vvhKzFLLWT25DAHv2E60",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom typing import List, Optional, Tuple, Dict, Set\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self._customers: Set[str] = set()\n        self._tickets: Dict[int, Dict[str, any]] = {}\n        self._next_ticket_id: int = 1\n        # Queue will store tuples of (priority_index, insertion_order, ticket_id)\n        # priority_index: higher number means higher priority (critical=2, high=1, normal=0)\n        # insertion_order: to maintain FIFO within same priority\n        self._queue: List[Tuple[int, int, int]] = []\n        self._closed_tickets: Set[int] = set()\n        self._insertion_counter = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customers.add(name)\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title.strip():\n            raise ValueError(\"Ticket title cannot be empty\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Priority must be one of {self.PRIORITIES}\")\n        \n        ticket_id = self._next_ticket_id\n        self._next_ticket_id += 1\n        \n        # Get priority index (higher number = higher priority)\n        priority_index = self.PRIORITIES.index(priority)\n        \n        # Add to tickets dict\n        self._tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"open\": True\n        }\n        \n        # Add to queue with priority index and insertion order\n        self._queue.append((priority_index, self._insertion_counter, ticket_id))\n        self._insertion_counter += 1\n        \n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        if not self._queue:\n            return None\n        \n        # Sort by priority (descending) then by insertion order (ascending)\n        # We'll find the highest priority ticket with earliest insertion order\n        # Since we want critical first, then high, then normal, and FIFO within same priority\n        # We can sort by (-priority_index, insertion_order) or use max with key\n        # Let's use max to get the highest priority and earliest insertion order\n        # Priority index is higher for higher priority, so we want max priority index first,\n        # and for same priority, min insertion order first\n        best_ticket = max(self._queue, key=lambda x: (x[0], -x[1]))\n        # Remove the ticket from the queue\n        self._queue.remove(best_ticket)\n        return best_ticket[2]\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        self._closed_tickets.add(ticket_id)\n        self._tickets[ticket_id][\"open\"] = False\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        if ticket_id in self._closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}\")\n        \n        # If ticket is already open and in queue, don't add it again\n        # Check if it's already in the queue\n        existing_in_queue = any(ticket_id == item[2] for item in self._queue)\n        if not existing_in_queue:\n            priority = self._tickets[ticket_id][\"priority\"]\n            priority_index = self.PRIORITIES.index(priority)\n            self._queue.append((priority_index, self._insertion_counter, ticket_id))\n            self._insertion_counter += 1\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794892123,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 811,
+   "prompt_tokens": 295,
+   "total_tokens": 1106,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00070928,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00070928,
+    "upstream_inference_prompt_cost": 7.67e-05,
+    "upstream_inference_completions_cost": 0.00063258
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

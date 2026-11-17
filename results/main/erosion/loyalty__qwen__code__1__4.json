@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T17:09:47+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "qwen",
+ "variant": "code",
+ "rep": 1,
+ "step": 4,
+ "change": "Add a method `pending(self, customer: str, day: date) -> int` that returns points earned but not yet available on that day.",
+ "start_file": "loyalty__qwen__FULL__1.json",
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": true,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import date\nfrom typing import List, Dict, Tuple\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Store purchases as list of (customer, amount, purchase_date, points_earned)\n        # Points become available 14 days after purchase_date\n        self.purchases: List[Tuple[str, float, date, int]] = []\n        # Store redemptions as list of (customer, points, redemption_date)\n        self.redemptions: List[Tuple[str, int, date]] = []\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        # Calculate points: 1 point for every full $10.00 spent\n        points = int(amount // 10.0)\n        \n        # Store the purchase\n        self.purchases.append((customer, amount, day, points))\n        \n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        # Calculate total points earned by this customer that are available (14+ days old)\n        available_points = 0\n        for cust, amount, purchase_date, points in self.purchases:\n            if cust == customer:\n                # Check if 14 days have passed since purchase\n                days_diff = (day - purchase_date).days\n                if days_diff >= 14:\n                    available_points += points\n        \n        # Subtract points that have been redeemed\n        for cust, points, redemption_date in self.redemptions:\n            if cust == customer:\n                # All redemptions are valid once made, so subtract all\n                available_points -= points\n        \n        return max(0, available_points)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        # Check if points is multiple of 100\n        if points % 100 != 0:\n            raise ValueError(\"Points must be redeemed in multiples of 100\")\n        \n        # Check if enough points are available\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Not enough points available for redemption\")\n        \n        # Record the redemption\n        self.redemptions.append((customer, points, day))\n\n    def customers(self) -> List[str]:\n        \"\"\"Return all customers, sorted alphabetically.\"\"\"\n        # Get unique customers from purchases and redemptions\n        all_customers = set()\n        for customer, _, _, _ in self.purchases:\n            all_customers.add(customer)\n        for customer, _, _ in self.redemptions:\n            all_customers.add(customer)\n        \n        return sorted(list(all_customers))\n\n    def history(self, customer: str) -> List[Tuple[date, float]]:\n        \"\"\"Return the customer's purchases as a list of (purchase_date, amount) tuples.\"\"\"\n        customer_purchases = []\n        for cust, amount, purchase_date, _ in self.purchases:\n            if cust == customer:\n                customer_purchases.append((purchase_date, amount))\n        return customer_purchases\n\n    def total_spent(self, customer: str) -> float:\n        \"\"\"Return the total amount the customer has spent.\"\"\"\n        total = 0.0\n        for cust, amount, _, _ in self.purchases:\n            if cust == customer:\n                total += amount\n        return total\n```\n\n## Change request\nAdd a method `pending(self, customer: str, day: date) -> int` that returns points earned but not yet available on that day.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import date\nfrom typing import List, Dict, Tuple\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Store purchases as list of (customer, amount, purchase_date, points_earned)\n        # Points become available 14 days after purchase_date\n        self.purchases: List[Tuple[str, float, date, int]] = []\n        # Store redemptions as list of (customer, points, redemption_date)\n        self.redemptions: List[Tuple[str, int, date]] = []\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        # Calculate points: 1 point for every full $10.00 spent\n        points = int(amount // 10.0)\n        \n        # Store the purchase\n        self.purchases.append((customer, amount, day, points))\n        \n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        # Calculate total points earned by this customer that are available (14+ days old)\n        available_points = 0\n        for cust, amount, purchase_date, points in self.purchases:\n            if cust == customer:\n                # Check if 14 days have passed since purchase\n                days_diff = (day - purchase_date).days\n                if days_diff >= 14:\n                    available_points += points\n        \n        # Subtract points that have been redeemed\n        for cust, points, redemption_date in self.redemptions:\n            if cust == customer:\n                # All redemptions are valid once made, so subtract all\n                available_points -= points\n        \n        return max(0, available_points)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        # Check if points is multiple of 100\n        if points % 100 != 0:\n            raise ValueError(\"Points must be redeemed in multiples of 100\")\n        \n        # Check if enough points are available\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Not enough points available for redemption\")\n        \n        # Record the redemption\n        self.redemptions.append((customer, points, day))\n\n    def customers(self) -> List[str]:\n        \"\"\"Return all customers, sorted alphabetically.\"\"\"\n        # Get unique customers from purchases and redemptions\n        all_customers = set()\n        for customer, _, _, _ in self.purchases:\n            all_customers.add(customer)\n        for customer, _, _ in self.redemptions:\n            all_customers.add(customer)\n        \n        return sorted(list(all_customers))\n\n    def history(self, customer: str) -> List[Tuple[date, float]]:\n        \"\"\"Return the customer's purchases as a list of (purchase_date, amount) tuples.\"\"\"\n        customer_purchases = []\n        for cust, amount, purchase_date, _ in self.purchases:\n            if cust == customer:\n                customer_purchases.append((purchase_date, amount))\n        return customer_purchases\n\n    def total_spent(self, customer: str) -> float:\n        \"\"\"Return the total amount the customer has spent.\"\"\"\n        total = 0.0\n        for cust, amount, _, _ in self.purchases:\n            if cust == customer:\n                total += amount\n        return total\n\n    def pending(self, customer: str, day: date) -> int:\n        \"\"\"Return points earned but not yet available on that day.\"\"\"\n        pending_points = 0\n        for cust, amount, purchase_date, points in self.purchases:\n            if cust == customer:\n                # Check if points are earned but not yet available (less than 14 days old)\n                days_diff = (day - purchase_date).days\n                if days_diff >= 0 and days_diff < 14:\n                    pending_points += points\n        return pending_points\n```",
+ "code": "from datetime import date\nfrom typing import List, Dict, Tuple\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Store purchases as list of (customer, amount, purchase_date, points_earned)\n        # Points become available 14 days after purchase_date\n        self.purchases: List[Tuple[str, float, date, int]] = []\n        # Store redemptions as list of (customer, points, redemption_date)\n        self.redemptions: List[Tuple[str, int, date]] = []\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        # Calculate points: 1 point for every full $10.00 spent\n        points = int(amount // 10.0)\n        \n        # Store the purchase\n        self.purchases.append((customer, amount, day, points))\n        \n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        # Calculate total points earned by this customer that are available (14+ days old)\n        available_points = 0\n        for cust, amount, purchase_date, points in self.purchases:\n            if cust == customer:\n                # Check if 14 days have passed since purchase\n                days_diff = (day - purchase_date).days\n                if days_diff >= 14:\n                    available_points += points\n        \n        # Subtract points that have been redeemed\n        for cust, points, redemption_date in self.redemptions:\n            if cust == customer:\n                # All redemptions are valid once made, so subtract all\n                available_points -= points\n        \n        return max(0, available_points)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        # Check if points is multiple of 100\n        if points % 100 != 0:\n            raise ValueError(\"Points must be redeemed in multiples of 100\")\n        \n        # Check if enough points are available\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Not enough points available for redemption\")\n        \n        # Record the redemption\n        self.redemptions.append((customer, points, day))\n\n    def customers(self) -> List[str]:\n        \"\"\"Return all customers, sorted alphabetically.\"\"\"\n        # Get unique customers from purchases and redemptions\n        all_customers = set()\n        for customer, _, _, _ in self.purchases:\n            all_customers.add(customer)\n        for customer, _, _ in self.redemptions:\n            all_customers.add(customer)\n        \n        return sorted(list(all_customers))\n\n    def history(self, customer: str) -> List[Tuple[date, float]]:\n        \"\"\"Return the customer's purchases as a list of (purchase_date, amount) tuples.\"\"\"\n        customer_purchases = []\n        for cust, amount, purchase_date, _ in self.purchases:\n            if cust == customer:\n                customer_purchases.append((purchase_date, amount))\n        return customer_purchases\n\n    def total_spent(self, customer: str) -> float:\n        \"\"\"Return the total amount the customer has spent.\"\"\"\n        total = 0.0\n        for cust, amount, _, _ in self.purchases:\n            if cust == customer:\n                total += amount\n        return total\n\n    def pending(self, customer: str, day: date) -> int:\n        \"\"\"Return points earned but not yet available on that day.\"\"\"\n        pending_points = 0\n        for cust, amount, purchase_date, points in self.purchases:\n            if cust == customer:\n                # Check if points are earned but not yet available (less than 14 days old)\n                days_diff = (day - purchase_date).days\n                if days_diff >= 0 and days_diff < 14:\n                    pending_points += points\n        return pending_points\n",
+ "input_tokens": 828,
+ "output_tokens": 870,
+ "cost_usd": 0.0013752,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 15.29,
+ "raw_api_response": {
+  "id": "gen-1794935366-UV2kLHT6Tgfoj1bifkqS",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date\nfrom typing import List, Dict, Tuple\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Store purchases as list of (customer, amount, purchase_date, points_earned)\n        # Points become available 14 days after purchase_date\n        self.purchases: List[Tuple[str, float, date, int]] = []\n        # Store redemptions as list of (customer, points, redemption_date)\n        self.redemptions: List[Tuple[str, int, date]] = []\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n        \n        # Calculate points: 1 point for every full $10.00 spent\n        points = int(amount // 10.0)\n        \n        # Store the purchase\n        self.purchases.append((customer, amount, day, points))\n        \n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        # Calculate total points earned by this customer that are available (14+ days old)\n        available_points = 0\n        for cust, amount, purchase_date, points in self.purchases:\n            if cust == customer:\n                # Check if 14 days have passed since purchase\n                days_diff = (day - purchase_date).days\n                if days_diff >= 14:\n                    available_points += points\n        \n        # Subtract points that have been redeemed\n        for cust, points, redemption_date in self.redemptions:\n            if cust == customer:\n                # All redemptions are valid once made, so subtract all\n                available_points -= points\n        \n        return max(0, available_points)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer.\"\"\"\n        # Check if points is multiple of 100\n        if points % 100 != 0:\n            raise ValueError(\"Points must be redeemed in multiples of 100\")\n        \n        # Check if enough points are available\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Not enough points available for redemption\")\n        \n        # Record the redemption\n        self.redemptions.append((customer, points, day))\n\n    def customers(self) -> List[str]:\n        \"\"\"Return all customers, sorted alphabetically.\"\"\"\n        # Get unique customers from purchases and redemptions\n        all_customers = set()\n        for customer, _, _, _ in self.purchases:\n            all_customers.add(customer)\n        for customer, _, _ in self.redemptions:\n            all_customers.add(customer)\n        \n        return sorted(list(all_customers))\n\n    def history(self, customer: str) -> List[Tuple[date, float]]:\n        \"\"\"Return the customer's purchases as a list of (purchase_date, amount) tuples.\"\"\"\n        customer_purchases = []\n        for cust, amount, purchase_date, _ in self.purchases:\n            if cust == customer:\n                customer_purchases.append((purchase_date, amount))\n        return customer_purchases\n\n    def total_spent(self, customer: str) -> float:\n        \"\"\"Return the total amount the customer has spent.\"\"\"\n        total = 0.0\n        for cust, amount, _, _ in self.purchases:\n            if cust == customer:\n                total += amount\n        return total\n\n    def pending(self, customer: str, day: date) -> int:\n        \"\"\"Return points earned but not yet available on that day.\"\"\"\n        pending_points = 0\n        for cust, amount, purchase_date, points in self.purchases:\n            if cust == customer:\n                # Check if points are earned but not yet available (less than 14 days old)\n                days_diff = (day - purchase_date).days\n                if days_diff >= 0 and days_diff < 14:\n                    pending_points += points\n        return pending_points\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794935366,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 870,
+   "prompt_tokens": 828,
+   "total_tokens": 1698,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 512,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.000787384,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.000787384,
+    "upstream_inference_prompt_cost": 0.000108784,
+    "upstream_inference_completions_cost": 0.0006786
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

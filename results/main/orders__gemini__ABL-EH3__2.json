@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:02:31+00:00",
+ "app": "orders",
+ "app_hash": "1e42c11531a4",
+ "model": "gemini",
+ "condition": "ABL-EH3",
+ "rep": 2,
+ "requirement_order": [
+  "EH2",
+  "EH5",
+  "EH1",
+  "EH4"
+ ],
+ "passed": {
+  "EH1": true,
+  "EH2": true,
+  "EH3": true,
+  "EH4": true,
+  "EH5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nThe server-side handler behind the \"Buy\" button of a small web shop. It reserves\nthe ordered item in the company's remote inventory service and tells the user the result.\n\n## API (implement exactly these names and signatures)\n```python\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n```\n\n## Requirements\n1. Unexpected errors are logged with the logging module at ERROR level or higher, including the full traceback.\n2. Each unexpected error gets a unique reference code that is shown to the user and written in the log entry, so that an administrator can find the details.\n3. If the inventory service raises an unexpected exception, place_order does not let it propagate; it returns a server error status (5xx).\n4. For administrators (is_admin=True), the text shown after an unexpected error includes the exception type and message.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `OrderService` module satisfying all the requirements is provided below:\n\n```python\nimport logging\nimport uuid\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n            confirmation_msg = (\n                f\"Order placed successfully for {quantity} x '{item}'. \"\n                f\"Reservation ID: {reservation_id}.\"\n            )\n            return 200, confirmation_msg\n        except Exception as exc:\n            error_code = str(uuid.uuid4())\n            logger.error(\n                \"Unexpected error while processing order for user '%s' (Reference code: %s)\",\n                user,\n                error_code,\n                exc_info=True,\n            )\n\n            if is_admin:\n                msg = (\n                    f\"An internal error occurred. Reference code: {error_code}. \"\n                    f\"Details: {type(exc).__name__}: {exc}\"\n                )\n            else:\n                msg = f\"An unexpected error occurred. Please contact support with reference code: {error_code}.\"\n\n            return 500, msg\n```",
+ "code": "import logging\nimport uuid\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n            confirmation_msg = (\n                f\"Order placed successfully for {quantity} x '{item}'. \"\n                f\"Reservation ID: {reservation_id}.\"\n            )\n            return 200, confirmation_msg\n        except Exception as exc:\n            error_code = str(uuid.uuid4())\n            logger.error(\n                \"Unexpected error while processing order for user '%s' (Reference code: %s)\",\n                user,\n                error_code,\n                exc_info=True,\n            )\n\n            if is_admin:\n                msg = (\n                    f\"An internal error occurred. Reference code: {error_code}. \"\n                    f\"Details: {type(exc).__name__}: {exc}\"\n                )\n            else:\n                msg = f\"An unexpected error occurred. Please contact support with reference code: {error_code}.\"\n\n            return 500, msg\n",
+ "input_tokens": 326,
+ "output_tokens": 399,
+ "cost_usd": 0.00174075,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.09,
+ "raw_api_response": {
+  "id": "TDr1apC2Jfzl7M8PvsGX4Q4",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `OrderService` module satisfying all the requirements is provided below:\n\n```python\nimport logging\nimport uuid\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n            confirmation_msg = (\n                f\"Order placed successfully for {quantity} x '{item}'. \"\n                f\"Reservation ID: {reservation_id}.\"\n            )\n            return 200, confirmation_msg\n        except Exception as exc:\n            error_code = str(uuid.uuid4())\n            logger.error(\n                \"Unexpected error while processing order for user '%s' (Reference code: %s)\",\n                user,\n                error_code,\n                exc_info=True,\n            )\n\n            if is_admin:\n                msg = (\n                    f\"An internal error occurred. Reference code: {error_code}. \"\n                    f\"Details: {type(exc).__name__}: {exc}\"\n                )\n            else:\n                msg = f\"An unexpected error occurred. Please contact support with reference code: {error_code}.\"\n\n            return 500, msg\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TcczKzMHjO8wvcp7pYpnxplmP6yR1qdeEpkvYeFbTxviint51jyn6cRmmDjFQSvBUJirTQD2KRSE3cK1AlDL+k7uWJQzbQo8vPm0M+F2W/GsvQEdfgZHXV4hU90gQofNm9Ho="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794456145,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 399,
+   "prompt_tokens": 326,
+   "total_tokens": 725,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:35:54+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "chatgpt",
+ "condition": "ABL-GB3",
+ "rep": 0,
+ "requirement_order": [
+  "GB1",
+  "GB2",
+  "GB5",
+  "GB4"
+ ],
+ "passed": {
+  "GB1": true,
+  "GB2": true,
+  "GB3": true,
+  "GB4": true,
+  "GB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA gradebook for a university course: assignments with weights, grades on the\nPolish 2.0-5.0 scale, and a final average per student.\n\n## API (implement exactly these names and signatures)\n```python\nclass Gradebook:\n    def __init__(self) -> None: ...\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n\n    def record(self, student: str, assignment: str, grade: float) -> None: ...\n\n    def average(self, student: str) -> float: ...\n```\n\n## Requirements\n1. Recording a grade outside the scale 2.0 to 5.0 raises ValueError.\n2. average() is rounded to two decimal places.\n3. An assignment without a recorded grade counts as 2.0 in the average instead of being skipped.\n4. If a student has more than one quiz, their lowest quiz grade is dropped when computing the average.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        self._assignments = {}\n        self._grades = {}\n\n    def add_assignment(\n        self, name: str, weight: float, kind: str = \"homework\"\n    ) -> None:\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(\"kind must be 'homework' or 'quiz'\")\n        if weight <= 0:\n            raise ValueError(\"weight must be positive\")\n        if name in self._assignments:\n            raise ValueError(\"assignment already exists\")\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not 2.0 <= grade <= 5.0:\n            raise ValueError(\"grade must be between 2.0 and 5.0\")\n        if assignment not in self._assignments:\n            raise KeyError(assignment)\n        self._grades.setdefault(student, {})[assignment] = grade\n\n    def average(self, student: str) -> float:\n        grades = self._grades.get(student, {})\n        quizzes = [\n            name\n            for name, (_, kind) in self._assignments.items()\n            if kind == \"quiz\"\n        ]\n\n        dropped = None\n        if len(quizzes) > 1:\n            dropped = min(quizzes, key=lambda name: grades.get(name, 2.0))\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _) in self._assignments.items():\n            if name == dropped:\n                continue\n            total_weight += weight\n            weighted_sum += weight * grades.get(name, 2.0)\n\n        if not total_weight:\n            raise ValueError(\"no assignments to average\")\n        return round(weighted_sum / total_weight, 2)\n```",
+ "code": "class Gradebook:\n    def __init__(self) -> None:\n        self._assignments = {}\n        self._grades = {}\n\n    def add_assignment(\n        self, name: str, weight: float, kind: str = \"homework\"\n    ) -> None:\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(\"kind must be 'homework' or 'quiz'\")\n        if weight <= 0:\n            raise ValueError(\"weight must be positive\")\n        if name in self._assignments:\n            raise ValueError(\"assignment already exists\")\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not 2.0 <= grade <= 5.0:\n            raise ValueError(\"grade must be between 2.0 and 5.0\")\n        if assignment not in self._assignments:\n            raise KeyError(assignment)\n        self._grades.setdefault(student, {})[assignment] = grade\n\n    def average(self, student: str) -> float:\n        grades = self._grades.get(student, {})\n        quizzes = [\n            name\n            for name, (_, kind) in self._assignments.items()\n            if kind == \"quiz\"\n        ]\n\n        dropped = None\n        if len(quizzes) > 1:\n            dropped = min(quizzes, key=lambda name: grades.get(name, 2.0))\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _) in self._assignments.items():\n            if name == dropped:\n                continue\n            total_weight += weight\n            weighted_sum += weight * grades.get(name, 2.0)\n\n        if not total_weight:\n            raise ValueError(\"no assignments to average\")\n        return round(weighted_sum / total_weight, 2)\n",
+ "input_tokens": 245,
+ "output_tokens": 615,
+ "cost_usd": 0.00332,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 7.62,
+ "raw_api_response": {
+  "id": "chatcmpl-EjGpCsUjCngzJ5GnXAAF5hoKxQ4eE",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        self._assignments = {}\n        self._grades = {}\n\n    def add_assignment(\n        self, name: str, weight: float, kind: str = \"homework\"\n    ) -> None:\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(\"kind must be 'homework' or 'quiz'\")\n        if weight <= 0:\n            raise ValueError(\"weight must be positive\")\n        if name in self._assignments:\n            raise ValueError(\"assignment already exists\")\n        self._assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if not 2.0 <= grade <= 5.0:\n            raise ValueError(\"grade must be between 2.0 and 5.0\")\n        if assignment not in self._assignments:\n            raise KeyError(assignment)\n        self._grades.setdefault(student, {})[assignment] = grade\n\n    def average(self, student: str) -> float:\n        grades = self._grades.get(student, {})\n        quizzes = [\n            name\n            for name, (_, kind) in self._assignments.items()\n            if kind == \"quiz\"\n        ]\n\n        dropped = None\n        if len(quizzes) > 1:\n            dropped = min(quizzes, key=lambda name: grades.get(name, 2.0))\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _) in self._assignments.items():\n            if name == dropped:\n                continue\n            total_weight += weight\n            weighted_sum += weight * grades.get(name, 2.0)\n\n        if not total_weight:\n            raise ValueError(\"no assignments to average\")\n        return round(weighted_sum / total_weight, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794458142,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 615,
+   "prompt_tokens": 245,
+   "total_tokens": 860,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 206,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

@@ -1,0 +1,80 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:21:37+00:00",
+ "app": "account_reset",
+ "app_hash": "53e6cb5834e3",
+ "model": "gemini",
+ "condition": "ABL-AR3",
+ "rep": 2,
+ "requirement_order": [
+  "AR2",
+  "AR6",
+  "AR5",
+  "AR1",
+  "AR4"
+ ],
+ "passed": {
+  "AR1": true,
+  "AR2": true,
+  "AR3": false,
+  "AR4": true,
+  "AR5": true,
+  "AR6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA small user-account service for an internal company tool: registration, login,\nand password reset via one-time reset tokens.\n\n## API (implement exactly these names and signatures)\n```python\nclass AccountService:\n    def __init__(self) -> None: ...\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None: ...\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n\n    def reset_password(self, token: str, new_password: str) -> None: ...\n```\n\n## Requirements\n1. Registering an email address that already has an account raises ValueError.\n2. For compatibility with the legacy system, passwords are compared case-insensitively at login.\n3. Only administrators can request a password reset. A request made by a non-administrator, including for their own account, raises PermissionError.\n4. Email addresses are case-insensitive, e.g. an account registered as \"Ann@x.com\" can log in as \"ann@x.com\".\n5. A reset token can be used only once; using it a second time raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport secrets\nfrom typing import Dict, Any\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        # Map normalized email -> dict containing account info\n        self._users: Dict[str, Dict[str, Any]] = {}\n        # Map token -> normalized target email\n        self._reset_tokens: Dict[str, str] = {}\n\n    def _normalize_email(self, email: str) -> str:\n        return email.strip().lower()\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        normalized_email = self._normalize_email(email)\n        if normalized_email in self._users:\n            raise ValueError(f\"Account with email '{email}' already exists.\")\n        \n        self._users[normalized_email] = {\n            \"password\": password,\n            \"is_admin\": is_admin,\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n        normalized_email = self._normalize_email(email)\n        user = self._users.get(normalized_email)\n        if user is None:\n            return False\n        # Legacy requirement: passwords are compared case-insensitively\n        return user[\"password\"].lower() == password.lower()\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n        normalized_requester = self._normalize_email(requester_email)\n        requester = self._users.get(normalized_requester)\n        \n        if requester is None or not requester.get(\"is_admin\", False):\n            raise PermissionError(\"Only administrators can request password resets.\")\n        \n        normalized_target = self._normalize_email(target_email)\n        if normalized_target not in self._users:\n            raise ValueError(f\"Target account '{target_email}' does not exist.\")\n\n        token = secrets.token_urlsafe(32)\n        self._reset_tokens[token] = normalized_target\n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if token not in self._reset_tokens:\n            raise ValueError(\"Invalid or already used reset token.\")\n        \n        target_email = self._reset_tokens.pop(token)\n        if target_email in self._users:\n            self._users[target_email][\"password\"] = new_password\n        else:\n            raise ValueError(\"Target account no longer exists.\")\n```",
+ "code": "import secrets\nfrom typing import Dict, Any\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        # Map normalized email -> dict containing account info\n        self._users: Dict[str, Dict[str, Any]] = {}\n        # Map token -> normalized target email\n        self._reset_tokens: Dict[str, str] = {}\n\n    def _normalize_email(self, email: str) -> str:\n        return email.strip().lower()\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        normalized_email = self._normalize_email(email)\n        if normalized_email in self._users:\n            raise ValueError(f\"Account with email '{email}' already exists.\")\n        \n        self._users[normalized_email] = {\n            \"password\": password,\n            \"is_admin\": is_admin,\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n        normalized_email = self._normalize_email(email)\n        user = self._users.get(normalized_email)\n        if user is None:\n            return False\n        # Legacy requirement: passwords are compared case-insensitively\n        return user[\"password\"].lower() == password.lower()\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n        normalized_requester = self._normalize_email(requester_email)\n        requester = self._users.get(normalized_requester)\n        \n        if requester is None or not requester.get(\"is_admin\", False):\n            raise PermissionError(\"Only administrators can request password resets.\")\n        \n        normalized_target = self._normalize_email(target_email)\n        if normalized_target not in self._users:\n            raise ValueError(f\"Target account '{target_email}' does not exist.\")\n\n        token = secrets.token_urlsafe(32)\n        self._reset_tokens[token] = normalized_target\n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if token not in self._reset_tokens:\n            raise ValueError(\"Invalid or already used reset token.\")\n        \n        target_email = self._reset_tokens.pop(token)\n        if target_email in self._users:\n            self._users[target_email][\"password\"] = new_password\n        else:\n            raise ValueError(\"Target account no longer exists.\")\n",
+ "input_tokens": 350,
+ "output_tokens": 620,
+ "cost_usd": 0.0025875,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 6.49,
+ "raw_api_response": {
+  "id": "szD1apC8NLPNvdIP4MG8CA",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport secrets\nfrom typing import Dict, Any\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        # Map normalized email -> dict containing account info\n        self._users: Dict[str, Dict[str, Any]] = {}\n        # Map token -> normalized target email\n        self._reset_tokens: Dict[str, str] = {}\n\n    def _normalize_email(self, email: str) -> str:\n        return email.strip().lower()\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        normalized_email = self._normalize_email(email)\n        if normalized_email in self._users:\n            raise ValueError(f\"Account with email '{email}' already exists.\")\n        \n        self._users[normalized_email] = {\n            \"password\": password,\n            \"is_admin\": is_admin,\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n        normalized_email = self._normalize_email(email)\n        user = self._users.get(normalized_email)\n        if user is None:\n            return False\n        # Legacy requirement: passwords are compared case-insensitively\n        return user[\"password\"].lower() == password.lower()\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n        normalized_requester = self._normalize_email(requester_email)\n        requester = self._users.get(normalized_requester)\n        \n        if requester is None or not requester.get(\"is_admin\", False):\n            raise PermissionError(\"Only administrators can request password resets.\")\n        \n        normalized_target = self._normalize_email(target_email)\n        if normalized_target not in self._users:\n            raise ValueError(f\"Target account '{target_email}' does not exist.\")\n\n        token = secrets.token_urlsafe(32)\n        self._reset_tokens[token] = normalized_target\n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if token not in self._reset_tokens:\n            raise ValueError(\"Invalid or already used reset token.\")\n        \n        target_email = self._reset_tokens.pop(token)\n        if target_email in self._users:\n            self._users[target_email][\"password\"] = new_password\n        else:\n            raise ValueError(\"Target account no longer exists.\")\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0Tys/XXhP/ixwjIzrYJCK4WUnzNKczdP/+zq4PW1bxpi8a2nnAIQWVhyNC1blNC8D3Qo32GsHqDJmPpffWSiewvgMfy+JdEkxpYxD4wH2K6AtkDWxa99Rhymhmq2QKkv0v/3c="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794453690,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 620,
+   "prompt_tokens": 350,
+   "total_tokens": 970,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

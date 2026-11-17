@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:53:23+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "deepseek",
+ "condition": "ABL-GB1",
+ "rep": 1,
+ "requirement_order": [
+  "GB5",
+  "GB3",
+  "GB2",
+  "GB4"
+ ],
+ "passed": {
+  "GB1": true,
+  "GB2": true,
+  "GB3": true,
+  "GB4": true,
+  "GB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA gradebook for a university course: assignments with weights, grades on the\nPolish 2.0-5.0 scale, and a final average per student.\n\n## API (implement exactly these names and signatures)\n```python\nclass Gradebook:\n    def __init__(self) -> None: ...\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n\n    def record(self, student: str, assignment: str, grade: float) -> None: ...\n\n    def average(self, student: str) -> float: ...\n```\n\n## Requirements\n1. An assignment without a recorded grade counts as 2.0 in the average instead of being skipped.\n2. The average is weighted by the weights of the assignments.\n3. average() is rounded to two decimal places.\n4. If a student has more than one quiz, their lowest quiz grade is dropped when computing the average.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        self.assignments = {}  # name -> (weight, kind)\n        self.grades = {}       # student -> {assignment_name: grade}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError('kind must be \"homework\" or \"quiz\"')\n        self.assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self.assignments:\n            raise KeyError(f\"Unknown assignment: {assignment}\")\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(\"grade must be in the 2.0-5.0 range\")\n        self.grades.setdefault(student, {})[assignment] = grade\n\n    def average(self, student: str) -> float:\n        student_grades = self.grades.get(student, {})\n\n        # Determine which quiz to drop (lowest), only if more than one quiz recorded\n        quiz_assignments = [\n            (name, student_grades[name])\n            for name in self.assignments\n            if self.assignments[name][1] == \"quiz\" and name in student_grades\n        ]\n        dropped_quiz = None\n        if len(quiz_assignments) > 1:\n            dropped_quiz = min(quiz_assignments, key=lambda x: x[1])[0]\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _kind) in self.assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)\n            weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0:\n            return 2.0\n\n        return round(weighted_sum / total_weight, 2)\n```",
+ "code": "class Gradebook:\n    def __init__(self) -> None:\n        self.assignments = {}  # name -> (weight, kind)\n        self.grades = {}       # student -> {assignment_name: grade}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError('kind must be \"homework\" or \"quiz\"')\n        self.assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self.assignments:\n            raise KeyError(f\"Unknown assignment: {assignment}\")\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(\"grade must be in the 2.0-5.0 range\")\n        self.grades.setdefault(student, {})[assignment] = grade\n\n    def average(self, student: str) -> float:\n        student_grades = self.grades.get(student, {})\n\n        # Determine which quiz to drop (lowest), only if more than one quiz recorded\n        quiz_assignments = [\n            (name, student_grades[name])\n            for name in self.assignments\n            if self.assignments[name][1] == \"quiz\" and name in student_grades\n        ]\n        dropped_quiz = None\n        if len(quiz_assignments) > 1:\n            dropped_quiz = min(quiz_assignments, key=lambda x: x[1])[0]\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _kind) in self.assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)\n            weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0:\n            return 2.0\n\n        return round(weighted_sum / total_weight, 2)\n",
+ "input_tokens": 235,
+ "output_tokens": 454,
+ "cost_usd": 0.0006152999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 3.17,
+ "raw_api_response": {
+  "id": "6a02e9b9-22de-4e12-92cc-c7522c60b683",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        self.assignments = {}  # name -> (weight, kind)\n        self.grades = {}       # student -> {assignment_name: grade}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError('kind must be \"homework\" or \"quiz\"')\n        self.assignments[name] = (weight, kind)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self.assignments:\n            raise KeyError(f\"Unknown assignment: {assignment}\")\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(\"grade must be in the 2.0-5.0 range\")\n        self.grades.setdefault(student, {})[assignment] = grade\n\n    def average(self, student: str) -> float:\n        student_grades = self.grades.get(student, {})\n\n        # Determine which quiz to drop (lowest), only if more than one quiz recorded\n        quiz_assignments = [\n            (name, student_grades[name])\n            for name in self.assignments\n            if self.assignments[name][1] == \"quiz\" and name in student_grades\n        ]\n        dropped_quiz = None\n        if len(quiz_assignments) > 1:\n            dropped_quiz = min(quiz_assignments, key=lambda x: x[1])[0]\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n        for name, (weight, _kind) in self.assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)\n            weighted_sum += grade * weight\n            total_weight += weight\n\n        if total_weight == 0:\n            return 2.0\n\n        return round(weighted_sum / total_weight, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794451995,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 454,
+   "prompt_tokens": 235,
+   "total_tokens": 689,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 235
+  }
+ }
+}

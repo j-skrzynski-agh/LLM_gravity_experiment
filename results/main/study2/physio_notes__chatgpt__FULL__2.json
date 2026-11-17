@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:17:57+00:00",
+ "task": "physio_notes",
+ "task_hash": "fb34ccfaaaf1",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 2,
+ "requirement_order": [
+  "PT1",
+  "PT2",
+  "PT3"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Make me a simple app for my physiotherapy practice where I can write notes about each patient's visits.\n\nRequirements:\n- Access to the notes requires logging in.\n- Editing a note keeps the previous version; entries are not overwritten or deleted.\n- The notes are stored persistently (database or file), not only in memory.",
+ "response": "Below is a small Flask app with password login, persistent SQLite storage, and append-only note versions. Each visit has its own note history.\n\nSave this as `app.py`:\n\n```python\nimport hmac\nimport os\nimport secrets\nimport sqlite3\nfrom datetime import date\nfrom functools import wraps\n\nfrom flask import (\n    Flask, abort, g, redirect, render_template_string,\n    request, session, url_for,\n)\nfrom werkzeug.security import check_password_hash, generate_password_hash\n\napp = Flask(__name__)\n\n# Keep these values stable across restarts.\napp.secret_key = os.environ[\"APP_SECRET\"]\nPASSWORD_HASH = os.environ[\"APP_PASSWORD_HASH\"]\nDB_PATH = os.environ.get(\"DB_PATH\", \"physio.db\")\n\napp.config.update(\n    SESSION_COOKIE_HTTPONLY=True,\n    SESSION_COOKIE_SAMESITE=\"Lax\",\n    # Set to \"1\" when serving over HTTPS.\n    SESSION_COOKIE_SECURE=os.environ.get(\"HTTPS\") == \"1\",\n)\n\n\ndef db():\n    if \"db\" not in g:\n        g.db = sqlite3.connect(DB_PATH)\n        g.db.row_factory = sqlite3.Row\n        g.db.execute(\"PRAGMA foreign_keys = ON\")\n    return g.db\n\n\n@app.teardown_appcontext\ndef close_db(error):\n    connection = g.pop(\"db\", None)\n    if connection is not None:\n        connection.close()\n\n\ndef init_db():\n    with app.app_context():\n        db().executescript(\"\"\"\n            CREATE TABLE IF NOT EXISTS visits (\n                id INTEGER PRIMARY KEY,\n                patient_name TEXT NOT NULL,\n                visit_date TEXT NOT NULL\n            );\n\n            CREATE TABLE IF NOT EXISTS note_versions (\n                id INTEGER PRIMARY KEY,\n                visit_id INTEGER NOT NULL REFERENCES visits(id),\n                content TEXT NOT NULL,\n                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n            );\n        \"\"\")\n        db().commit()\n\n\ndef csrf_token():\n    if \"csrf\" not in session:\n        session[\"csrf\"] = secrets.token_urlsafe(32)\n    return session[\"csrf\"]\n\n\napp.jinja_env.globals[\"csrf_token\"] = csrf_token\n\n\n@app.before_request\ndef check_csrf():\n    if request.method == \"POST\":\n        expected = session.get(\"csrf\", \"\")\n        supplied = request.form.get(\"csrf\", \"\")\n        if not expected or not hmac.compare_digest(expected, supplied):\n            abort(400, \"Invalid form token\")\n\n\ndef login_required(fn):\n    @wraps(fn)\n    def wrapped(*args, **kwargs):\n        if not session.get(\"logged_in\"):\n            return redirect(url_for(\"login\"))\n        return fn(*args, **kwargs)\n    return wrapped\n\n\nSTYLE = \"\"\"\n<style>\n  body { font: 16px sans-serif; max-width: 800px; margin: 2rem auto;\n         padding: 0 1rem; line-height: 1.5; }\n  input, textarea { box-sizing: border-box; width: 100%; padding: .5rem; }\n  textarea { min-height: 12rem; }\n  button { padding: .5rem 1rem; cursor: pointer; }\n  label { display: block; margin-top: 1rem; }\n  pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }\n  .version { border-top: 1px solid #ccc; padding: .5rem 0; }\n  .error { color: #a00; }\n</style>\n\"\"\"\n\n\ndef page(template, **values):\n    return render_template_string(STYLE + template, **values)\n\n\n@app.route(\"/login\", methods=[\"GET\", \"POST\"])\ndef login():\n    error = None\n    if request.method == \"POST\":\n        if check_password_hash(PASSWORD_HASH, request.form.get(\"password\", \"\")):\n            session.clear()\n            session[\"logged_in\"] = True\n            return redirect(url_for(\"index\"))\n        error = \"Incorrect password.\"\n    return page(\"\"\"\n        <h1>Practice notes: login</h1>\n        {% if error %}<p class=\"error\">{{ error }}</p>{% endif %}\n        <form method=\"post\">\n          <input type=\"hidden\" name=\"csrf\" value=\"{{ csrf_token() }}\">\n          <label>Password <input type=\"password\" name=\"password\" required autofocus></label>\n          <p><button>Log in</button></p>\n        </form>\n    \"\"\", error=error)\n\n\n@app.post(\"/logout\")\n@login_required\ndef logout():\n    session.clear()\n    return redirect(url_for(\"login\"))\n\n\n@app.get(\"/\")\n@login_required\ndef index():\n    visits = db().execute(\"\"\"\n        SELECT id, patient_name, visit_date\n        FROM visits ORDER BY visit_date DESC, id DESC\n    \"\"\").fetchall()\n    return page(\"\"\"\n        <h1>Patient visits</h1>\n        <form method=\"post\" action=\"{{ url_for('logout') }}\">\n          <input type=\"hidden\" name=\"csrf\" value=\"{{ csrf_token() }}\">\n          <button>Log out</button>\n        </form>\n        <p><a href=\"{{ url_for('new_visit') }}\">Add a visit</a></p>\n        <ul>\n          {% for visit in visits %}\n            <li><a href=\"{{ url_for('visit', visit_id=visit.id) }}\">\n              {{ visit.patient_name }} \u2014 {{ visit.visit_date }}\n            </a></li>\n          {% else %}\n            <li>No visits yet.</li>\n          {% endfor %}\n        </ul>\n    \"\"\", visits=visits)\n\n\n@app.route(\"/visits/new\", methods=[\"GET\", \"POST\"])\n@login_required\ndef new_visit():\n    error = None\n    if request.method == \"POST\":\n        name = request.form.get(\"patient_name\", \"\").strip()\n        visit_date = request.form.get(\"visit_date\", \"\")\n        content = request.form.get(\"content\", \"\").strip()\n        try:\n            date.fromisoformat(visit_date)\n            valid_date = True\n        except ValueError:\n            valid_date = False\n\n        if name and content and valid_date:\n            connection = db()\n            with connection:\n                cursor = connection.execute(\n                    \"INSERT INTO visits (patient_name, visit_date) VALUES (?, ?)\",\n                    (name, visit_date),\n                )\n                connection.execute(\n                    \"INSERT INTO note_versions (visit_id, content) VALUES (?, ?)\",\n                    (cursor.lastrowid, content),\n                )\n            return redirect(url_for(\"visit\", visit_id=cursor.lastrowid))\n        error = \"Enter a patient name, valid date, and note.\"\n\n    return page(\"\"\"\n        <p><a href=\"{{ url_for('index') }}\">\u2190 Visits</a></p>\n        <h1>New visit</h1>\n        {% if error %}<p class=\"error\">{{ error }}</p>{% endif %}\n        <form method=\"post\">\n          <input type=\"hidden\" name=\"csrf\" value=\"{{ csrf_token() }}\">\n          <label>Patient name\n            <input name=\"patient_name\" required value=\"{{ request.form.get('patient_name', '') }}\">\n          </label>\n          <label>Visit date\n            <input type=\"date\" name=\"visit_date\" required\n                   value=\"{{ request.form.get('visit_date', today) }}\">\n          </label>\n          <label>Note\n            <textarea name=\"content\" required>{{ request.form.get('content', '') }}</textarea>\n          </label>\n          <p><button>Save visit</button></p>\n        </form>\n    \"\"\", error=error, today=date.today().isoformat())\n\n\n@app.route(\"/visits/<int:visit_id>\", methods=[\"GET\", \"POST\"])\n@login_required\ndef visit(visit_id):\n    connection = db()\n    visit_record = connection.execute(\n        \"SELECT * FROM visits WHERE id = ?\", (visit_id,)\n    ).fetchone()\n    if visit_record is None:\n        abort(404)\n\n    error = None\n    if request.method == \"POST\":\n        content = request.form.get(\"content\", \"\").strip()\n        if content:\n            with connection:\n                connection.execute(\n                    \"INSERT INTO note_versions (visit_id, content) VALUES (?, ?)\",\n                    (visit_id, content),\n                )\n            return redirect(url_for(\"visit\", visit_id=visit_id))\n        error = \"The note cannot be empty.\"\n\n    versions = connection.execute(\"\"\"\n        SELECT id, content, created_at FROM note_versions\n        WHERE visit_id = ? ORDER BY id DESC\n    \"\"\", (visit_id,)).fetchall()\n\n    return page(\"\"\"\n        <p><a href=\"{{ url_for('index') }}\">\u2190 Visits</a></p>\n        <h1>{{ visit.patient_name }}</h1>\n        <p>Visit date: {{ visit.visit_date }}</p>\n        <h2>Edit note</h2>\n        <p>Saving creates a new version; previous versions remain below.</p>\n        {% if error %}<p class=\"error\">{{ error }}</p>{% endif %}\n        <form method=\"post\">\n          <input type=\"hidden\" name=\"csrf\" value=\"{{ csrf_token() }}\">\n          <textarea name=\"content\" required>{{ request.form.get('content', versions[0].content) }}</textarea>\n          <p><button>Save new version</button></p>\n        </form>\n        <h2>Version history</h2>\n        {% for version in versions %}\n          <div class=\"version\">\n            <strong>Version {{ version.id }} \u2014 {{ version.created_at }} UTC</strong>\n            <pre>{{ version.content }}</pre>\n          </div>\n        {% endfor %}\n    \"\"\", visit=visit_record, versions=versions, error=error)\n\n\ninit_db()\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\n### Run it\n\n```bash\npip install Flask\n\n# Generate and save these values securely; reuse them on subsequent starts.\nexport APP_SECRET=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\nexport APP_PASSWORD_HASH=\"$(python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass(\"Password: \")))')\"\n\npython app.py\n```\n\nOpen `http://127.0.0.1:5000`. Notes persist in `physio.db` in the working directory.\n\n**Before using real patient data:** this is a basic prototype, not a complete clinical-records system. Use HTTPS, set `HTTPS=1`, restrict server and database access, encrypt and test backups, and assess applicable health-privacy requirements. It has a single shared login and lacks features such as login throttling, individual user accounts, and audit logging.",
+ "input_tokens": 70,
+ "output_tokens": 2373,
+ "cost_usd": 0.011935,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 27.76,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaCuOJkfLqPYE56YgckCA5DsahoX",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Below is a small Flask app with password login, persistent SQLite storage, and append-only note versions. Each visit has its own note history.\n\nSave this as `app.py`:\n\n```python\nimport hmac\nimport os\nimport secrets\nimport sqlite3\nfrom datetime import date\nfrom functools import wraps\n\nfrom flask import (\n    Flask, abort, g, redirect, render_template_string,\n    request, session, url_for,\n)\nfrom werkzeug.security import check_password_hash, generate_password_hash\n\napp = Flask(__name__)\n\n# Keep these values stable across restarts.\napp.secret_key = os.environ[\"APP_SECRET\"]\nPASSWORD_HASH = os.environ[\"APP_PASSWORD_HASH\"]\nDB_PATH = os.environ.get(\"DB_PATH\", \"physio.db\")\n\napp.config.update(\n    SESSION_COOKIE_HTTPONLY=True,\n    SESSION_COOKIE_SAMESITE=\"Lax\",\n    # Set to \"1\" when serving over HTTPS.\n    SESSION_COOKIE_SECURE=os.environ.get(\"HTTPS\") == \"1\",\n)\n\n\ndef db():\n    if \"db\" not in g:\n        g.db = sqlite3.connect(DB_PATH)\n        g.db.row_factory = sqlite3.Row\n        g.db.execute(\"PRAGMA foreign_keys = ON\")\n    return g.db\n\n\n@app.teardown_appcontext\ndef close_db(error):\n    connection = g.pop(\"db\", None)\n    if connection is not None:\n        connection.close()\n\n\ndef init_db():\n    with app.app_context():\n        db().executescript(\"\"\"\n            CREATE TABLE IF NOT EXISTS visits (\n                id INTEGER PRIMARY KEY,\n                patient_name TEXT NOT NULL,\n                visit_date TEXT NOT NULL\n            );\n\n            CREATE TABLE IF NOT EXISTS note_versions (\n                id INTEGER PRIMARY KEY,\n                visit_id INTEGER NOT NULL REFERENCES visits(id),\n                content TEXT NOT NULL,\n                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n            );\n        \"\"\")\n        db().commit()\n\n\ndef csrf_token():\n    if \"csrf\" not in session:\n        session[\"csrf\"] = secrets.token_urlsafe(32)\n    return session[\"csrf\"]\n\n\napp.jinja_env.globals[\"csrf_token\"] = csrf_token\n\n\n@app.before_request\ndef check_csrf():\n    if request.method == \"POST\":\n        expected = session.get(\"csrf\", \"\")\n        supplied = request.form.get(\"csrf\", \"\")\n        if not expected or not hmac.compare_digest(expected, supplied):\n            abort(400, \"Invalid form token\")\n\n\ndef login_required(fn):\n    @wraps(fn)\n    def wrapped(*args, **kwargs):\n        if not session.get(\"logged_in\"):\n            return redirect(url_for(\"login\"))\n        return fn(*args, **kwargs)\n    return wrapped\n\n\nSTYLE = \"\"\"\n<style>\n  body { font: 16px sans-serif; max-width: 800px; margin: 2rem auto;\n         padding: 0 1rem; line-height: 1.5; }\n  input, textarea { box-sizing: border-box; width: 100%; padding: .5rem; }\n  textarea { min-height: 12rem; }\n  button { padding: .5rem 1rem; cursor: pointer; }\n  label { display: block; margin-top: 1rem; }\n  pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }\n  .version { border-top: 1px solid #ccc; padding: .5rem 0; }\n  .error { color: #a00; }\n</style>\n\"\"\"\n\n\ndef page(template, **values):\n    return render_template_string(STYLE + template, **values)\n\n\n@app.route(\"/login\", methods=[\"GET\", \"POST\"])\ndef login():\n    error = None\n    if request.method == \"POST\":\n        if check_password_hash(PASSWORD_HASH, request.form.get(\"password\", \"\")):\n            session.clear()\n            session[\"logged_in\"] = True\n            return redirect(url_for(\"index\"))\n        error = \"Incorrect password.\"\n    return page(\"\"\"\n        <h1>Practice notes: login</h1>\n        {% if error %}<p class=\"error\">{{ error }}</p>{% endif %}\n        <form method=\"post\">\n          <input type=\"hidden\" name=\"csrf\" value=\"{{ csrf_token() }}\">\n          <label>Password <input type=\"password\" name=\"password\" required autofocus></label>\n          <p><button>Log in</button></p>\n        </form>\n    \"\"\", error=error)\n\n\n@app.post(\"/logout\")\n@login_required\ndef logout():\n    session.clear()\n    return redirect(url_for(\"login\"))\n\n\n@app.get(\"/\")\n@login_required\ndef index():\n    visits = db().execute(\"\"\"\n        SELECT id, patient_name, visit_date\n        FROM visits ORDER BY visit_date DESC, id DESC\n    \"\"\").fetchall()\n    return page(\"\"\"\n        <h1>Patient visits</h1>\n        <form method=\"post\" action=\"{{ url_for('logout') }}\">\n          <input type=\"hidden\" name=\"csrf\" value=\"{{ csrf_token() }}\">\n          <button>Log out</button>\n        </form>\n        <p><a href=\"{{ url_for('new_visit') }}\">Add a visit</a></p>\n        <ul>\n          {% for visit in visits %}\n            <li><a href=\"{{ url_for('visit', visit_id=visit.id) }}\">\n              {{ visit.patient_name }} \u2014 {{ visit.visit_date }}\n            </a></li>\n          {% else %}\n            <li>No visits yet.</li>\n          {% endfor %}\n        </ul>\n    \"\"\", visits=visits)\n\n\n@app.route(\"/visits/new\", methods=[\"GET\", \"POST\"])\n@login_required\ndef new_visit():\n    error = None\n    if request.method == \"POST\":\n        name = request.form.get(\"patient_name\", \"\").strip()\n        visit_date = request.form.get(\"visit_date\", \"\")\n        content = request.form.get(\"content\", \"\").strip()\n        try:\n            date.fromisoformat(visit_date)\n            valid_date = True\n        except ValueError:\n            valid_date = False\n\n        if name and content and valid_date:\n            connection = db()\n            with connection:\n                cursor = connection.execute(\n                    \"INSERT INTO visits (patient_name, visit_date) VALUES (?, ?)\",\n                    (name, visit_date),\n                )\n                connection.execute(\n                    \"INSERT INTO note_versions (visit_id, content) VALUES (?, ?)\",\n                    (cursor.lastrowid, content),\n                )\n            return redirect(url_for(\"visit\", visit_id=cursor.lastrowid))\n        error = \"Enter a patient name, valid date, and note.\"\n\n    return page(\"\"\"\n        <p><a href=\"{{ url_for('index') }}\">\u2190 Visits</a></p>\n        <h1>New visit</h1>\n        {% if error %}<p class=\"error\">{{ error }}</p>{% endif %}\n        <form method=\"post\">\n          <input type=\"hidden\" name=\"csrf\" value=\"{{ csrf_token() }}\">\n          <label>Patient name\n            <input name=\"patient_name\" required value=\"{{ request.form.get('patient_name', '') }}\">\n          </label>\n          <label>Visit date\n            <input type=\"date\" name=\"visit_date\" required\n                   value=\"{{ request.form.get('visit_date', today) }}\">\n          </label>\n          <label>Note\n            <textarea name=\"content\" required>{{ request.form.get('content', '') }}</textarea>\n          </label>\n          <p><button>Save visit</button></p>\n        </form>\n    \"\"\", error=error, today=date.today().isoformat())\n\n\n@app.route(\"/visits/<int:visit_id>\", methods=[\"GET\", \"POST\"])\n@login_required\ndef visit(visit_id):\n    connection = db()\n    visit_record = connection.execute(\n        \"SELECT * FROM visits WHERE id = ?\", (visit_id,)\n    ).fetchone()\n    if visit_record is None:\n        abort(404)\n\n    error = None\n    if request.method == \"POST\":\n        content = request.form.get(\"content\", \"\").strip()\n        if content:\n            with connection:\n                connection.execute(\n                    \"INSERT INTO note_versions (visit_id, content) VALUES (?, ?)\",\n                    (visit_id, content),\n                )\n            return redirect(url_for(\"visit\", visit_id=visit_id))\n        error = \"The note cannot be empty.\"\n\n    versions = connection.execute(\"\"\"\n        SELECT id, content, created_at FROM note_versions\n        WHERE visit_id = ? ORDER BY id DESC\n    \"\"\", (visit_id,)).fetchall()\n\n    return page(\"\"\"\n        <p><a href=\"{{ url_for('index') }}\">\u2190 Visits</a></p>\n        <h1>{{ visit.patient_name }}</h1>\n        <p>Visit date: {{ visit.visit_date }}</p>\n        <h2>Edit note</h2>\n        <p>Saving creates a new version; previous versions remain below.</p>\n        {% if error %}<p class=\"error\">{{ error }}</p>{% endif %}\n        <form method=\"post\">\n          <input type=\"hidden\" name=\"csrf\" value=\"{{ csrf_token() }}\">\n          <textarea name=\"content\" required>{{ request.form.get('content', versions[0].content) }}</textarea>\n          <p><button>Save new version</button></p>\n        </form>\n        <h2>Version history</h2>\n        {% for version in versions %}\n          <div class=\"version\">\n            <strong>Version {{ version.id }} \u2014 {{ version.created_at }} UTC</strong>\n            <pre>{{ version.content }}</pre>\n          </div>\n        {% endfor %}\n    \"\"\", visit=visit_record, versions=versions, error=error)\n\n\ninit_db()\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\n### Run it\n\n```bash\npip install Flask\n\n# Generate and save these values securely; reuse them on subsequent starts.\nexport APP_SECRET=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\nexport APP_PASSWORD_HASH=\"$(python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass(\"Password: \")))')\"\n\npython app.py\n```\n\nOpen `http://127.0.0.1:5000`. Notes persist in `physio.db` in the working directory.\n\n**Before using real patient data:** this is a basic prototype, not a complete clinical-records system. Use HTTPS, set `HTTPS=1`, restrict server and database access, encrypt and test backups, and assess applicable health-privacy requirements. It has a single shared login and lacks features such as login throttling, individual user accounts, and audit logging.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532648,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 2373,
+   "prompt_tokens": 70,
+   "total_tokens": 2443,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 174,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "PT1": {
+     "met": true,
+     "reason": "All routes that display or modify notes require a logged-in session."
+    },
+    "PT2": {
+     "met": true,
+     "reason": "Saving an edited note inserts a new version without overwriting or deleting earlier versions."
+    },
+    "PT3": {
+     "met": true,
+     "reason": "Visits and note versions are stored in a persistent SQLite database."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "PT1": {
+     "met": true,
+     "reason": "The app requires login via a password form and enforces authentication using the @login_required decorator on all protected routes."
+    },
+    "PT2": {
+     "met": true,
+     "reason": "Notes are stored in the note_versions table with INSERT-only operations; no UPDATE or DELETE statements modify existing note versions, preserving all prior entries."
+    },
+    "PT3": {
+     "met": true,
+     "reason": "The app uses SQLite with persistent storage to disk (physio.db), initialized and accessed via db() with connection persistence across requests and proper teardown."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "PT1": {
+     "met": true,
+     "reason": "Every notes route (index, new_visit, visit, logout) uses @login_required, which redirects to /login unless the session is logged in; login checks a password hash."
+    },
+    "PT2": {
+     "met": true,
+     "reason": "Edits insert a new row into note_versions and the full history is displayed; the code never issues UPDATE or DELETE on notes."
+    },
+    "PT3": {
+     "met": true,
+     "reason": "Visits and note versions are stored in a SQLite file (physio.db) that persists across restarts."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"PT1\":{\"met\":true,\"reason\":\"All routes that display or modify notes require a logged-in session.\"},\"PT2\":{\"met\":true,\"reason\":\"Saving an edited note inserts a new version without overwriting or deleting earlier versions.\"},\"PT3\":{\"met\":true,\"reason\":\"Visits and note versions are stored in a persistent SQLite database.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"PT1\": {\"met\": true, \"reason\": \"The app requires login via a password form and enforces authentication using the @login_required decorator on all protected routes.\"},\n  \"PT2\": {\"met\": true, \"reason\": \"Notes are stored in the note_versions table with INSERT-only operations; no UPDATE or DELETE statements modify existing note versions, preserving all prior entries.\"},\n  \"PT3\": {\"met\": true, \"reason\": \"The app uses SQLite with persistent storage to disk (physio.db), initialized and accessed via db() with connection persistence across requests and proper teardown.\"}\n}",
+  "claude": "{\"_code\": true, \"PT1\": {\"met\": true, \"reason\": \"Every notes route (index, new_visit, visit, logout) uses @login_required, which redirects to /login unless the session is logged in; login checks a password hash.\"}, \"PT2\": {\"met\": true, \"reason\": \"Edits insert a new row into note_versions and the full history is displayed; the code never issues UPDATE or DELETE on notes.\"}, \"PT3\": {\"met\": true, \"reason\": \"Visits and note versions are stored in a SQLite file (physio.db) that persists across restarts.\"}}"
+ },
+ "judge_cost_usd": 0.013655400000000002
+}

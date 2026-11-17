@@ -1,0 +1,37 @@
+{
+ "experiment": "mock",
+ "run_id": "20261112-011350-6c93",
+ "timestamp": "2026-11-12T01:23:03+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "mock",
+ "condition": "ABL-PL3",
+ "rep": 0,
+ "requirement_order": [
+  "PL4",
+  "PL5",
+  "PL2",
+  "PL1"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "model_id": "reference",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. In case of a tie, the tied option that was added last wins.\n2. winner() returns None until at least 3 votes have been cast.\n3. Each voter can vote only once; a second vote by the same voter raises ValueError.\n4. Voting for an option that does not exist raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\n\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania PL1\u2013PL5.\"\"\"\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options = []\n        self._votes = {}          # voter -> option\n\n    def add_option(self, option):\n        self._options.append(option)\n\n    def vote(self, voter, option):\n        if option not in self._options:\n            raise ValueError(\"unknown option\")\n        if voter in self._votes:\n            raise ValueError(\"already voted\")\n        self._votes[voter] = option\n\n    def winner(self):\n        if len(self._votes) < 3:\n            return None\n        counts = {o: 0 for o in self._options}\n        for o in self._votes.values():\n            counts[o] += 1\n        best = max(counts.values())\n        return [o for o in self._options if counts[o] == best][-1]\n```",
+ "code": "\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania PL1\u2013PL5.\"\"\"\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options = []\n        self._votes = {}          # voter -> option\n\n    def add_option(self, option):\n        self._options.append(option)\n\n    def vote(self, voter, option):\n        if option not in self._options:\n            raise ValueError(\"unknown option\")\n        if voter in self._votes:\n            raise ValueError(\"already voted\")\n        self._votes[voter] = option\n\n    def winner(self):\n        if len(self._votes) < 3:\n            return None\n        counts = {o: 0 for o in self._options}\n        for o in self._votes.values():\n            counts[o] += 1\n        best = max(counts.values())\n        return [o for o in self._options if counts[o] == best][-1]\n",
+ "input_tokens": 196,
+ "output_tokens": 211,
+ "cost_usd": 0.0,
+ "stop_reason": "stop",
+ "truncated": false,
+ "seconds": 0.0,
+ "raw_api_response": {
+  "mock": true
+ }
+}

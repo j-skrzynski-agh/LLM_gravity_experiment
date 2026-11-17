@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T17:34:31+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "llama",
+ "variant": "code",
+ "rep": 0,
+ "step": 2,
+ "change": "Add an optional keyword parameter `note: str = \"\"` at the end of the parameters of book, and a method `note(self, appointment_id: int) -> str` that returns it.",
+ "start_file": "appointments__llama__FULL__0.json",
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": false,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = []\n        self.patient_appointments = {}\n        self.appointment_id_counter = 0\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start < now:\n            raise ValueError(\"Appointment cannot start before the current time\")\n        \n        if patient in self.patient_appointments and self.patient_appointments[patient]['end'] > now:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n        \n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and (start < appointment['end'] and end > appointment['start']):\n                raise ValueError(\"Appointment overlaps with another appointment of the same doctor\")\n        \n        self.appointment_id_counter += 1\n        self.appointments.append({\n            'id': self.appointment_id_counter,\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end,\n            'cancelled': False\n        })\n        self.patient_appointments[patient] = {\n            'id': self.appointment_id_counter,\n            'start': start,\n            'end': end\n        }\n        \n        return self.appointment_id_counter\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                if appointment['start'] - now < timedelta(hours=24) and not appointment['cancelled']:\n                    appointment['cancelled'] = True\n                else:\n                    self.appointments.remove(appointment)\n                    for patient, patient_appointment in self.patient_appointments.items():\n                        if patient_appointment['id'] == appointment_id:\n                            del self.patient_appointments[patient]\n                return\n        raise ValueError(\"Appointment not found\")\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and (start < appointment['end'] and end > appointment['start']) and not appointment['cancelled']:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        \"\"\"Returns the doctor's appointments sorted by start time, each with keys id, patient, start and end.\"\"\"\n        return sorted([{\n            'id': appointment['id'],\n            'patient': appointment['patient'],\n            'start': appointment['start'],\n            'end': appointment['end']\n        } for appointment in self.appointments if appointment['doctor'] == doctor and not appointment['cancelled']], key=lambda x: x['start'])\n```\n\n## Change request\nAdd an optional keyword parameter `note: str = \"\"` at the end of the parameters of book, and a method `note(self, appointment_id: int) -> str` that returns it.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = []\n        self.patient_appointments = {}\n        self.appointment_id_counter = 0\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime, note: str = \"\") -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start < now:\n            raise ValueError(\"Appointment cannot start before the current time\")\n        \n        if patient in self.patient_appointments and self.patient_appointments[patient]['end'] > now:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n        \n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and (start < appointment['end'] and end > appointment['start']):\n                raise ValueError(\"Appointment overlaps with another appointment of the same doctor\")\n        \n        self.appointment_id_counter += 1\n        self.appointments.append({\n            'id': self.appointment_id_counter,\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end,\n            'cancelled': False,\n            'note': note\n        })\n        self.patient_appointments[patient] = {\n            'id': self.appointment_id_counter,\n            'start': start,\n            'end': end\n        }\n        \n        return self.appointment_id_counter\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                if appointment['start'] - now < timedelta(hours=24) and not appointment['cancelled']:\n                    appointment['cancelled'] = True\n                else:\n                    self.appointments.remove(appointment)\n                    for patient, patient_appointment in self.patient_appointments.items():\n                        if patient_appointment['id'] == appointment_id:\n                            del self.patient_appointments[patient]\n                return\n        raise ValueError(\"Appointment not found\")\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and (start < appointment['end'] and end > appointment['start']) and not appointment['cancelled']:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        \"\"\"Returns the doctor's appointments sorted by start time, each with keys id, patient, start and end.\"\"\"\n        return sorted([{\n            'id': appointment['id'],\n            'patient': appointment['patient'],\n            'start': appointment['start'],\n            'end': appointment['end']\n        } for appointment in self.appointments if appointment['doctor'] == doctor and not appointment['cancelled']], key=lambda x: x['start'])\n\n    def note(self, appointment_id: int) -> str:\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                return appointment['note']\n        raise ValueError(\"Appointment not found\")\n```",
+ "code": "from datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = []\n        self.patient_appointments = {}\n        self.appointment_id_counter = 0\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime, note: str = \"\") -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start < now:\n            raise ValueError(\"Appointment cannot start before the current time\")\n        \n        if patient in self.patient_appointments and self.patient_appointments[patient]['end'] > now:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n        \n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and (start < appointment['end'] and end > appointment['start']):\n                raise ValueError(\"Appointment overlaps with another appointment of the same doctor\")\n        \n        self.appointment_id_counter += 1\n        self.appointments.append({\n            'id': self.appointment_id_counter,\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end,\n            'cancelled': False,\n            'note': note\n        })\n        self.patient_appointments[patient] = {\n            'id': self.appointment_id_counter,\n            'start': start,\n            'end': end\n        }\n        \n        return self.appointment_id_counter\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                if appointment['start'] - now < timedelta(hours=24) and not appointment['cancelled']:\n                    appointment['cancelled'] = True\n                else:\n                    self.appointments.remove(appointment)\n                    for patient, patient_appointment in self.patient_appointments.items():\n                        if patient_appointment['id'] == appointment_id:\n                            del self.patient_appointments[patient]\n                return\n        raise ValueError(\"Appointment not found\")\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and (start < appointment['end'] and end > appointment['start']) and not appointment['cancelled']:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        \"\"\"Returns the doctor's appointments sorted by start time, each with keys id, patient, start and end.\"\"\"\n        return sorted([{\n            'id': appointment['id'],\n            'patient': appointment['patient'],\n            'start': appointment['start'],\n            'end': appointment['end']\n        } for appointment in self.appointments if appointment['doctor'] == doctor and not appointment['cancelled']], key=lambda x: x['start'])\n\n    def note(self, appointment_id: int) -> str:\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                return appointment['note']\n        raise ValueError(\"Appointment not found\")\n",
+ "input_tokens": 682,
+ "output_tokens": 653,
+ "cost_usd": 0.00027716000000000004,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.54,
+ "raw_api_response": {
+  "id": "gen-1794936859-0GphCfOgvhkzbYXvL0hX",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = []\n        self.patient_appointments = {}\n        self.appointment_id_counter = 0\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime, now: datetime, note: str = \"\") -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n        if start < now:\n            raise ValueError(\"Appointment cannot start before the current time\")\n        \n        if patient in self.patient_appointments and self.patient_appointments[patient]['end'] > now:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n        \n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and (start < appointment['end'] and end > appointment['start']):\n                raise ValueError(\"Appointment overlaps with another appointment of the same doctor\")\n        \n        self.appointment_id_counter += 1\n        self.appointments.append({\n            'id': self.appointment_id_counter,\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end,\n            'cancelled': False,\n            'note': note\n        })\n        self.patient_appointments[patient] = {\n            'id': self.appointment_id_counter,\n            'start': start,\n            'end': end\n        }\n        \n        return self.appointment_id_counter\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                if appointment['start'] - now < timedelta(hours=24) and not appointment['cancelled']:\n                    appointment['cancelled'] = True\n                else:\n                    self.appointments.remove(appointment)\n                    for patient, patient_appointment in self.patient_appointments.items():\n                        if patient_appointment['id'] == appointment_id:\n                            del self.patient_appointments[patient]\n                return\n        raise ValueError(\"Appointment not found\")\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        for appointment in self.appointments:\n            if appointment['doctor'] == doctor and (start < appointment['end'] and end > appointment['start']) and not appointment['cancelled']:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        \"\"\"Returns the doctor's appointments sorted by start time, each with keys id, patient, start and end.\"\"\"\n        return sorted([{\n            'id': appointment['id'],\n            'patient': appointment['patient'],\n            'start': appointment['start'],\n            'end': appointment['end']\n        } for appointment in self.appointments if appointment['doctor'] == doctor and not appointment['cancelled']], key=lambda x: x['start'])\n\n    def note(self, appointment_id: int) -> str:\n        for appointment in self.appointments:\n            if appointment['id'] == appointment_id:\n                return appointment['note']\n        raise ValueError(\"Appointment not found\")\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794936859,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 653,
+   "prompt_tokens": 682,
+   "total_tokens": 1335,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00047654,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00047654,
+    "upstream_inference_prompt_cost": 0.00015004,
+    "upstream_inference_completions_cost": 0.0003265
+   }
+  },
+  "provider": "Parasail"
+ }
+}

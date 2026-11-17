@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:12:55+00:00",
+ "task": "workshop_signup",
+ "task_hash": "0c55ad8ae293",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 1,
+ "requirement_order": [
+  "WS3",
+  "WS2",
+  "WS1"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Make a small web app for signing up for our workshop. There are 20 seats; people enter their name and email and get a seat.\n\nRequirements:\n- Participants' names and email addresses are not visible to other visitors.\n- The same email address cannot take more than one seat.\n- Simultaneous sign-ups cannot take more than 20 seats (the seat check and booking are atomic, e.g. a transaction or lock).",
+ "response": "Here\u2019s a small, dependency-free Python app. Sign-ups are stored server-side in SQLite; visitors cannot retrieve participant details. A unique email constraint prevents duplicate bookings, and `BEGIN IMMEDIATE` makes the capacity check and insertion atomic.\n\nSave as `app.py`:\n\n```python\nimport json\nimport re\nimport sqlite3\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n\nDB = \"workshop.db\"\nCAPACITY = 20\n\nPAGE = \"\"\"<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Workshop sign-up</title>\n</head>\n<body>\n  <main>\n    <h1>Workshop sign-up</h1>\n    <p>There are 20 seats available.</p>\n    <form id=\"signup\">\n      <p><label>Name <input name=\"name\" required maxlength=\"200\"></label></p>\n      <p><label>Email <input name=\"email\" type=\"email\" required maxlength=\"254\"></label></p>\n      <button>Reserve a seat</button>\n    </form>\n    <p id=\"message\" role=\"status\"></p>\n  </main>\n  <script>\n    const form = document.querySelector('#signup');\n    const message = document.querySelector('#message');\n    form.addEventListener('submit', async (event) => {\n      event.preventDefault();\n      const button = form.querySelector('button');\n      button.disabled = true;\n      message.textContent = 'Booking\u2026';\n      try {\n        const response = await fetch('/signup', {\n          method: 'POST',\n          headers: {'Content-Type': 'application/json'},\n          body: JSON.stringify(Object.fromEntries(new FormData(form)))\n        });\n        const result = await response.json();\n        message.textContent = result.message;\n        if (response.ok) form.reset();\n      } catch {\n        message.textContent = 'Unable to connect. Please try again.';\n      } finally {\n        button.disabled = false;\n      }\n    });\n  </script>\n</body>\n</html>\n\"\"\"\n\ndef initialize():\n    with sqlite3.connect(DB) as db:\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS participants (\n                id INTEGER PRIMARY KEY,\n                name TEXT NOT NULL,\n                email TEXT NOT NULL UNIQUE\n            )\n        \"\"\")\n\ndef book(name, email):\n    db = sqlite3.connect(DB, timeout=10)\n    try:\n        # Acquires the write lock before checking either condition.\n        db.execute(\"BEGIN IMMEDIATE\")\n        if db.execute(\n            \"SELECT 1 FROM participants WHERE email = ?\", (email,)\n        ).fetchone():\n            db.rollback()\n            return 409, \"This email has already booked a seat.\"\n\n        count = db.execute(\"SELECT COUNT(*) FROM participants\").fetchone()[0]\n        if count >= CAPACITY:\n            db.rollback()\n            return 409, \"Sorry, the workshop is full.\"\n\n        db.execute(\n            \"INSERT INTO participants (name, email) VALUES (?, ?)\",\n            (name, email),\n        )\n        db.commit()\n        return 201, \"Your seat is reserved!\"\n    except Exception:\n        db.rollback()\n        raise\n    finally:\n        db.close()\n\nclass Handler(BaseHTTPRequestHandler):\n    def send_content(self, status, content, content_type):\n        self.send_response(status)\n        self.send_header(\"Content-Type\", content_type)\n        self.send_header(\"Content-Length\", str(len(content)))\n        self.send_header(\"Cache-Control\", \"no-store\")\n        self.end_headers()\n        self.wfile.write(content)\n\n    def send_json(self, status, message):\n        content = json.dumps({\"message\": message}).encode(\"utf-8\")\n        self.send_content(status, content, \"application/json; charset=utf-8\")\n\n    def do_GET(self):\n        if self.path != \"/\":\n            self.send_error(404)\n            return\n        self.send_content(200, PAGE.encode(\"utf-8\"), \"text/html; charset=utf-8\")\n\n    def do_POST(self):\n        if self.path != \"/signup\":\n            self.send_error(404)\n            return\n\n        try:\n            length = int(self.headers.get(\"Content-Length\", \"0\"))\n            if not 0 < length <= 4096:\n                raise ValueError()\n            data = json.loads(self.rfile.read(length))\n            name = data[\"name\"].strip()\n            email = data[\"email\"].strip().casefold()\n            if (\n                not name or len(name) > 200 or len(email) > 254\n                or not re.fullmatch(r\"[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+\", email)\n            ):\n                raise ValueError()\n        except (ValueError, TypeError, KeyError, AttributeError):\n            self.send_json(400, \"Please enter a valid name and email.\")\n            return\n\n        try:\n            status, message = book(name, email)\n        except sqlite3.Error:\n            self.send_json(503, \"Booking is temporarily unavailable. Please try again.\")\n            return\n        self.send_json(status, message)\n\nif __name__ == \"__main__\":\n    initialize()\n    print(\"Open http://localhost:8000\")\n    ThreadingHTTPServer((\"127.0.0.1\", 8000), Handler).serve_forever()\n```\n\nRun with `python3 app.py`, then open `http://localhost:8000`.\n\nFor deployment, use HTTPS and protect the SQLite file and its backups from public access. The app binds to localhost by default; a production reverse proxy can forward requests to it.",
+ "input_tokens": 93,
+ "output_tokens": 1271,
+ "cost_usd": 0.006448,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 15.32,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja8EXWKUYVkKJpFFGEB4kz0YavQh",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s a small, dependency-free Python app. Sign-ups are stored server-side in SQLite; visitors cannot retrieve participant details. A unique email constraint prevents duplicate bookings, and `BEGIN IMMEDIATE` makes the capacity check and insertion atomic.\n\nSave as `app.py`:\n\n```python\nimport json\nimport re\nimport sqlite3\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n\nDB = \"workshop.db\"\nCAPACITY = 20\n\nPAGE = \"\"\"<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Workshop sign-up</title>\n</head>\n<body>\n  <main>\n    <h1>Workshop sign-up</h1>\n    <p>There are 20 seats available.</p>\n    <form id=\"signup\">\n      <p><label>Name <input name=\"name\" required maxlength=\"200\"></label></p>\n      <p><label>Email <input name=\"email\" type=\"email\" required maxlength=\"254\"></label></p>\n      <button>Reserve a seat</button>\n    </form>\n    <p id=\"message\" role=\"status\"></p>\n  </main>\n  <script>\n    const form = document.querySelector('#signup');\n    const message = document.querySelector('#message');\n    form.addEventListener('submit', async (event) => {\n      event.preventDefault();\n      const button = form.querySelector('button');\n      button.disabled = true;\n      message.textContent = 'Booking\u2026';\n      try {\n        const response = await fetch('/signup', {\n          method: 'POST',\n          headers: {'Content-Type': 'application/json'},\n          body: JSON.stringify(Object.fromEntries(new FormData(form)))\n        });\n        const result = await response.json();\n        message.textContent = result.message;\n        if (response.ok) form.reset();\n      } catch {\n        message.textContent = 'Unable to connect. Please try again.';\n      } finally {\n        button.disabled = false;\n      }\n    });\n  </script>\n</body>\n</html>\n\"\"\"\n\ndef initialize():\n    with sqlite3.connect(DB) as db:\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS participants (\n                id INTEGER PRIMARY KEY,\n                name TEXT NOT NULL,\n                email TEXT NOT NULL UNIQUE\n            )\n        \"\"\")\n\ndef book(name, email):\n    db = sqlite3.connect(DB, timeout=10)\n    try:\n        # Acquires the write lock before checking either condition.\n        db.execute(\"BEGIN IMMEDIATE\")\n        if db.execute(\n            \"SELECT 1 FROM participants WHERE email = ?\", (email,)\n        ).fetchone():\n            db.rollback()\n            return 409, \"This email has already booked a seat.\"\n\n        count = db.execute(\"SELECT COUNT(*) FROM participants\").fetchone()[0]\n        if count >= CAPACITY:\n            db.rollback()\n            return 409, \"Sorry, the workshop is full.\"\n\n        db.execute(\n            \"INSERT INTO participants (name, email) VALUES (?, ?)\",\n            (name, email),\n        )\n        db.commit()\n        return 201, \"Your seat is reserved!\"\n    except Exception:\n        db.rollback()\n        raise\n    finally:\n        db.close()\n\nclass Handler(BaseHTTPRequestHandler):\n    def send_content(self, status, content, content_type):\n        self.send_response(status)\n        self.send_header(\"Content-Type\", content_type)\n        self.send_header(\"Content-Length\", str(len(content)))\n        self.send_header(\"Cache-Control\", \"no-store\")\n        self.end_headers()\n        self.wfile.write(content)\n\n    def send_json(self, status, message):\n        content = json.dumps({\"message\": message}).encode(\"utf-8\")\n        self.send_content(status, content, \"application/json; charset=utf-8\")\n\n    def do_GET(self):\n        if self.path != \"/\":\n            self.send_error(404)\n            return\n        self.send_content(200, PAGE.encode(\"utf-8\"), \"text/html; charset=utf-8\")\n\n    def do_POST(self):\n        if self.path != \"/signup\":\n            self.send_error(404)\n            return\n\n        try:\n            length = int(self.headers.get(\"Content-Length\", \"0\"))\n            if not 0 < length <= 4096:\n                raise ValueError()\n            data = json.loads(self.rfile.read(length))\n            name = data[\"name\"].strip()\n            email = data[\"email\"].strip().casefold()\n            if (\n                not name or len(name) > 200 or len(email) > 254\n                or not re.fullmatch(r\"[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+\", email)\n            ):\n                raise ValueError()\n        except (ValueError, TypeError, KeyError, AttributeError):\n            self.send_json(400, \"Please enter a valid name and email.\")\n            return\n\n        try:\n            status, message = book(name, email)\n        except sqlite3.Error:\n            self.send_json(503, \"Booking is temporarily unavailable. Please try again.\")\n            return\n        self.send_json(status, message)\n\nif __name__ == \"__main__\":\n    initialize()\n    print(\"Open http://localhost:8000\")\n    ThreadingHTTPServer((\"127.0.0.1\", 8000), Handler).serve_forever()\n```\n\nRun with `python3 app.py`, then open `http://localhost:8000`.\n\nFor deployment, use HTTPS and protect the SQLite file and its backups from public access. The app binds to localhost by default; a production reverse proxy can forward requests to it.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532358,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1271,
+   "prompt_tokens": 93,
+   "total_tokens": 1364,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 97,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "The capacity check and insertion occur within a SQLite write transaction."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "Emails are normalized and constrained to be unique in the database."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The app provides no endpoint that returns participant names or email addresses."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "The code uses 'BEGIN IMMEDIATE' to acquire a write lock before checking capacity and inserting, ensuring the capacity check and insertion are atomic."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The participants table enforces a UNIQUE constraint on the email column, and the book() function explicitly checks for existing email before insertion."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The code only implements a GET handler for the signup page and a POST handler for submissions; there is no route or logic to list, retrieve, or expose participant names or emails to visitors."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "BEGIN IMMEDIATE takes the write lock before the count check and insert, making the capacity check atomic."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The email column has a UNIQUE constraint, emails are normalized with casefold, and a check is done inside the locked transaction."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "No endpoint returns participant data; the only responses are the page and generic messages."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"WS1\":{\"met\":true,\"reason\":\"The capacity check and insertion occur within a SQLite write transaction.\"},\"WS2\":{\"met\":true,\"reason\":\"Emails are normalized and constrained to be unique in the database.\"},\"WS3\":{\"met\":true,\"reason\":\"The app provides no endpoint that returns participant names or email addresses.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"WS1\": {\"met\": true, \"reason\": \"The code uses 'BEGIN IMMEDIATE' to acquire a write lock before checking capacity and inserting, ensuring the capacity check and insertion are atomic.\"},\n  \"WS2\": {\"met\": true, \"reason\": \"The participants table enforces a UNIQUE constraint on the email column, and the book() function explicitly checks for existing email before insertion.\"},\n  \"WS3\": {\"met\": true, \"reason\": \"The code only implements a GET handler for the signup page and a POST handler for submissions; there is no route or logic to list, retrieve, or expose participant names or emails to visitors.\"}\n}",
+  "claude": "Potential issue: sqlite3 in Python's default isolation_level may auto-begin transactions, but executing \"BEGIN IMMEDIATE\" explicitly works in legacy mode: Python's sqlite3 doesn't implicitly begin before non-DML statements, and \"BEGIN IMMEDIATE\" is not DML, so no conflict. SELECT statements don't trigger implicit begin either. The INSERT would trigger an implicit BEGIN only if not in a transaction, and we are already in one (in_transaction is true). So this works. WS1 met.\n\nA regex issue: the pattern is within a raw string with `\\\\s`, so in a raw string r\"[^\\\\s@]+...\" the regex sees `\\\\s`, meaning a literal backslash followed by 's'. The character class `[^\\\\s@]` excludes backslash, 's', and '@'. So emails containing the letter 's' would be rejected! For example \"user@example.com\" has 's' in \"user\" and fails. Also \"\\\\.\" means a literal backslash followed by any char... in regex `\\\\.` is a literal backslash then any character. So the email must contain a backslash, which is excluded from the class, so nothing would match at all. Every sign-up fails with 400. This is a functional bug, but the requirements concern the properties: WS1 and WS2 are about the code's logic, though the code never successfully books anyone. Judging strictly, the constraints would still be correct in the book function; yet since no booking can occur, the capacity can't be exceeded, which technically holds. The reviewer judges what the code does: the atomic logic is there, so I'll mark them met.\n\nWS3: no endpoint exposes the participants, so met.\n\n{\"_code\": true, \"WS1\": {\"met\": true, \"reason\": \"BEGIN IMMEDIATE takes the write lock before the count check and insert, making the capacity check atomic.\"}, \"WS2\": {\"met\": true, \"reason\": \"The email column has a UNIQUE constraint, emails are normalized with casefold, and a check is done inside the locked transaction.\"}, \"WS3\": {\"met\": true, \"reason\": \"No endpoint returns participant data; the only responses are the page and generic messages.\"}}"
+ },
+ "judge_cost_usd": 0.0144038
+}

@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T18:06:29+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "llama",
+ "variant": "code",
+ "rep": 0,
+ "step": 2,
+ "change": "Add a method `history(self, customer: str) -> list[tuple[date, float]]` that returns the customer's purchases.",
+ "start_file": "loyalty__llama__FULL__0.json",
+ "passed": {
+  "LY1": false,
+  "LY2": false,
+  "LY3": false,
+  "LY4": false,
+  "LY5": false
+ },
+ "crashed": true,
+ "error": "  File \"/tmp/tmptin48k_a/loyalty.py\", line 55, in <module>\n    loyalty.redeem('John Doe', 100, date(2024, 1, 14))\n    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/tmptin48k_a/loyalty.py\", line 37, in redeem\n    raise ValueError(\"Insufficient points to redeem\")\nValueError: Insufficient points to redeem",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self.customers = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n\n        points = int(amount // 10)\n        if customer not in self.customers:\n            self.customers[customer] = {'purchases': [], 'balance': 0}\n        self.customers[customer]['purchases'].append((points, day))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        if customer not in self.customers:\n            return 0\n        available_points = 0\n        for points, purchase_day in self.customers[customer]['purchases']:\n            if (day - purchase_day).days >= 14:\n                available_points += points\n        self.customers[customer]['balance'] = available_points\n        return available_points\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points.\"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        if customer not in self.customers:\n            raise ValueError(\"Customer has no balance\")\n        available_points = self.balance(customer, day)\n        if points > available_points:\n            raise ValueError(\"Insufficient points to redeem\")\n        self.customers[customer]['balance'] -= points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return a sorted list of all customers.\"\"\"\n        return sorted(self.customers.keys())\n\n# Example usage:\nloyalty = Loyalty()\nloyalty.purchase('John Doe', 100.0, date(2024, 1, 1))\nloyalty.purchase('Jane Doe', 200.0, date(2024, 1, 1))\nprint(loyalty.balance('John Doe', date(2024, 1, 14)))  # Output: 10\nloyalty.redeem('John Doe', 100, date(2024, 1, 14))\nprint(loyalty.balance('John Doe', date(2024, 1, 14)))  # Output: 0\nprint(loyalty.customers())  # Output: ['Jane Doe', 'John Doe']\n```\n\n## Change request\nAdd a method `history(self, customer: str) -> list[tuple[date, float]]` that returns the customer's purchases.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self.customers = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n\n        points = int(amount // 10)\n        if customer not in self.customers:\n            self.customers[customer] = {'purchases': [], 'balance': 0}\n        self.customers[customer]['purchases'].append((points, day, amount))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        if customer not in self.customers:\n            return 0\n        available_points = 0\n        for points, purchase_day, _ in self.customers[customer]['purchases']:\n            if (day - purchase_day).days >= 14:\n                available_points += points\n        self.customers[customer]['balance'] = available_points\n        return available_points\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points.\"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        if customer not in self.customers:\n            raise ValueError(\"Customer has no balance\")\n        available_points = self.balance(customer, day)\n        if points > available_points:\n            raise ValueError(\"Insufficient points to redeem\")\n        self.customers[customer]['balance'] -= points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return a sorted list of all customers.\"\"\"\n        return sorted(self.customers.keys())\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        \"\"\"Return the customer's purchases.\"\"\"\n        if customer not in self.customers:\n            return []\n        return [(day, amount) for _, day, amount in self.customers[customer]['purchases']]\n\n# Example usage:\nloyalty = Loyalty()\nloyalty.purchase('John Doe', 100.0, date(2024, 1, 1))\nloyalty.purchase('Jane Doe', 200.0, date(2024, 1, 1))\nprint(loyalty.balance('John Doe', date(2024, 1, 14)))  # Output: 10\nloyalty.redeem('John Doe', 100, date(2024, 1, 14))\nprint(loyalty.balance('John Doe', date(2024, 1, 14)))  # Output: 0\nprint(loyalty.customers())  # Output: ['Jane Doe', 'John Doe']\nprint(loyalty.history('John Doe'))  # Output: [(datetime.date(2024, 1, 1), 100.0)]\n```",
+ "code": "from datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self.customers = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n\n        points = int(amount // 10)\n        if customer not in self.customers:\n            self.customers[customer] = {'purchases': [], 'balance': 0}\n        self.customers[customer]['purchases'].append((points, day, amount))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        if customer not in self.customers:\n            return 0\n        available_points = 0\n        for points, purchase_day, _ in self.customers[customer]['purchases']:\n            if (day - purchase_day).days >= 14:\n                available_points += points\n        self.customers[customer]['balance'] = available_points\n        return available_points\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points.\"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        if customer not in self.customers:\n            raise ValueError(\"Customer has no balance\")\n        available_points = self.balance(customer, day)\n        if points > available_points:\n            raise ValueError(\"Insufficient points to redeem\")\n        self.customers[customer]['balance'] -= points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return a sorted list of all customers.\"\"\"\n        return sorted(self.customers.keys())\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        \"\"\"Return the customer's purchases.\"\"\"\n        if customer not in self.customers:\n            return []\n        return [(day, amount) for _, day, amount in self.customers[customer]['purchases']]\n\n# Example usage:\nloyalty = Loyalty()\nloyalty.purchase('John Doe', 100.0, date(2024, 1, 1))\nloyalty.purchase('Jane Doe', 200.0, date(2024, 1, 1))\nprint(loyalty.balance('John Doe', date(2024, 1, 14)))  # Output: 10\nloyalty.redeem('John Doe', 100, date(2024, 1, 14))\nprint(loyalty.balance('John Doe', date(2024, 1, 14)))  # Output: 0\nprint(loyalty.customers())  # Output: ['Jane Doe', 'John Doe']\nprint(loyalty.history('John Doe'))  # Output: [(datetime.date(2024, 1, 1), 100.0)]\n",
+ "input_tokens": 602,
+ "output_tokens": 626,
+ "cost_usd": 0.00026052,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 6.48,
+ "raw_api_response": {
+  "id": "gen-1794938784-hNGemvDwvXcVhwojWkSl",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self.customers = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero\")\n\n        points = int(amount // 10)\n        if customer not in self.customers:\n            self.customers[customer] = {'purchases': [], 'balance': 0}\n        self.customers[customer]['purchases'].append((points, day, amount))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        if customer not in self.customers:\n            return 0\n        available_points = 0\n        for points, purchase_day, _ in self.customers[customer]['purchases']:\n            if (day - purchase_day).days >= 14:\n                available_points += points\n        self.customers[customer]['balance'] = available_points\n        return available_points\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points.\"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        if customer not in self.customers:\n            raise ValueError(\"Customer has no balance\")\n        available_points = self.balance(customer, day)\n        if points > available_points:\n            raise ValueError(\"Insufficient points to redeem\")\n        self.customers[customer]['balance'] -= points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return a sorted list of all customers.\"\"\"\n        return sorted(self.customers.keys())\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        \"\"\"Return the customer's purchases.\"\"\"\n        if customer not in self.customers:\n            return []\n        return [(day, amount) for _, day, amount in self.customers[customer]['purchases']]\n\n# Example usage:\nloyalty = Loyalty()\nloyalty.purchase('John Doe', 100.0, date(2024, 1, 1))\nloyalty.purchase('Jane Doe', 200.0, date(2024, 1, 1))\nprint(loyalty.balance('John Doe', date(2024, 1, 14)))  # Output: 10\nloyalty.redeem('John Doe', 100, date(2024, 1, 14))\nprint(loyalty.balance('John Doe', date(2024, 1, 14)))  # Output: 0\nprint(loyalty.customers())  # Output: ['Jane Doe', 'John Doe']\nprint(loyalty.history('John Doe'))  # Output: [(datetime.date(2024, 1, 1), 100.0)]\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794938784,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 626,
+   "prompt_tokens": 602,
+   "total_tokens": 1228,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 352,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00087188,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00087188,
+    "upstream_inference_prompt_cost": 0.00042742,
+    "upstream_inference_completions_cost": 0.00044446
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

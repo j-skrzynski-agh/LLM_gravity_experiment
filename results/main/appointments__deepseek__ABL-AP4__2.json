@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:44:16+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "deepseek",
+ "condition": "ABL-AP4",
+ "rep": 2,
+ "requirement_order": [
+  "AP2",
+  "AP1",
+  "AP5",
+  "AP3"
+ ],
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": false,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for booking appointments with doctors in a small clinic.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None: ...\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n\n    def cancel(self, appointment_id: int, now: datetime) -> None: ...\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n```\n\n## Requirements\n1. Booking an appointment that overlaps another appointment of the same doctor raises ValueError.\n2. Booking an appointment that starts before `now` raises ValueError.\n3. A patient can have at most one upcoming appointment; booking another one while the first is still upcoming raises ValueError.\n4. Appointments that only touch (one ends exactly when the other starts) do not overlap.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def _overlaps(self, a_start, a_end, b_start, b_end):\n        return a_start < b_end and b_start < a_end\n\n    def _active(self, appt, now):\n        return appt[\"end\"] > now\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] == doctor:\n                if self._overlaps(start, end, appt[\"start\"], appt[\"end\"]):\n                    raise ValueError(\"Doctor is not available at this time\")\n\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and self._active(appt, now):\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self._appointments:\n            raise ValueError(\"Unknown appointment id\")\n        del self._appointments[appointment_id]\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        if end <= start:\n            return False\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] == doctor:\n                if self._overlaps(start, end, appt[\"start\"], appt[\"end\"]):\n                    return False\n        return True\n```",
+ "code": "from datetime import datetime\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def _overlaps(self, a_start, a_end, b_start, b_end):\n        return a_start < b_end and b_start < a_end\n\n    def _active(self, appt, now):\n        return appt[\"end\"] > now\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] == doctor:\n                if self._overlaps(start, end, appt[\"start\"], appt[\"end\"]):\n                    raise ValueError(\"Doctor is not available at this time\")\n\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and self._active(appt, now):\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self._appointments:\n            raise ValueError(\"Unknown appointment id\")\n        del self._appointments[appointment_id]\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        if end <= start:\n            return False\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] == doctor:\n                if self._overlaps(start, end, appt[\"start\"], appt[\"end\"]):\n                    return False\n        return True\n",
+ "input_tokens": 251,
+ "output_tokens": 444,
+ "cost_usd": 0.0006080999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.06,
+ "raw_api_response": {
+  "id": "d5f580e1-05d7-406e-95d3-00f501810e0c",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def _overlaps(self, a_start, a_end, b_start, b_end):\n        return a_start < b_end and b_start < a_end\n\n    def _active(self, appt, now):\n        return appt[\"end\"] > now\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if end <= start:\n            raise ValueError(\"End must be after start\")\n        if start < now:\n            raise ValueError(\"Cannot book an appointment in the past\")\n\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] == doctor:\n                if self._overlaps(start, end, appt[\"start\"], appt[\"end\"]):\n                    raise ValueError(\"Doctor is not available at this time\")\n\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and self._active(appt, now):\n                raise ValueError(\"Patient already has an upcoming appointment\")\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self._appointments:\n            raise ValueError(\"Unknown appointment id\")\n        del self._appointments[appointment_id]\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        if end <= start:\n            return False\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] == doctor:\n                if self._overlaps(start, end, appt[\"start\"], appt[\"end\"]):\n                    return False\n        return True\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794451447,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 444,
+   "prompt_tokens": 251,
+   "total_tokens": 695,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 251
+  }
+ }
+}

@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:58:05+00:00",
+ "app": "cart",
+ "app_hash": "33d14211d923",
+ "model": "gemini",
+ "variant": "code",
+ "rep": 0,
+ "step": 4,
+ "change": "Add an optional keyword parameter `category: str = \"\"` at the end of the parameters of add, and a method `value_by_category(self) -> dict[str, float]` that returns the value of items per category before discounts.",
+ "start_file": "cart__gemini__FULL__0.json",
+ "passed": {
+  "CT1": true,
+  "CT2": true,
+  "CT3": true,
+  "CT4": true,
+  "CT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self._items: list[tuple[str, float, int]] = []\n        self.percentage_discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self._items.append((name, unit_price, quantity))\n\n    def remove(self, name: str) -> None:\n        \"\"\"Remove an item from the cart by name.\"\"\"\n        for i, (item_name, _, _) in enumerate(self._items):\n            if item_name == name:\n                del self._items[i]\n                return\n        raise ValueError(f\"Item '{name}' not found in cart.\")\n\n    def items(self) -> list[dict]:\n        \"\"\"Return the items as a list of dictionaries with name, unit_price, and quantity.\"\"\"\n        return [\n            {\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity}\n            for name, unit_price, quantity in self._items\n        ]\n\n    def item_count(self) -> int:\n        \"\"\"Return the total quantity of all items.\"\"\"\n        return sum(quantity for _, _, quantity in self._items)\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.percentage_discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity in self._items)\n\n        if subtotal == 0:\n            return 0.0\n\n        # Calculate potential savings for each registered percentage discount\n        discount_savings = [\n            subtotal * (percent / 100.0) for percent in self.percentage_discounts\n        ]\n\n        # Calculate potential savings for each voucher (capped at subtotal)\n        voucher_savings = [\n            min(amount, subtotal) for amount in self.vouchers\n        ]\n\n        all_savings = discount_savings + voucher_savings\n        max_saving = max(all_savings) if all_savings else 0.0\n\n        items_total = max(0.0, subtotal - max_saving)\n\n        # Free shipping threshold is checked against the value of items before discounts\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        return round(items_total + shipping, 2)\n```\n\n## Change request\nAdd an optional keyword parameter `category: str = \"\"` at the end of the parameters of add, and a method `value_by_category(self) -> dict[str, float]` that returns the value of items per category before discounts.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the updated module with the requested additions:\n\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self._items: list[tuple[str, float, int, str]] = []\n        self.percentage_discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1, category: str = \"\") -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self._items.append((name, unit_price, quantity, category))\n\n    def remove(self, name: str) -> None:\n        \"\"\"Remove an item from the cart by name.\"\"\"\n        for i, (item_name, _, _, _) in enumerate(self._items):\n            if item_name == name:\n                del self._items[i]\n                return\n        raise ValueError(f\"Item '{name}' not found in cart.\")\n\n    def items(self) -> list[dict]:\n        \"\"\"Return the items as a list of dictionaries with name, unit_price, and quantity.\"\"\"\n        return [\n            {\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity}\n            for name, unit_price, quantity, _ in self._items\n        ]\n\n    def item_count(self) -> int:\n        \"\"\"Return the total quantity of all items.\"\"\"\n        return sum(quantity for _, _, quantity, _ in self._items)\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.percentage_discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def value_by_category(self) -> dict[str, float]:\n        \"\"\"Return the value of items per category before discounts.\"\"\"\n        totals: dict[str, float] = {}\n        for _, unit_price, quantity, category in self._items:\n            totals[category] = totals.get(category, 0.0) + unit_price * quantity\n        return totals\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity, _ in self._items)\n\n        if subtotal == 0:\n            return 0.0\n\n        # Calculate potential savings for each registered percentage discount\n        discount_savings = [\n            subtotal * (percent / 100.0) for percent in self.percentage_discounts\n        ]\n\n        # Calculate potential savings for each voucher (capped at subtotal)\n        voucher_savings = [\n            min(amount, subtotal) for amount in self.vouchers\n        ]\n\n        all_savings = discount_savings + voucher_savings\n        max_saving = max(all_savings) if all_savings else 0.0\n\n        items_total = max(0.0, subtotal - max_saving)\n\n        # Free shipping threshold is checked against the value of items before discounts\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        return round(items_total + shipping, 2)\n```",
+ "code": "class Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self._items: list[tuple[str, float, int, str]] = []\n        self.percentage_discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1, category: str = \"\") -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self._items.append((name, unit_price, quantity, category))\n\n    def remove(self, name: str) -> None:\n        \"\"\"Remove an item from the cart by name.\"\"\"\n        for i, (item_name, _, _, _) in enumerate(self._items):\n            if item_name == name:\n                del self._items[i]\n                return\n        raise ValueError(f\"Item '{name}' not found in cart.\")\n\n    def items(self) -> list[dict]:\n        \"\"\"Return the items as a list of dictionaries with name, unit_price, and quantity.\"\"\"\n        return [\n            {\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity}\n            for name, unit_price, quantity, _ in self._items\n        ]\n\n    def item_count(self) -> int:\n        \"\"\"Return the total quantity of all items.\"\"\"\n        return sum(quantity for _, _, quantity, _ in self._items)\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.percentage_discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def value_by_category(self) -> dict[str, float]:\n        \"\"\"Return the value of items per category before discounts.\"\"\"\n        totals: dict[str, float] = {}\n        for _, unit_price, quantity, category in self._items:\n            totals[category] = totals.get(category, 0.0) + unit_price * quantity\n        return totals\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity, _ in self._items)\n\n        if subtotal == 0:\n            return 0.0\n\n        # Calculate potential savings for each registered percentage discount\n        discount_savings = [\n            subtotal * (percent / 100.0) for percent in self.percentage_discounts\n        ]\n\n        # Calculate potential savings for each voucher (capped at subtotal)\n        voucher_savings = [\n            min(amount, subtotal) for amount in self.vouchers\n        ]\n\n        all_savings = discount_savings + voucher_savings\n        max_saving = max(all_savings) if all_savings else 0.0\n\n        items_total = max(0.0, subtotal - max_saving)\n\n        # Free shipping threshold is checked against the value of items before discounts\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        return round(items_total + shipping, 2)\n",
+ "input_tokens": 811,
+ "output_tokens": 837,
+ "cost_usd": 0.003747,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.43,
+ "raw_api_response": {
+  "id": "glL2apj1Ms6wvdIPmd2YwQg",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the updated module with the requested additions:\n\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self._items: list[tuple[str, float, int, str]] = []\n        self.percentage_discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1, category: str = \"\") -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self._items.append((name, unit_price, quantity, category))\n\n    def remove(self, name: str) -> None:\n        \"\"\"Remove an item from the cart by name.\"\"\"\n        for i, (item_name, _, _, _) in enumerate(self._items):\n            if item_name == name:\n                del self._items[i]\n                return\n        raise ValueError(f\"Item '{name}' not found in cart.\")\n\n    def items(self) -> list[dict]:\n        \"\"\"Return the items as a list of dictionaries with name, unit_price, and quantity.\"\"\"\n        return [\n            {\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity}\n            for name, unit_price, quantity, _ in self._items\n        ]\n\n    def item_count(self) -> int:\n        \"\"\"Return the total quantity of all items.\"\"\"\n        return sum(quantity for _, _, quantity, _ in self._items)\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.percentage_discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def value_by_category(self) -> dict[str, float]:\n        \"\"\"Return the value of items per category before discounts.\"\"\"\n        totals: dict[str, float] = {}\n        for _, unit_price, quantity, category in self._items:\n            totals[category] = totals.get(category, 0.0) + unit_price * quantity\n        return totals\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity, _ in self._items)\n\n        if subtotal == 0:\n            return 0.0\n\n        # Calculate potential savings for each registered percentage discount\n        discount_savings = [\n            subtotal * (percent / 100.0) for percent in self.percentage_discounts\n        ]\n\n        # Calculate potential savings for each voucher (capped at subtotal)\n        voucher_savings = [\n            min(amount, subtotal) for amount in self.vouchers\n        ]\n\n        all_savings = discount_savings + voucher_savings\n        max_saving = max(all_savings) if all_savings else 0.0\n\n        items_total = max(0.0, subtotal - max_saving)\n\n        # Free shipping threshold is checked against the value of items before discounts\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        return round(items_total + shipping, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0T8ZatRhoBiGArF9F6HhA4fxylJvGg+vbMMGH2np7oqFzWyjBKbrfF89XcLN69EDfjd/YnsIoE6aZpS5F1zoybhWzYlElFHfX+6Vc27fksxOgtMiXNwycn80txLuCAoJReBLY="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794527879,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 837,
+   "prompt_tokens": 811,
+   "total_tokens": 1648,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

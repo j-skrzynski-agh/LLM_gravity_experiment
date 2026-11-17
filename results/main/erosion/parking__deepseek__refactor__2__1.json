@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:38:49+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "deepseek",
+ "variant": "refactor",
+ "rep": 2,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "parking__deepseek__FULL__2.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime\nimport math\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Stays of at most 15 minutes are free\n        if total_seconds <= 15 * 60:\n            return 0.0\n\n        # Stays longer than 24 hours are charged a flat penalty\n        if total_seconds > 24 * 60 * 60:\n            return 200.00\n\n        # Every started hour is charged as a full hour\n        hours = math.ceil(total_seconds / 3600)\n        total = hours * self.hourly_rate\n        return round(total, 2)\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\nimport math\n\n\nclass ParkingMeter:\n    FREE_DURATION = timedelta(minutes=15)\n    MAX_DURATION = timedelta(hours=24)\n    LONG_STAY_FEE = 200.00\n    SECONDS_PER_HOUR = 3600\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        if duration <= self.FREE_DURATION:\n            return 0.0\n\n        if duration > self.MAX_DURATION:\n            return self.LONG_STAY_FEE\n\n        hours = math.ceil(duration.total_seconds() / self.SECONDS_PER_HOUR)\n        return round(hours * self.hourly_rate, 2)\n```",
+ "code": "from datetime import datetime, timedelta\nimport math\n\n\nclass ParkingMeter:\n    FREE_DURATION = timedelta(minutes=15)\n    MAX_DURATION = timedelta(hours=24)\n    LONG_STAY_FEE = 200.00\n    SECONDS_PER_HOUR = 3600\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        if duration <= self.FREE_DURATION:\n            return 0.0\n\n        if duration > self.MAX_DURATION:\n            return self.LONG_STAY_FEE\n\n        hours = math.ceil(duration.total_seconds() / self.SECONDS_PER_HOUR)\n        return round(hours * self.hourly_rate, 2)\n",
+ "input_tokens": 282,
+ "output_tokens": 215,
+ "cost_usd": 0.00034260000000000003,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 1.37,
+ "raw_api_response": {
+  "id": "16eb747c-84cb-4655-8e0d-fa816bec93e4",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\nimport math\n\n\nclass ParkingMeter:\n    FREE_DURATION = timedelta(minutes=15)\n    MAX_DURATION = timedelta(hours=24)\n    LONG_STAY_FEE = 200.00\n    SECONDS_PER_HOUR = 3600\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        if duration <= self.FREE_DURATION:\n            return 0.0\n\n        if duration > self.MAX_DURATION:\n            return self.LONG_STAY_FEE\n\n        hours = math.ceil(duration.total_seconds() / self.SECONDS_PER_HOUR)\n        return round(hours * self.hourly_rate, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794944322,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 215,
+   "prompt_tokens": 282,
+   "total_tokens": 497,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 282
+  }
+ }
+}

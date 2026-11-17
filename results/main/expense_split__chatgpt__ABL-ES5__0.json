@@ -1,0 +1,87 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:32:09+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "chatgpt",
+ "condition": "ABL-ES5",
+ "rep": 0,
+ "requirement_order": [
+  "ES1",
+  "ES2",
+  "ES3",
+  "ES4",
+  "ES6"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": true,
+  "ES4": true,
+  "ES5": false,
+  "ES6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. Adding an expense whose payer or any participant is not a group member raises ValueError.\n2. If participants are not given, the expense is split equally among all group members.\n3. Adding an expense with an amount that is zero or negative raises ValueError.\n4. settle_up() proposes at most (number of members - 1) payments.\n5. settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off and not included in the proposed payments.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport math\n\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self._members = list(dict.fromkeys(members))\n        self._balances = {member: 0.0 for member in self._members}\n\n    def add_expense(\n        self,\n        payer: str,\n        amount: float,\n        participants: list[str] | None = None,\n    ) -> None:\n        if payer not in self._balances:\n            raise ValueError(\"Payer is not a group member\")\n        if not math.isfinite(amount) or amount <= 0:\n            raise ValueError(\"Amount must be positive and finite\")\n\n        people = self._members if participants is None else participants\n        if not people:\n            raise ValueError(\"An expense must have at least one participant\")\n        if any(person not in self._balances for person in people):\n            raise ValueError(\"A participant is not a group member\")\n\n        share = amount / len(people)\n        self._balances[payer] += amount\n        for person in people:\n            self._balances[person] -= share\n\n    def balances(self) -> dict[str, float]:\n        return self._balances.copy()\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = {\n            member: -balance\n            for member, balance in self._balances.items()\n            if balance < 0\n        }\n        creditors = {\n            member: balance\n            for member, balance in self._balances.items()\n            if balance > 0\n        }\n        payments = []\n\n        while debtors and creditors:\n            debtor = max(debtors, key=debtors.get)\n            creditor = max(creditors, key=creditors.get)\n            debt = debtors[debtor]\n            credit = creditors[creditor]\n            amount = min(debt, credit)\n\n            if amount < 1.0:\n                break\n\n            payments.append((debtor, creditor, amount))\n            if debt <= credit:\n                del debtors[debtor]\n            else:\n                debtors[debtor] = debt - amount\n            if credit <= debt:\n                del creditors[creditor]\n            else:\n                creditors[creditor] = credit - amount\n\n        return payments\n```",
+ "code": "import math\n\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self._members = list(dict.fromkeys(members))\n        self._balances = {member: 0.0 for member in self._members}\n\n    def add_expense(\n        self,\n        payer: str,\n        amount: float,\n        participants: list[str] | None = None,\n    ) -> None:\n        if payer not in self._balances:\n            raise ValueError(\"Payer is not a group member\")\n        if not math.isfinite(amount) or amount <= 0:\n            raise ValueError(\"Amount must be positive and finite\")\n\n        people = self._members if participants is None else participants\n        if not people:\n            raise ValueError(\"An expense must have at least one participant\")\n        if any(person not in self._balances for person in people):\n            raise ValueError(\"A participant is not a group member\")\n\n        share = amount / len(people)\n        self._balances[payer] += amount\n        for person in people:\n            self._balances[person] -= share\n\n    def balances(self) -> dict[str, float]:\n        return self._balances.copy()\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = {\n            member: -balance\n            for member, balance in self._balances.items()\n            if balance < 0\n        }\n        creditors = {\n            member: balance\n            for member, balance in self._balances.items()\n            if balance > 0\n        }\n        payments = []\n\n        while debtors and creditors:\n            debtor = max(debtors, key=debtors.get)\n            creditor = max(creditors, key=creditors.get)\n            debt = debtors[debtor]\n            credit = creditors[creditor]\n            amount = min(debt, credit)\n\n            if amount < 1.0:\n                break\n\n            payments.append((debtor, creditor, amount))\n            if debt <= credit:\n                del debtors[debtor]\n            else:\n                debtors[debtor] = debt - amount\n            if credit <= debt:\n                del creditors[creditor]\n            else:\n                creditors[creditor] = credit - amount\n\n        return payments\n",
+ "input_tokens": 325,
+ "output_tokens": 707,
+ "cost_usd": 0.00386,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 8.93,
+ "raw_api_response": {
+  "id": "chatcmpl-EjGlWBJINYdS5sWYp56yS6magQmxQ",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport math\n\n\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self._members = list(dict.fromkeys(members))\n        self._balances = {member: 0.0 for member in self._members}\n\n    def add_expense(\n        self,\n        payer: str,\n        amount: float,\n        participants: list[str] | None = None,\n    ) -> None:\n        if payer not in self._balances:\n            raise ValueError(\"Payer is not a group member\")\n        if not math.isfinite(amount) or amount <= 0:\n            raise ValueError(\"Amount must be positive and finite\")\n\n        people = self._members if participants is None else participants\n        if not people:\n            raise ValueError(\"An expense must have at least one participant\")\n        if any(person not in self._balances for person in people):\n            raise ValueError(\"A participant is not a group member\")\n\n        share = amount / len(people)\n        self._balances[payer] += amount\n        for person in people:\n            self._balances[person] -= share\n\n    def balances(self) -> dict[str, float]:\n        return self._balances.copy()\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = {\n            member: -balance\n            for member, balance in self._balances.items()\n            if balance < 0\n        }\n        creditors = {\n            member: balance\n            for member, balance in self._balances.items()\n            if balance > 0\n        }\n        payments = []\n\n        while debtors and creditors:\n            debtor = max(debtors, key=debtors.get)\n            creditor = max(creditors, key=creditors.get)\n            debt = debtors[debtor]\n            credit = creditors[creditor]\n            amount = min(debt, credit)\n\n            if amount < 1.0:\n                break\n\n            payments.append((debtor, creditor, amount))\n            if debt <= credit:\n                del debtors[debtor]\n            else:\n                debtors[debtor] = debt - amount\n            if credit <= debt:\n                del creditors[creditor]\n            else:\n                creditors[creditor] = credit - amount\n\n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794457914,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 707,
+   "prompt_tokens": 325,
+   "total_tokens": 1032,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 222,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

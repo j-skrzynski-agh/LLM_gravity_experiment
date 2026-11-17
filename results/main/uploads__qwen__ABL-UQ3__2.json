@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:48:01+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "qwen",
+ "condition": "ABL-UQ3",
+ "rep": 2,
+ "requirement_order": [
+  "UQ5",
+  "UQ4",
+  "UQ2",
+  "UQ1"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. Uploading again a file with the same name in the same month does not count towards the limit a second time.\n2. Deleting a file does not give back quota in the current month.\n3. An upload that would exceed the monthly limit raises ValueError, and the file is not counted.\n4. Uploading a file of size 0 raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_mib = monthly_limit_mib\n        self.monthly_files = {}  # Maps month -> set of file names uploaded that month\n        self.file_sizes = {}     # Maps (month, name) -> size_bytes\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"File size cannot be 0\")\n        \n        # Check if file already exists for this month\n        if month in self.monthly_files and name in self.monthly_files[month]:\n            # File already uploaded this month, no change to quota\n            return\n        \n        # Calculate current usage for this month\n        current_usage = self.used_bytes(month)\n        \n        # Check if adding this file would exceed the limit\n        new_usage = current_usage + size_bytes\n        limit_bytes = self.monthly_limit_mib * 1024 * 1024\n        \n        if new_usage > limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file to tracking\n        if month not in self.monthly_files:\n            self.monthly_files[month] = set()\n        self.monthly_files[month].add(name)\n        self.file_sizes[(month, name)] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Deleting a file does not give back quota in the current month\n        # So we just remove it from our tracking\n        if month in self.monthly_files and name in self.monthly_files[month]:\n            self.monthly_files[month].remove(name)\n            # Remove from file_sizes as well\n            if (month, name) in self.file_sizes:\n                del self.file_sizes[(month, name)]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        if month not in self.monthly_files:\n            return 0\n        \n        total = 0\n        for name in self.monthly_files[month]:\n            if (month, name) in self.file_sizes:\n                total += self.file_sizes[(month, name)]\n        return total\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_mib = monthly_limit_mib\n        self.monthly_files = {}  # Maps month -> set of file names uploaded that month\n        self.file_sizes = {}     # Maps (month, name) -> size_bytes\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"File size cannot be 0\")\n        \n        # Check if file already exists for this month\n        if month in self.monthly_files and name in self.monthly_files[month]:\n            # File already uploaded this month, no change to quota\n            return\n        \n        # Calculate current usage for this month\n        current_usage = self.used_bytes(month)\n        \n        # Check if adding this file would exceed the limit\n        new_usage = current_usage + size_bytes\n        limit_bytes = self.monthly_limit_mib * 1024 * 1024\n        \n        if new_usage > limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file to tracking\n        if month not in self.monthly_files:\n            self.monthly_files[month] = set()\n        self.monthly_files[month].add(name)\n        self.file_sizes[(month, name)] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Deleting a file does not give back quota in the current month\n        # So we just remove it from our tracking\n        if month in self.monthly_files and name in self.monthly_files[month]:\n            self.monthly_files[month].remove(name)\n            # Remove from file_sizes as well\n            if (month, name) in self.file_sizes:\n                del self.file_sizes[(month, name)]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        if month not in self.monthly_files:\n            return 0\n        \n        total = 0\n        for name in self.monthly_files[month]:\n            if (month, name) in self.file_sizes:\n                total += self.file_sizes[(month, name)]\n        return total\n",
+ "input_tokens": 242,
+ "output_tokens": 487,
+ "cost_usd": 0.0006812000000000001,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 10.2,
+ "raw_api_response": {
+  "id": "gen-1794894466-Rt6MfspaKGtwq7GULAK3",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_mib = monthly_limit_mib\n        self.monthly_files = {}  # Maps month -> set of file names uploaded that month\n        self.file_sizes = {}     # Maps (month, name) -> size_bytes\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes == 0:\n            raise ValueError(\"File size cannot be 0\")\n        \n        # Check if file already exists for this month\n        if month in self.monthly_files and name in self.monthly_files[month]:\n            # File already uploaded this month, no change to quota\n            return\n        \n        # Calculate current usage for this month\n        current_usage = self.used_bytes(month)\n        \n        # Check if adding this file would exceed the limit\n        new_usage = current_usage + size_bytes\n        limit_bytes = self.monthly_limit_mib * 1024 * 1024\n        \n        if new_usage > limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota\")\n        \n        # Add the file to tracking\n        if month not in self.monthly_files:\n            self.monthly_files[month] = set()\n        self.monthly_files[month].add(name)\n        self.file_sizes[(month, name)] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Deleting a file does not give back quota in the current month\n        # So we just remove it from our tracking\n        if month in self.monthly_files and name in self.monthly_files[month]:\n            self.monthly_files[month].remove(name)\n            # Remove from file_sizes as well\n            if (month, name) in self.file_sizes:\n                del self.file_sizes[(month, name)]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        if month not in self.monthly_files:\n            return 0\n        \n        total = 0\n        for name in self.monthly_files[month]:\n            if (month, name) in self.file_sizes:\n                total += self.file_sizes[(month, name)]\n        return total\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794894466,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 487,
+   "prompt_tokens": 242,
+   "total_tokens": 729,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00044278,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00044278,
+    "upstream_inference_prompt_cost": 6.292e-05,
+    "upstream_inference_completions_cost": 0.00037986
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

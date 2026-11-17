@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T00:32:07+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "gemini",
+ "variant": "code",
+ "rep": 2,
+ "step": 3,
+ "change": "Add a method `receipt(self, entry: datetime, exit: datetime) -> str` that returns a one-line receipt with the duration in minutes and the fee.",
+ "start_file": "parking__gemini__FULL__2.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime, timedelta\nimport math\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n        self._total_collected: float = 0.0\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Requirement 2: Stays of at most 15 minutes are free.\n        if total_seconds <= 15 * 60:\n            return 0.00\n\n        # Requirement 3: Stays longer than 24 hours are charged a flat penalty of 200.00.\n        if total_seconds > 24 * 3600:\n            return round(200.00, 2)\n\n        # Requirement 5: Every started hour is charged as a full hour.\n        # Requirement 2: ...longer stays are charged for their whole duration.\n        hours = math.ceil(total_seconds / 3600.0)\n        total_fee = hours * self.hourly_rate\n\n        # Requirement 1: The fee is rounded to two decimal places.\n        return round(total_fee, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        calculated_fee = self.fee(entry, exit)\n        self._total_collected += calculated_fee\n        return calculated_fee\n\n    def total_collected(self) -> float:\n        return round(self._total_collected, 2)\n\n    def estimate(self, hours: int) -> float:\n        if hours < 0:\n            raise ValueError(\"Hours cannot be negative.\")\n        base_time = datetime(2000, 1, 1)\n        return self.fee(base_time, base_time + timedelta(hours=hours))\n```\n\n## Change request\nAdd a method `receipt(self, entry: datetime, exit: datetime) -> str` that returns a one-line receipt with the duration in minutes and the fee.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the complete updated module with the `receipt` method added:\n\n```python\nfrom datetime import datetime, timedelta\nimport math\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n        self._total_collected: float = 0.0\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Requirement 2: Stays of at most 15 minutes are free.\n        if total_seconds <= 15 * 60:\n            return 0.00\n\n        # Requirement 3: Stays longer than 24 hours are charged a flat penalty of 200.00.\n        if total_seconds > 24 * 3600:\n            return round(200.00, 2)\n\n        # Requirement 5: Every started hour is charged as a full hour.\n        # Requirement 2: ...longer stays are charged for their whole duration.\n        hours = math.ceil(total_seconds / 3600.0)\n        total_fee = hours * self.hourly_rate\n\n        # Requirement 1: The fee is rounded to two decimal places.\n        return round(total_fee, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        calculated_fee = self.fee(entry, exit)\n        self._total_collected += calculated_fee\n        return calculated_fee\n\n    def total_collected(self) -> float:\n        return round(self._total_collected, 2)\n\n    def estimate(self, hours: int) -> float:\n        if hours < 0:\n            raise ValueError(\"Hours cannot be negative.\")\n        base_time = datetime(2000, 1, 1)\n        return self.fee(base_time, base_time + timedelta(hours=hours))\n\n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        calculated_fee = self.fee(entry, exit)\n        duration_minutes = int((exit - entry).total_seconds() / 60)\n        return f\"Duration: {duration_minutes} minutes, Fee: ${calculated_fee:.2f}\"\n```",
+ "code": "from datetime import datetime, timedelta\nimport math\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n        self._total_collected: float = 0.0\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Requirement 2: Stays of at most 15 minutes are free.\n        if total_seconds <= 15 * 60:\n            return 0.00\n\n        # Requirement 3: Stays longer than 24 hours are charged a flat penalty of 200.00.\n        if total_seconds > 24 * 3600:\n            return round(200.00, 2)\n\n        # Requirement 5: Every started hour is charged as a full hour.\n        # Requirement 2: ...longer stays are charged for their whole duration.\n        hours = math.ceil(total_seconds / 3600.0)\n        total_fee = hours * self.hourly_rate\n\n        # Requirement 1: The fee is rounded to two decimal places.\n        return round(total_fee, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        calculated_fee = self.fee(entry, exit)\n        self._total_collected += calculated_fee\n        return calculated_fee\n\n    def total_collected(self) -> float:\n        return round(self._total_collected, 2)\n\n    def estimate(self, hours: int) -> float:\n        if hours < 0:\n            raise ValueError(\"Hours cannot be negative.\")\n        base_time = datetime(2000, 1, 1)\n        return self.fee(base_time, base_time + timedelta(hours=hours))\n\n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        calculated_fee = self.fee(entry, exit)\n        duration_minutes = int((exit - entry).total_seconds() / 60)\n        return f\"Duration: {duration_minutes} minutes, Fee: ${calculated_fee:.2f}\"\n",
+ "input_tokens": 545,
+ "output_tokens": 564,
+ "cost_usd": 0.00252375,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 4.4,
+ "raw_api_response": {
+  "id": "fVr2as-8EbagvdIPxJyc8AM",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the complete updated module with the `receipt` method added:\n\n```python\nfrom datetime import datetime, timedelta\nimport math\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n        self._total_collected: float = 0.0\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Requirement 2: Stays of at most 15 minutes are free.\n        if total_seconds <= 15 * 60:\n            return 0.00\n\n        # Requirement 3: Stays longer than 24 hours are charged a flat penalty of 200.00.\n        if total_seconds > 24 * 3600:\n            return round(200.00, 2)\n\n        # Requirement 5: Every started hour is charged as a full hour.\n        # Requirement 2: ...longer stays are charged for their whole duration.\n        hours = math.ceil(total_seconds / 3600.0)\n        total_fee = hours * self.hourly_rate\n\n        # Requirement 1: The fee is rounded to two decimal places.\n        return round(total_fee, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        calculated_fee = self.fee(entry, exit)\n        self._total_collected += calculated_fee\n        return calculated_fee\n\n    def total_collected(self) -> float:\n        return round(self._total_collected, 2)\n\n    def estimate(self, hours: int) -> float:\n        if hours < 0:\n            raise ValueError(\"Hours cannot be negative.\")\n        base_time = datetime(2000, 1, 1)\n        return self.fee(base_time, base_time + timedelta(hours=hours))\n\n    def receipt(self, entry: datetime, exit: datetime) -> str:\n        calculated_fee = self.fee(entry, exit)\n        duration_minutes = int((exit - entry).total_seconds() / 60)\n        return f\"Duration: {duration_minutes} minutes, Fee: ${calculated_fee:.2f}\"\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TY3Vr6KgyjiIVi5w1+3/1MpGaGjhmGDrYFOGIlwV7PPcmfWLqoIPyFlw/OqypImXGRM8MGY36EiPtom59gN4eMh/lMGvLm+g0byMrQK5qFwxU2aDp0xBa1CfLFYGGROu3sPg="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794529921,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 564,
+   "prompt_tokens": 545,
+   "total_tokens": 1109,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

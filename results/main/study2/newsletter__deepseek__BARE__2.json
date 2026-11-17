@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:35:03+00:00",
+ "task": "newsletter",
+ "task_hash": "718da7e4dd51",
+ "model": "deepseek",
+ "condition": "BARE",
+ "rep": 2,
+ "requirement_order": [],
+ "model_id": "deepseek-flash",
+ "prompt": "Add a newsletter sign-up form to my website.",
+ "response": "# Newsletter Sign-Up Form Implementation\n\nHere's a complete, accessible, and responsive newsletter sign-up form you can drop into your site.\n\n## HTML\n\n```html\n<form id=\"newsletter-form\" class=\"newsletter-form\" novalidate>\n  <h2 class=\"newsletter-form__title\">Subscribe to our newsletter</h2>\n  <p class=\"newsletter-form__subtitle\">Get the latest news delivered to your inbox.</p>\n\n  <div class=\"newsletter-form__field\">\n    <label for=\"newsletter-name\" class=\"visually-hidden\">Name (optional)</label>\n    <input\n      type=\"text\"\n      id=\"newsletter-name\"\n      name=\"name\"\n      placeholder=\"Your name (optional)\"\n      autocomplete=\"given-name\"\n    />\n  </div>\n\n  <div class=\"newsletter-form__field\">\n    <label for=\"newsletter-email\" class=\"visually-hidden\">Email address</label>\n    <input\n      type=\"email\"\n      id=\"newsletter-email\"\n      name=\"email\"\n      placeholder=\"you@example.com\"\n      autocomplete=\"email\"\n      required\n      aria-required=\"true\"\n      aria-describedby=\"newsletter-error\"\n    />\n  </div>\n\n  <!-- Honeypot (hidden from humans, catches bots) -->\n  <div class=\"newsletter-form__hp\" aria-hidden=\"true\">\n    <label for=\"newsletter-website\">Leave this field empty</label>\n    <input type=\"text\" id=\"newsletter-website\" name=\"website\" tabindex=\"-1\" autocomplete=\"off\" />\n  </div>\n\n  <button type=\"submit\" class=\"newsletter-form__submit\">Subscribe</button>\n\n  <p id=\"newsletter-error\" class=\"newsletter-form__error\" role=\"alert\" hidden></p>\n  <p id=\"newsletter-success\" class=\"newsletter-form__success\" role=\"status\" hidden></p>\n\n  <p class=\"newsletter-form__privacy\">\n    We respect your privacy. Unsubscribe anytime.\n  </p>\n</form>\n```\n\n## CSS\n\n```css\n.newsletter-form {\n  max-width: 420px;\n  margin: 2rem auto;\n  padding: 1.5rem;\n  font-family: system-ui, -apple-system, sans-serif;\n  border: 1px solid #e5e5e5;\n  border-radius: 8px;\n  background: #fff;\n}\n\n.newsletter-form__title {\n  margin: 0 0 0.5rem;\n  font-size: 1.25rem;\n}\n\n.newsletter-form__subtitle {\n  margin: 0 0 1rem;\n  color: #555;\n  font-size: 0.95rem;\n}\n\n.newsletter-form__field {\n  margin-bottom: 0.75rem;\n}\n\n.newsletter-form input[type=\"text\"],\n.newsletter-form input[type=\"email\"] {\n  width: 100%;\n  padding: 0.65rem 0.75rem;\n  border: 1px solid #ccc;\n  border-radius: 6px;\n  font-size: 1rem;\n  box-sizing: border-box;\n  transition: border-color 0.15s;\n}\n\n.newsletter-form input:focus {\n  outline: 2px solid #2563eb;\n  outline-offset: 1px;\n  border-color: #2563eb;\n}\n\n.newsletter-form input[aria-invalid=\"true\"] {\n  border-color: #dc2626;\n}\n\n.newsletter-form__submit {\n  width: 100%;\n  padding: 0.7rem;\n  background: #2563eb;\n  color: #fff;\n  border: none;\n  border-radius: 6px;\n  font-size: 1rem;\n  font-weight: 600;\n  cursor: pointer;\n  transition: background 0.15s;\n}\n\n.newsletter-form__submit:hover { background: #1d4ed8; }\n.newsletter-form__submit:disabled { background: #93b3f0; cursor: not-allowed; }\n\n.newsletter-form__error {\n  color: #dc2626;\n  font-size: 0.875rem;\n  margin: 0.5rem 0 0;\n}\n\n.newsletter-form__success {\n  color: #16a34a;\n  font-size: 0.9rem;\n  margin: 0.5rem 0 0;\n}\n\n.newsletter-form__privacy {\n  margin: 0.75rem 0 0;\n  font-size: 0.8rem;\n  color: #777;\n}\n\n/* Honeypot hidden */\n.newsletter-form__hp {\n  position: absolute;\n  left: -9999px;\n  width: 1px;\n  height: 1px;\n  overflow: hidden;\n}\n\n/* Accessible-only label */\n.visually-hidden {\n  position: absolute;\n  width: 1px;\n  height: 1px;\n  padding: 0;\n  margin: -1px;\n  overflow: hidden;\n  clip: rect(0, 0, 0, 0);\n  white-space: nowrap;\n  border: 0;\n}\n```\n\n## JavaScript (progressive enhancement)\n\n```html\n<script>\n(function () {\n  const form = document.getElementById('newsletter-form');\n  if (!form) return;\n\n  const emailInput = document.getElementById('newsletter-email');\n  const errorEl = document.getElementById('newsletter-error');\n  const successEl = document.getElementById('newsletter-success');\n  const submitBtn = form.querySelector('button[type=\"submit\"]');\n\n  form.addEventListener('submit', async (e) => {\n    e.preventDefault();\n    errorEl.hidden = true;\n    successEl.hidden = true;\n\n    const email = emailInput.value.trim();\n    const honeypot = form.website.value;\n\n    // Bot trap\n    if (honeypot) return;\n\n    // Basic validation\n    if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n      emailInput.setAttribute('aria-invalid', 'true');\n      errorEl.textContent = 'Please enter a valid email address.';\n      errorEl.hidden = false;\n      emailInput.focus();\n      return;\n    }\n    emailInput.removeAttribute('aria-invalid');\n\n    submitBtn.disabled = true;\n    submitBtn.textContent = 'Subscribing\u2026';\n\n    try {\n      const res = await fetch('/api/newsletter/subscribe', {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({ email, name: form.name.value.trim() }),\n      });\n\n      if (!res.ok) throw new Error('Subscription failed');\n\n      form.reset();\n      successEl.textContent = 'Thanks! Please check your inbox to confirm.';\n      successEl.hidden = false;\n    } catch (err) {\n      errorEl.textContent = 'Something went wrong. Please try again later.';\n      errorEl.hidden = false;\n    } finally {\n      submitBtn.disabled = false;\n      submitBtn.textContent = 'Subscribe';\n    }\n  });\n})();\n</script>\n```\n\n## Backend endpoint (Node/Express example)\n\n```js\nimport express from 'express';\nconst router = express.Router();\n\nrouter.post('/api/newsletter/subscribe', express.json(), async (req, res) => {\n  const { email, name } = req.body || {};\n\n  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n    return res.status(400).json({ error: 'Invalid email' });\n  }\n\n  try {\n    // TODO: persist to your DB / Mailchimp / ConvertKit / etc.\n    // await db.subscribers.insert({ email, name, createdAt: new Date() });\n\n    // Optional: send a double opt-in confirmation email here\n    res.json({ ok: true });\n  } catch (err) {\n    console.error(err);\n    res.status(500).json({ error: 'Server error' });\n  }\n});\n\nexport default router;\n```\n\n## Notes & recommendations\n\n- **Double opt-in**: For GDPR/CAN-SPAM compliance, send a confirmation email before adding the subscriber to your list.\n- **Rate limiting**: Protect the endpoint (e.g., `express-rate-limit`, 5 requests / IP / hour).\n- **CAPTCHA** (optional): Add hCaptcha or Cloudflare Turnstile if you see bot traffic \u2014 the honeypot handles most of it.\n- **Provider**: If you use Mailchimp, ConvertKit, Buttondown, or Resend, wire the backend to their API instead of a custom DB.\n- **Analytics**: Fire an event on success (e.g., `gtag('event', 'newsletter_signup')`).\n\nWant me to tailor it to a specific provider (Mailchimp, Substack, Resend, etc.) or framework (Next.js, WordPress, Shopify)? Let me know.",
+ "input_tokens": 14,
+ "output_tokens": 1936,
+ "cost_usd": 0.0023273999999999994,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 6.84,
+ "raw_api_response": {
+  "id": "88c71b1a-c5d3-4d68-8458-89398f948360",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "# Newsletter Sign-Up Form Implementation\n\nHere's a complete, accessible, and responsive newsletter sign-up form you can drop into your site.\n\n## HTML\n\n```html\n<form id=\"newsletter-form\" class=\"newsletter-form\" novalidate>\n  <h2 class=\"newsletter-form__title\">Subscribe to our newsletter</h2>\n  <p class=\"newsletter-form__subtitle\">Get the latest news delivered to your inbox.</p>\n\n  <div class=\"newsletter-form__field\">\n    <label for=\"newsletter-name\" class=\"visually-hidden\">Name (optional)</label>\n    <input\n      type=\"text\"\n      id=\"newsletter-name\"\n      name=\"name\"\n      placeholder=\"Your name (optional)\"\n      autocomplete=\"given-name\"\n    />\n  </div>\n\n  <div class=\"newsletter-form__field\">\n    <label for=\"newsletter-email\" class=\"visually-hidden\">Email address</label>\n    <input\n      type=\"email\"\n      id=\"newsletter-email\"\n      name=\"email\"\n      placeholder=\"you@example.com\"\n      autocomplete=\"email\"\n      required\n      aria-required=\"true\"\n      aria-describedby=\"newsletter-error\"\n    />\n  </div>\n\n  <!-- Honeypot (hidden from humans, catches bots) -->\n  <div class=\"newsletter-form__hp\" aria-hidden=\"true\">\n    <label for=\"newsletter-website\">Leave this field empty</label>\n    <input type=\"text\" id=\"newsletter-website\" name=\"website\" tabindex=\"-1\" autocomplete=\"off\" />\n  </div>\n\n  <button type=\"submit\" class=\"newsletter-form__submit\">Subscribe</button>\n\n  <p id=\"newsletter-error\" class=\"newsletter-form__error\" role=\"alert\" hidden></p>\n  <p id=\"newsletter-success\" class=\"newsletter-form__success\" role=\"status\" hidden></p>\n\n  <p class=\"newsletter-form__privacy\">\n    We respect your privacy. Unsubscribe anytime.\n  </p>\n</form>\n```\n\n## CSS\n\n```css\n.newsletter-form {\n  max-width: 420px;\n  margin: 2rem auto;\n  padding: 1.5rem;\n  font-family: system-ui, -apple-system, sans-serif;\n  border: 1px solid #e5e5e5;\n  border-radius: 8px;\n  background: #fff;\n}\n\n.newsletter-form__title {\n  margin: 0 0 0.5rem;\n  font-size: 1.25rem;\n}\n\n.newsletter-form__subtitle {\n  margin: 0 0 1rem;\n  color: #555;\n  font-size: 0.95rem;\n}\n\n.newsletter-form__field {\n  margin-bottom: 0.75rem;\n}\n\n.newsletter-form input[type=\"text\"],\n.newsletter-form input[type=\"email\"] {\n  width: 100%;\n  padding: 0.65rem 0.75rem;\n  border: 1px solid #ccc;\n  border-radius: 6px;\n  font-size: 1rem;\n  box-sizing: border-box;\n  transition: border-color 0.15s;\n}\n\n.newsletter-form input:focus {\n  outline: 2px solid #2563eb;\n  outline-offset: 1px;\n  border-color: #2563eb;\n}\n\n.newsletter-form input[aria-invalid=\"true\"] {\n  border-color: #dc2626;\n}\n\n.newsletter-form__submit {\n  width: 100%;\n  padding: 0.7rem;\n  background: #2563eb;\n  color: #fff;\n  border: none;\n  border-radius: 6px;\n  font-size: 1rem;\n  font-weight: 600;\n  cursor: pointer;\n  transition: background 0.15s;\n}\n\n.newsletter-form__submit:hover { background: #1d4ed8; }\n.newsletter-form__submit:disabled { background: #93b3f0; cursor: not-allowed; }\n\n.newsletter-form__error {\n  color: #dc2626;\n  font-size: 0.875rem;\n  margin: 0.5rem 0 0;\n}\n\n.newsletter-form__success {\n  color: #16a34a;\n  font-size: 0.9rem;\n  margin: 0.5rem 0 0;\n}\n\n.newsletter-form__privacy {\n  margin: 0.75rem 0 0;\n  font-size: 0.8rem;\n  color: #777;\n}\n\n/* Honeypot hidden */\n.newsletter-form__hp {\n  position: absolute;\n  left: -9999px;\n  width: 1px;\n  height: 1px;\n  overflow: hidden;\n}\n\n/* Accessible-only label */\n.visually-hidden {\n  position: absolute;\n  width: 1px;\n  height: 1px;\n  padding: 0;\n  margin: -1px;\n  overflow: hidden;\n  clip: rect(0, 0, 0, 0);\n  white-space: nowrap;\n  border: 0;\n}\n```\n\n## JavaScript (progressive enhancement)\n\n```html\n<script>\n(function () {\n  const form = document.getElementById('newsletter-form');\n  if (!form) return;\n\n  const emailInput = document.getElementById('newsletter-email');\n  const errorEl = document.getElementById('newsletter-error');\n  const successEl = document.getElementById('newsletter-success');\n  const submitBtn = form.querySelector('button[type=\"submit\"]');\n\n  form.addEventListener('submit', async (e) => {\n    e.preventDefault();\n    errorEl.hidden = true;\n    successEl.hidden = true;\n\n    const email = emailInput.value.trim();\n    const honeypot = form.website.value;\n\n    // Bot trap\n    if (honeypot) return;\n\n    // Basic validation\n    if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n      emailInput.setAttribute('aria-invalid', 'true');\n      errorEl.textContent = 'Please enter a valid email address.';\n      errorEl.hidden = false;\n      emailInput.focus();\n      return;\n    }\n    emailInput.removeAttribute('aria-invalid');\n\n    submitBtn.disabled = true;\n    submitBtn.textContent = 'Subscribing\u2026';\n\n    try {\n      const res = await fetch('/api/newsletter/subscribe', {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({ email, name: form.name.value.trim() }),\n      });\n\n      if (!res.ok) throw new Error('Subscription failed');\n\n      form.reset();\n      successEl.textContent = 'Thanks! Please check your inbox to confirm.';\n      successEl.hidden = false;\n    } catch (err) {\n      errorEl.textContent = 'Something went wrong. Please try again later.';\n      errorEl.hidden = false;\n    } finally {\n      submitBtn.disabled = false;\n      submitBtn.textContent = 'Subscribe';\n    }\n  });\n})();\n</script>\n```\n\n## Backend endpoint (Node/Express example)\n\n```js\nimport express from 'express';\nconst router = express.Router();\n\nrouter.post('/api/newsletter/subscribe', express.json(), async (req, res) => {\n  const { email, name } = req.body || {};\n\n  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n    return res.status(400).json({ error: 'Invalid email' });\n  }\n\n  try {\n    // TODO: persist to your DB / Mailchimp / ConvertKit / etc.\n    // await db.subscribers.insert({ email, name, createdAt: new Date() });\n\n    // Optional: send a double opt-in confirmation email here\n    res.json({ ok: true });\n  } catch (err) {\n    console.error(err);\n    res.status(500).json({ error: 'Server error' });\n  }\n});\n\nexport default router;\n```\n\n## Notes & recommendations\n\n- **Double opt-in**: For GDPR/CAN-SPAM compliance, send a confirmation email before adding the subscriber to your list.\n- **Rate limiting**: Protect the endpoint (e.g., `express-rate-limit`, 5 requests / IP / hour).\n- **CAPTCHA** (optional): Add hCaptcha or Cloudflare Turnstile if you see bot traffic \u2014 the honeypot handles most of it.\n- **Provider**: If you use Mailchimp, ConvertKit, Buttondown, or Resend, wire the backend to their API instead of a custom DB.\n- **Analytics**: Fire an event on success (e.g., `gtag('event', 'newsletter_signup')`).\n\nWant me to tailor it to a specific provider (Mailchimp, Substack, Resend, etc.) or framework (Next.js, WordPress, Shopify)? Let me know.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794530094,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 1936,
+   "prompt_tokens": 14,
+   "total_tokens": 1950,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 14
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "NL1": {
+     "met": true,
+     "reason": "Users actively submit the form to sign up, and there is no pre-checked consent checkbox."
+    },
+    "NL2": {
+     "met": false,
+     "reason": "The code provides no unsubscribe mechanism."
+    },
+    "NL3": {
+     "met": false,
+     "reason": "The server validates the email but does not save subscribers."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "NL1": {
+     "met": true,
+     "reason": "There is no consent checkbox at all in the form, so no pre-checked checkbox exists; consent is inferred from the active submission of the form."
+    },
+    "NL2": {
+     "met": false,
+     "reason": "The code provides no unsubscribe mechanism\u2014neither a link in the confirmation email nor a backend endpoint or UI for unsubscribing is implemented."
+    },
+    "NL3": {
+     "met": false,
+     "reason": "The backend example validates the email format but does not validate that the email address is deliverable or otherwise verified on the server before saving; it only performs regex validation and has a TODO comment indicating persistence is not implemented."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "NL1": {
+     "met": true,
+     "reason": "There is no pre-checked consent checkbox, and the user must click Subscribe, which is an active action; no consent is assumed by default."
+    },
+    "NL2": {
+     "met": false,
+     "reason": "No unsubscribe mechanism or endpoint is implemented; the only mention is the text 'Unsubscribe anytime.'"
+    },
+    "NL3": {
+     "met": true,
+     "reason": "The backend endpoint validates the email with a regex and returns 400 if invalid, before the (TODO) persistence step."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"NL1\":{\"met\":true,\"reason\":\"Users actively submit the form to sign up, and there is no pre-checked consent checkbox.\"},\"NL2\":{\"met\":false,\"reason\":\"The code provides no unsubscribe mechanism.\"},\"NL3\":{\"met\":false,\"reason\":\"The server validates the email but does not save subscribers.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"NL1\": {\"met\": true, \"reason\": \"There is no consent checkbox at all in the form, so no pre-checked checkbox exists; consent is inferred from the active submission of the form.\"},\n  \"NL2\": {\"met\": false, \"reason\": \"The code provides no unsubscribe mechanism\u2014neither a link in the confirmation email nor a backend endpoint or UI for unsubscribing is implemented.\"},\n  \"NL3\": {\"met\": false, \"reason\": \"The backend example validates the email format but does not validate that the email address is deliverable or otherwise verified on the server before saving; it only performs regex validation and has a TODO comment indicating persistence is not implemented.\"}\n}",
+  "claude": "{\"_code\": true, \"NL1\": {\"met\": true, \"reason\": \"There is no pre-checked consent checkbox, and the user must click Subscribe, which is an active action; no consent is assumed by default.\"}, \"NL2\": {\"met\": false, \"reason\": \"No unsubscribe mechanism or endpoint is implemented; the only mention is the text 'Unsubscribe anytime.'\"}, \"NL3\": {\"met\": true, \"reason\": \"The backend endpoint validates the email with a regex and returns 400 if invalid, before the (TODO) persistence step.\"}}"
+ },
+ "judge_cost_usd": 0.011962400000000002
+}

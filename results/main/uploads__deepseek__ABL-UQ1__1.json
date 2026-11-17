@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:16:58+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "deepseek",
+ "condition": "ABL-UQ1",
+ "rep": 1,
+ "requirement_order": [
+  "UQ5",
+  "UQ3",
+  "UQ4",
+  "UQ2"
+ ],
+ "passed": {
+  "UQ1": false,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": true,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. Uploading again a file with the same name in the same month does not count towards the limit a second time.\n2. The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.\n3. Deleting a file does not give back quota in the current month.\n4. An upload that would exceed the monthly limit raises ValueError, and the file is not counted.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    MIB = 1024 * 1024\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * self.MIB)\n        # month -> set of file names currently counted towards quota\n        self._counted: dict[str, set[str]] = {}\n        # month -> bytes counted towards quota in that month\n        self._used: dict[str, int] = {}\n        # name -> (month, size_bytes) for the most recent upload of that name\n        # (we track uploads per name across months for delete semantics)\n        self._uploads: dict[str, dict[str, int]] = {}  # month -> {name: size}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        counted = self._counted.setdefault(month, set())\n        used = self._used.setdefault(month, 0)\n\n        if name in counted:\n            # Re-upload in same month: does not count again.\n            # Update size record so delete() reflects reality, but do not\n            # change the counted size (quota already charged).\n            self._uploads.setdefault(month, {})[name] = size_bytes\n            return\n\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\n                f\"Upload of {name!r} ({size_bytes} bytes) would exceed the \"\n                f\"monthly limit of {self._limit_bytes} bytes for {month}\"\n            )\n\n        counted.add(name)\n        self._used[month] = used + size_bytes\n        self._uploads.setdefault(month, {})[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Deleting does not return quota in the current month.\n        # We remove the name from the \"counted\" set for the month so that a\n        # subsequent upload under the same name in that month will count\n        # normally... but requirement 3 says deleting does not give back\n        # quota. To satisfy both 1 and 3 properly, we must not let a deleted\n        # file's re-upload avoid counting.  However, requirement 1 is about\n        # uploading the same name again in the same month \u2014 a deleted file\n        # that is re-uploaded should count again (it's a new file now).\n        counted = self._counted.get(month)\n        if counted is not None:\n            counted.discard(name)\n        uploads = self._uploads.get(month)\n        if uploads is not None:\n            uploads.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        return self._used.get(month, 0)\n```",
+ "code": "class UploadQuota:\n    MIB = 1024 * 1024\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * self.MIB)\n        # month -> set of file names currently counted towards quota\n        self._counted: dict[str, set[str]] = {}\n        # month -> bytes counted towards quota in that month\n        self._used: dict[str, int] = {}\n        # name -> (month, size_bytes) for the most recent upload of that name\n        # (we track uploads per name across months for delete semantics)\n        self._uploads: dict[str, dict[str, int]] = {}  # month -> {name: size}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        counted = self._counted.setdefault(month, set())\n        used = self._used.setdefault(month, 0)\n\n        if name in counted:\n            # Re-upload in same month: does not count again.\n            # Update size record so delete() reflects reality, but do not\n            # change the counted size (quota already charged).\n            self._uploads.setdefault(month, {})[name] = size_bytes\n            return\n\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\n                f\"Upload of {name!r} ({size_bytes} bytes) would exceed the \"\n                f\"monthly limit of {self._limit_bytes} bytes for {month}\"\n            )\n\n        counted.add(name)\n        self._used[month] = used + size_bytes\n        self._uploads.setdefault(month, {})[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Deleting does not return quota in the current month.\n        # We remove the name from the \"counted\" set for the month so that a\n        # subsequent upload under the same name in that month will count\n        # normally... but requirement 3 says deleting does not give back\n        # quota. To satisfy both 1 and 3 properly, we must not let a deleted\n        # file's re-upload avoid counting.  However, requirement 1 is about\n        # uploading the same name again in the same month \u2014 a deleted file\n        # that is re-uploaded should count again (it's a new file now).\n        counted = self._counted.get(month)\n        if counted is not None:\n            counted.discard(name)\n        uploads = self._uploads.get(month)\n        if uploads is not None:\n            uploads.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        return self._used.get(month, 0)\n",
+ "input_tokens": 248,
+ "output_tokens": 604,
+ "cost_usd": 0.0007991999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 4.18,
+ "raw_api_response": {
+  "id": "2cc264aa-5de7-462c-9da1-ccad1a1d9015",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    MIB = 1024 * 1024\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * self.MIB)\n        # month -> set of file names currently counted towards quota\n        self._counted: dict[str, set[str]] = {}\n        # month -> bytes counted towards quota in that month\n        self._used: dict[str, int] = {}\n        # name -> (month, size_bytes) for the most recent upload of that name\n        # (we track uploads per name across months for delete semantics)\n        self._uploads: dict[str, dict[str, int]] = {}  # month -> {name: size}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        counted = self._counted.setdefault(month, set())\n        used = self._used.setdefault(month, 0)\n\n        if name in counted:\n            # Re-upload in same month: does not count again.\n            # Update size record so delete() reflects reality, but do not\n            # change the counted size (quota already charged).\n            self._uploads.setdefault(month, {})[name] = size_bytes\n            return\n\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\n                f\"Upload of {name!r} ({size_bytes} bytes) would exceed the \"\n                f\"monthly limit of {self._limit_bytes} bytes for {month}\"\n            )\n\n        counted.add(name)\n        self._used[month] = used + size_bytes\n        self._uploads.setdefault(month, {})[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        # Deleting does not return quota in the current month.\n        # We remove the name from the \"counted\" set for the month so that a\n        # subsequent upload under the same name in that month will count\n        # normally... but requirement 3 says deleting does not give back\n        # quota. To satisfy both 1 and 3 properly, we must not let a deleted\n        # file's re-upload avoid counting.  However, requirement 1 is about\n        # uploading the same name again in the same month \u2014 a deleted file\n        # that is re-uploaded should count again (it's a new file now).\n        counted = self._counted.get(month)\n        if counted is not None:\n            counted.discard(name)\n        uploads = self._uploads.get(month)\n        if uploads is not None:\n            uploads.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        return self._used.get(month, 0)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794453409,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 604,
+   "prompt_tokens": 248,
+   "total_tokens": 852,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 248
+  }
+ }
+}

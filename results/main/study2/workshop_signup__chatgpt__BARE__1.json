@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:12:00+00:00",
+ "task": "workshop_signup",
+ "task_hash": "0c55ad8ae293",
+ "model": "chatgpt",
+ "condition": "BARE",
+ "rep": 1,
+ "requirement_order": [],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Make a small web app for signing up for our workshop. There are 20 seats; people enter their name and email and get a seat.",
+ "response": "Here\u2019s a small Flask app with persistent storage and a hard limit of 20 seats. SQLite transactions prevent simultaneous signups from taking the same last seat.\n\nSave as `app.py`:\n\n```python\nimport os\nimport re\nimport sqlite3\n\nfrom flask import Flask, redirect, render_template_string, request, url_for\n\napp = Flask(__name__)\nDATABASE = os.environ.get(\"DATABASE\", \"workshop.db\")\nCAPACITY = 20\n\nPAGE = \"\"\"\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Workshop signup</title>\n  <style>\n    body {\n      font-family: system-ui, sans-serif;\n      background: #f3f5fa;\n      color: #182033;\n      margin: 0;\n      padding: 3rem 1rem;\n    }\n    main {\n      max-width: 420px;\n      margin: auto;\n      padding: 2rem;\n      background: white;\n      border-radius: 12px;\n      box-shadow: 0 8px 30px #18203315;\n    }\n    h1 { margin-top: 0; }\n    label { display: block; margin-top: 1rem; font-weight: 600; }\n    input {\n      box-sizing: border-box;\n      width: 100%;\n      padding: .7rem;\n      margin-top: .4rem;\n      border: 1px solid #aab2c2;\n      border-radius: 6px;\n      font: inherit;\n    }\n    button {\n      width: 100%;\n      margin-top: 1.4rem;\n      padding: .8rem;\n      background: #344ccf;\n      color: white;\n      border: 0;\n      border-radius: 6px;\n      font: inherit;\n      font-weight: 600;\n      cursor: pointer;\n    }\n    .notice { padding: .8rem; background: #edf1ff; border-radius: 6px; }\n    .error { background: #fff0f0; color: #9b2020; }\n  </style>\n</head>\n<body>\n  <main>\n    <h1>Workshop signup</h1>\n    <p>{{ remaining }} of {{ capacity }} seats remaining</p>\n\n    {% if message %}\n      <p class=\"notice {{ 'error' if error else '' }}\" role=\"status\">\n        {{ message }}\n      </p>\n    {% endif %}\n\n    {% if remaining > 0 and not success %}\n      <form method=\"post\">\n        <label for=\"name\">Name</label>\n        <input id=\"name\" name=\"name\" required maxlength=\"100\"\n               value=\"{{ name }}\" autocomplete=\"name\">\n\n        <label for=\"email\">Email</label>\n        <input id=\"email\" name=\"email\" type=\"email\" required maxlength=\"254\"\n               value=\"{{ email }}\" autocomplete=\"email\">\n\n        <button type=\"submit\">Reserve my seat</button>\n      </form>\n    {% elif remaining == 0 and not success %}\n      <p>Sorry, this workshop is full.</p>\n    {% endif %}\n  </main>\n</body>\n</html>\n\"\"\"\n\ndef connect():\n    db = sqlite3.connect(DATABASE, timeout=10)\n    db.execute(\"PRAGMA busy_timeout = 10000\")\n    return db\n\ndef init_db():\n    with connect() as db:\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS signups (\n                id INTEGER PRIMARY KEY,\n                name TEXT NOT NULL,\n                email TEXT NOT NULL UNIQUE,\n                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n            )\n        \"\"\")\n\n@app.route(\"/\", methods=[\"GET\", \"POST\"])\ndef signup():\n    name = \"\"\n    email = \"\"\n    message = \"\"\n    error = False\n    success = request.args.get(\"success\") == \"1\"\n\n    if success:\n        message = \"You're signed up! Your seat is reserved.\"\n\n    if request.method == \"POST\":\n        name = request.form.get(\"name\", \"\").strip()\n        email = request.form.get(\"email\", \"\").strip().lower()\n\n        if not name or len(name) > 100:\n            message, error = \"Please enter a name of up to 100 characters.\", True\n        elif len(email) > 254 or not re.fullmatch(r\"[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+\", email):\n            message, error = \"Please enter a valid email address.\", True\n        else:\n            db = connect()\n            try:\n                # Lock before checking capacity so concurrent requests cannot overbook.\n                db.execute(\"BEGIN IMMEDIATE\")\n                count = db.execute(\"SELECT COUNT(*) FROM signups\").fetchone()[0]\n                existing = db.execute(\n                    \"SELECT 1 FROM signups WHERE email = ?\", (email,)\n                ).fetchone()\n\n                if existing:\n                    message, error = \"This email is already signed up.\", True\n                elif count >= CAPACITY:\n                    message, error = \"Sorry, the workshop is full.\", True\n                else:\n                    db.execute(\n                        \"INSERT INTO signups (name, email) VALUES (?, ?)\",\n                        (name, email),\n                    )\n                    db.commit()\n                    return redirect(url_for(\"signup\", success=1))\n            finally:\n                db.close()\n\n    with connect() as db:\n        count = db.execute(\"SELECT COUNT(*) FROM signups\").fetchone()[0]\n\n    return render_template_string(\n        PAGE, remaining=max(0, CAPACITY - count), capacity=CAPACITY,\n        name=name, email=email, message=message, error=error, success=success,\n    )\n\ninit_db()\n\nif __name__ == \"__main__\":\n    app.run(debug=True)\n```\n\nRun it:\n\n```bash\npip install flask\npython app.py\n```\n\nOpen `http://127.0.0.1:5000`. Signups are stored in `workshop.db`. For deployment, use a production server and persistent shared storage; don\u2019t run Flask\u2019s debug server publicly.",
+ "input_tokens": 35,
+ "output_tokens": 1366,
+ "cost_usd": 0.006865,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 16.17,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja7JziIG6DRkeQckswj7KtoRLp1c",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s a small Flask app with persistent storage and a hard limit of 20 seats. SQLite transactions prevent simultaneous signups from taking the same last seat.\n\nSave as `app.py`:\n\n```python\nimport os\nimport re\nimport sqlite3\n\nfrom flask import Flask, redirect, render_template_string, request, url_for\n\napp = Flask(__name__)\nDATABASE = os.environ.get(\"DATABASE\", \"workshop.db\")\nCAPACITY = 20\n\nPAGE = \"\"\"\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Workshop signup</title>\n  <style>\n    body {\n      font-family: system-ui, sans-serif;\n      background: #f3f5fa;\n      color: #182033;\n      margin: 0;\n      padding: 3rem 1rem;\n    }\n    main {\n      max-width: 420px;\n      margin: auto;\n      padding: 2rem;\n      background: white;\n      border-radius: 12px;\n      box-shadow: 0 8px 30px #18203315;\n    }\n    h1 { margin-top: 0; }\n    label { display: block; margin-top: 1rem; font-weight: 600; }\n    input {\n      box-sizing: border-box;\n      width: 100%;\n      padding: .7rem;\n      margin-top: .4rem;\n      border: 1px solid #aab2c2;\n      border-radius: 6px;\n      font: inherit;\n    }\n    button {\n      width: 100%;\n      margin-top: 1.4rem;\n      padding: .8rem;\n      background: #344ccf;\n      color: white;\n      border: 0;\n      border-radius: 6px;\n      font: inherit;\n      font-weight: 600;\n      cursor: pointer;\n    }\n    .notice { padding: .8rem; background: #edf1ff; border-radius: 6px; }\n    .error { background: #fff0f0; color: #9b2020; }\n  </style>\n</head>\n<body>\n  <main>\n    <h1>Workshop signup</h1>\n    <p>{{ remaining }} of {{ capacity }} seats remaining</p>\n\n    {% if message %}\n      <p class=\"notice {{ 'error' if error else '' }}\" role=\"status\">\n        {{ message }}\n      </p>\n    {% endif %}\n\n    {% if remaining > 0 and not success %}\n      <form method=\"post\">\n        <label for=\"name\">Name</label>\n        <input id=\"name\" name=\"name\" required maxlength=\"100\"\n               value=\"{{ name }}\" autocomplete=\"name\">\n\n        <label for=\"email\">Email</label>\n        <input id=\"email\" name=\"email\" type=\"email\" required maxlength=\"254\"\n               value=\"{{ email }}\" autocomplete=\"email\">\n\n        <button type=\"submit\">Reserve my seat</button>\n      </form>\n    {% elif remaining == 0 and not success %}\n      <p>Sorry, this workshop is full.</p>\n    {% endif %}\n  </main>\n</body>\n</html>\n\"\"\"\n\ndef connect():\n    db = sqlite3.connect(DATABASE, timeout=10)\n    db.execute(\"PRAGMA busy_timeout = 10000\")\n    return db\n\ndef init_db():\n    with connect() as db:\n        db.execute(\"\"\"\n            CREATE TABLE IF NOT EXISTS signups (\n                id INTEGER PRIMARY KEY,\n                name TEXT NOT NULL,\n                email TEXT NOT NULL UNIQUE,\n                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n            )\n        \"\"\")\n\n@app.route(\"/\", methods=[\"GET\", \"POST\"])\ndef signup():\n    name = \"\"\n    email = \"\"\n    message = \"\"\n    error = False\n    success = request.args.get(\"success\") == \"1\"\n\n    if success:\n        message = \"You're signed up! Your seat is reserved.\"\n\n    if request.method == \"POST\":\n        name = request.form.get(\"name\", \"\").strip()\n        email = request.form.get(\"email\", \"\").strip().lower()\n\n        if not name or len(name) > 100:\n            message, error = \"Please enter a name of up to 100 characters.\", True\n        elif len(email) > 254 or not re.fullmatch(r\"[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+\", email):\n            message, error = \"Please enter a valid email address.\", True\n        else:\n            db = connect()\n            try:\n                # Lock before checking capacity so concurrent requests cannot overbook.\n                db.execute(\"BEGIN IMMEDIATE\")\n                count = db.execute(\"SELECT COUNT(*) FROM signups\").fetchone()[0]\n                existing = db.execute(\n                    \"SELECT 1 FROM signups WHERE email = ?\", (email,)\n                ).fetchone()\n\n                if existing:\n                    message, error = \"This email is already signed up.\", True\n                elif count >= CAPACITY:\n                    message, error = \"Sorry, the workshop is full.\", True\n                else:\n                    db.execute(\n                        \"INSERT INTO signups (name, email) VALUES (?, ?)\",\n                        (name, email),\n                    )\n                    db.commit()\n                    return redirect(url_for(\"signup\", success=1))\n            finally:\n                db.close()\n\n    with connect() as db:\n        count = db.execute(\"SELECT COUNT(*) FROM signups\").fetchone()[0]\n\n    return render_template_string(\n        PAGE, remaining=max(0, CAPACITY - count), capacity=CAPACITY,\n        name=name, email=email, message=message, error=error, success=success,\n    )\n\ninit_db()\n\nif __name__ == \"__main__\":\n    app.run(debug=True)\n```\n\nRun it:\n\n```bash\npip install flask\npython app.py\n```\n\nOpen `http://127.0.0.1:5000`. Signups are stored in `workshop.db`. For deployment, use a production server and persistent shared storage; don\u2019t run Flask\u2019s debug server publicly.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532301,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1366,
+   "prompt_tokens": 35,
+   "total_tokens": 1401,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 84,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "The capacity check and insertion occur within an SQLite immediate transaction, serializing concurrent bookings."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "Emails are normalized to lowercase and protected by a database uniqueness constraint."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The app does not display stored participants\u2019 names or email addresses to other visitors."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "The code uses SQLite's BEGIN IMMEDIATE transaction and checks seat count within the same transaction before inserting, preventing concurrent overbooking."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The 'email' column is declared UNIQUE in the database schema and a prior existence check is performed within the transaction before insertion."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The application only displays the remaining seat count and user-specific success/error messages; it never queries, renders, or exposes any participant names or email addresses to other visitors."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "BEGIN IMMEDIATE takes a write lock before the count check and insert, which are committed together, so concurrent signups cannot exceed 20."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The email is lowercased, checked for an existing row, and the column has a UNIQUE constraint."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The page shows only the remaining seat count and never lists other participants' names or emails."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"WS1\":{\"met\":true,\"reason\":\"The capacity check and insertion occur within an SQLite immediate transaction, serializing concurrent bookings.\"},\"WS2\":{\"met\":true,\"reason\":\"Emails are normalized to lowercase and protected by a database uniqueness constraint.\"},\"WS3\":{\"met\":true,\"reason\":\"The app does not display stored participants\u2019 names or email addresses to other visitors.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"WS1\": {\"met\": true, \"reason\": \"The code uses SQLite's BEGIN IMMEDIATE transaction and checks seat count within the same transaction before inserting, preventing concurrent overbooking.\"},\n  \"WS2\": {\"met\": true, \"reason\": \"The 'email' column is declared UNIQUE in the database schema and a prior existence check is performed within the transaction before insertion.\"},\n  \"WS3\": {\"met\": true, \"reason\": \"The application only displays the remaining seat count and user-specific success/error messages; it never queries, renders, or exposes any participant names or email addresses to other visitors.\"}\n}",
+  "claude": "Potential issues to check:\n\n- The regex is inside a normal (non-raw) Python string prefixed with r, so `r\"[^\\\\s@]+@...\"` has a double backslash in a raw string. That makes the pattern `[^\\\\s@]`, a character class excluding a backslash, `s`, and `@`. This means emails containing the letter \"s\" are rejected. That is a bug, but it doesn't affect WS1-WS3 directly.\n\n- WS1: `BEGIN IMMEDIATE` is used. Python's sqlite3 default isolation_level=\"\" opens implicit transactions only before DML statements, and an explicit `BEGIN IMMEDIATE` executed by the user works in legacy mode, because the module doesn't begin a transaction before a non-DML statement. The count check and the insert then run inside the transaction, and the commit follows. This is atomic. In the full and existing branches the transaction is never committed, but closing the connection rolls it back. WS1 is met.\n\n- WS2: The email column is UNIQUE and the code also checks for an existing email, lowercased. This is met. The regex bug does not change that.\n\n- WS3: Only the remaining count is shown, with no names or emails listed. The form re-populates only the submitter's own input. This is met.\n\n{\"_code\": true, \"WS1\": {\"met\": true, \"reason\": \"BEGIN IMMEDIATE takes a write lock before the count check and insert, which are committed together, so concurrent signups cannot exceed 20.\"}, \"WS2\": {\"met\": true, \"reason\": \"The email is lowercased, checked for an existing row, and the column has a UNIQUE constraint.\"}, \"WS3\": {\"met\": true, \"reason\": \"The page shows only the remaining seat count and never lists other participants' names or emails.\"}}"
+ },
+ "judge_cost_usd": 0.013533400000000001
+}

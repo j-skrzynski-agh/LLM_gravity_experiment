@@ -1,0 +1,87 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:48:48+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "deepseek",
+ "condition": "ABL-ES1",
+ "rep": 0,
+ "requirement_order": [
+  "ES2",
+  "ES5",
+  "ES6",
+  "ES4",
+  "ES3"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": true,
+  "ES4": true,
+  "ES5": true,
+  "ES6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. If participants are not given, the expense is split equally among all group members.\n2. When an amount cannot be split into equal cents, the leftover cents are borne by the payer: every other participant owes exactly the amount rounded down to the cent.\n3. settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off and not included in the proposed payments.\n4. settle_up() proposes at most (number of members - 1) payments.\n5. Adding an expense with an amount that is zero or negative raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        if len(members) != len(set(members)):\n            raise ValueError(\"Members must be unique\")\n        self._members = list(members)\n        self._balances: dict[str, float] = {m: 0.0 for m in members}\n\n    def _check_member(self, name: str) -> None:\n        if name not in self._balances:\n            raise ValueError(f\"Unknown member: {name}\")\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive\")\n        self._check_member(payer)\n\n        if participants is None:\n            participants = list(self._members)\n        else:\n            participants = list(participants)\n            if not participants:\n                raise ValueError(\"Participants list must not be empty\")\n            for p in participants:\n                self._check_member(p)\n            if len(participants) != len(set(participants)):\n                raise ValueError(\"Participants must be unique\")\n\n        n = len(participants)\n        total_cents = round(amount * 100)\n        base_cents = total_cents // n  # rounded down\n        remainder = total_cents - base_cents * n\n\n        # Payer pays the whole amount:\n        self._balances[payer] += amount\n\n        # Each participant (including payer if present) owes their share.\n        # Every OTHER participant owes exactly base_cents.\n        # The leftover cents are borne by the payer:\n        #   if payer is a participant, payer's share = base + remainder\n        #   else payer bears the full remainder as extra cost.\n        for p in participants:\n            if p == payer:\n                share_cents = base_cents + remainder\n            else:\n                share_cents = base_cents\n            self._balances[p] -= share_cents / 100.0\n\n        # If payer is not a participant, they still absorb the remainder,\n        # which is already accounted for since they paid the full amount\n        # and only received base_cents*participants worth of debits.\n        # (Balance is computed correctly: payer got +amount, owes 0 from list.)\n        # Note: when payer is not a participant, remainder is NOT assigned to\n        # any participant \u2014 it stays effectively \"lost\" against the payer's\n        # credit, which matches requirement 2 wording... but requirement says\n        # leftover cents borne by payer. Since payer paid full amount and only\n        # others owe base_cents each, the remainder is naturally absorbed by\n        # the payer's balance. Correct.\n\n        # Round all balances to avoid floating-point drift.\n        for m in self._balances:\n            self._balances[m] = round(self._balances[m], 2)\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(b, 2) for m, b in self._balances.items()}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        # Work in cents to avoid float issues.\n        cents = {m: round(b * 100) for m, b in self._balances.items()}\n\n        debtors = []   # (name, amount_owed) as positive cents\n        creditors = [] # (name, amount_due) as positive cents\n        for m, c in cents.items():\n            if c < 0:\n                debtors.append([m, -c])\n            elif c > 0:\n                creditors.append([m, c])\n\n        # Sort for determinism: largest first.\n        debtors.sort(key=lambda x: (-x[1], x[0]))\n        creditors.sort(key=lambda x: (-x[1], x[0]))\n\n        payments: list[tuple[str, str, float]] = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            d_name, d_amt = debtors[i]\n            c_name, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            if pay >= 100:  # only record >= 1.00\n                payments.append((d_name, c_name, pay / 100.0))\n            d_amt -= pay\n            c_amt -= pay\n            debtors[i][1] = d_amt\n            creditors[j][1] = c_amt\n            if d_amt == 0:\n                i += 1\n            if c_amt == 0:\n                j += 1\n\n        # Enforce at most n-1 payments: it will naturally be <= n-1 for a\n        # balanced ledger with >=1 zero balance leftover. If exactly n\n        # payments appear (only possible if no member has zero balance and\n        # algorithm produced n payments, which can't happen since total is 0),\n        # we'd need a merge \u2014 but the greedy algorithm already yields <= n-1.\n        return payments\n```",
+ "code": "class Group:\n    def __init__(self, members: list[str]) -> None:\n        if len(members) != len(set(members)):\n            raise ValueError(\"Members must be unique\")\n        self._members = list(members)\n        self._balances: dict[str, float] = {m: 0.0 for m in members}\n\n    def _check_member(self, name: str) -> None:\n        if name not in self._balances:\n            raise ValueError(f\"Unknown member: {name}\")\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive\")\n        self._check_member(payer)\n\n        if participants is None:\n            participants = list(self._members)\n        else:\n            participants = list(participants)\n            if not participants:\n                raise ValueError(\"Participants list must not be empty\")\n            for p in participants:\n                self._check_member(p)\n            if len(participants) != len(set(participants)):\n                raise ValueError(\"Participants must be unique\")\n\n        n = len(participants)\n        total_cents = round(amount * 100)\n        base_cents = total_cents // n  # rounded down\n        remainder = total_cents - base_cents * n\n\n        # Payer pays the whole amount:\n        self._balances[payer] += amount\n\n        # Each participant (including payer if present) owes their share.\n        # Every OTHER participant owes exactly base_cents.\n        # The leftover cents are borne by the payer:\n        #   if payer is a participant, payer's share = base + remainder\n        #   else payer bears the full remainder as extra cost.\n        for p in participants:\n            if p == payer:\n                share_cents = base_cents + remainder\n            else:\n                share_cents = base_cents\n            self._balances[p] -= share_cents / 100.0\n\n        # If payer is not a participant, they still absorb the remainder,\n        # which is already accounted for since they paid the full amount\n        # and only received base_cents*participants worth of debits.\n        # (Balance is computed correctly: payer got +amount, owes 0 from list.)\n        # Note: when payer is not a participant, remainder is NOT assigned to\n        # any participant \u2014 it stays effectively \"lost\" against the payer's\n        # credit, which matches requirement 2 wording... but requirement says\n        # leftover cents borne by payer. Since payer paid full amount and only\n        # others owe base_cents each, the remainder is naturally absorbed by\n        # the payer's balance. Correct.\n\n        # Round all balances to avoid floating-point drift.\n        for m in self._balances:\n            self._balances[m] = round(self._balances[m], 2)\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(b, 2) for m, b in self._balances.items()}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        # Work in cents to avoid float issues.\n        cents = {m: round(b * 100) for m, b in self._balances.items()}\n\n        debtors = []   # (name, amount_owed) as positive cents\n        creditors = [] # (name, amount_due) as positive cents\n        for m, c in cents.items():\n            if c < 0:\n                debtors.append([m, -c])\n            elif c > 0:\n                creditors.append([m, c])\n\n        # Sort for determinism: largest first.\n        debtors.sort(key=lambda x: (-x[1], x[0]))\n        creditors.sort(key=lambda x: (-x[1], x[0]))\n\n        payments: list[tuple[str, str, float]] = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            d_name, d_amt = debtors[i]\n            c_name, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            if pay >= 100:  # only record >= 1.00\n                payments.append((d_name, c_name, pay / 100.0))\n            d_amt -= pay\n            c_amt -= pay\n            debtors[i][1] = d_amt\n            creditors[j][1] = c_amt\n            if d_amt == 0:\n                i += 1\n            if c_amt == 0:\n                j += 1\n\n        # Enforce at most n-1 payments: it will naturally be <= n-1 for a\n        # balanced ledger with >=1 zero balance leftover. If exactly n\n        # payments appear (only possible if no member has zero balance and\n        # algorithm produced n payments, which can't happen since total is 0),\n        # we'd need a merge \u2014 but the greedy algorithm already yields <= n-1.\n        return payments\n",
+ "input_tokens": 342,
+ "output_tokens": 1085,
+ "cost_usd": 0.0014046,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 7.11,
+ "raw_api_response": {
+  "id": "9a403c63-2e39-42c7-89b3-58861765a92f",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        if len(members) != len(set(members)):\n            raise ValueError(\"Members must be unique\")\n        self._members = list(members)\n        self._balances: dict[str, float] = {m: 0.0 for m in members}\n\n    def _check_member(self, name: str) -> None:\n        if name not in self._balances:\n            raise ValueError(f\"Unknown member: {name}\")\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive\")\n        self._check_member(payer)\n\n        if participants is None:\n            participants = list(self._members)\n        else:\n            participants = list(participants)\n            if not participants:\n                raise ValueError(\"Participants list must not be empty\")\n            for p in participants:\n                self._check_member(p)\n            if len(participants) != len(set(participants)):\n                raise ValueError(\"Participants must be unique\")\n\n        n = len(participants)\n        total_cents = round(amount * 100)\n        base_cents = total_cents // n  # rounded down\n        remainder = total_cents - base_cents * n\n\n        # Payer pays the whole amount:\n        self._balances[payer] += amount\n\n        # Each participant (including payer if present) owes their share.\n        # Every OTHER participant owes exactly base_cents.\n        # The leftover cents are borne by the payer:\n        #   if payer is a participant, payer's share = base + remainder\n        #   else payer bears the full remainder as extra cost.\n        for p in participants:\n            if p == payer:\n                share_cents = base_cents + remainder\n            else:\n                share_cents = base_cents\n            self._balances[p] -= share_cents / 100.0\n\n        # If payer is not a participant, they still absorb the remainder,\n        # which is already accounted for since they paid the full amount\n        # and only received base_cents*participants worth of debits.\n        # (Balance is computed correctly: payer got +amount, owes 0 from list.)\n        # Note: when payer is not a participant, remainder is NOT assigned to\n        # any participant \u2014 it stays effectively \"lost\" against the payer's\n        # credit, which matches requirement 2 wording... but requirement says\n        # leftover cents borne by payer. Since payer paid full amount and only\n        # others owe base_cents each, the remainder is naturally absorbed by\n        # the payer's balance. Correct.\n\n        # Round all balances to avoid floating-point drift.\n        for m in self._balances:\n            self._balances[m] = round(self._balances[m], 2)\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(b, 2) for m, b in self._balances.items()}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        # Work in cents to avoid float issues.\n        cents = {m: round(b * 100) for m, b in self._balances.items()}\n\n        debtors = []   # (name, amount_owed) as positive cents\n        creditors = [] # (name, amount_due) as positive cents\n        for m, c in cents.items():\n            if c < 0:\n                debtors.append([m, -c])\n            elif c > 0:\n                creditors.append([m, c])\n\n        # Sort for determinism: largest first.\n        debtors.sort(key=lambda x: (-x[1], x[0]))\n        creditors.sort(key=lambda x: (-x[1], x[0]))\n\n        payments: list[tuple[str, str, float]] = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            d_name, d_amt = debtors[i]\n            c_name, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            if pay >= 100:  # only record >= 1.00\n                payments.append((d_name, c_name, pay / 100.0))\n            d_amt -= pay\n            c_amt -= pay\n            debtors[i][1] = d_amt\n            creditors[j][1] = c_amt\n            if d_amt == 0:\n                i += 1\n            if c_amt == 0:\n                j += 1\n\n        # Enforce at most n-1 payments: it will naturally be <= n-1 for a\n        # balanced ledger with >=1 zero balance leftover. If exactly n\n        # payments appear (only possible if no member has zero balance and\n        # algorithm produced n payments, which can't happen since total is 0),\n        # we'd need a merge \u2014 but the greedy algorithm already yields <= n-1.\n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794451714,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 1085,
+   "prompt_tokens": 342,
+   "total_tokens": 1427,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 128,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 128,
+   "prompt_cache_miss_tokens": 214
+  }
+ }
+}

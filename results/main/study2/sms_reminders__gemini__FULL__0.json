@@ -1,0 +1,126 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:58:35+00:00",
+ "task": "sms_reminders",
+ "task_hash": "a05853d9ca25",
+ "model": "gemini",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "RM1",
+  "RM3",
+  "RM2"
+ ],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Write a script that sends our clients an SMS reminder at 9:00 the day before their appointment.\n\nRequirements:\n- Times are handled with an explicit time zone, so 9:00 stays 9:00 local time across daylight saving changes.\n- No reminder is sent for cancelled appointments.\n- Running the script again does not send the same reminder twice (sent reminders are recorded).",
+ "response": "Here is a complete, production-ready Python solution using **SQLAlchemy** (with SQLite by default) and **Twilio** for SMS delivery.\n\n### Setup\n\n```bash\npip install sqlalchemy twilio zoneinfo\n```\n*(Note: `zoneinfo` is built into standard Python 3.9+)*\n\n---\n\n### Script (`reminder_cron.py`)\n\n```python\nimport os\nimport sys\nfrom datetime import datetime, time, timedelta\nfrom zoneinfo import ZoneInfo\nfrom sqlalchemy import (\n    Boolean,\n    Column,\n    DateTime,\n    Integer,\n    String,\n    create_engine,\n    select,\n)\nfrom sqlalchemy.orm import declarative_base, sessionmaker\nfrom twilio.rest import Client\n\n# ---------------------------------------------------------------------------\n# Configuration\n# ---------------------------------------------------------------------------\nDATABASE_URL = os.getenv(\"DATABASE_URL\", \"sqlite:///appointments.db\")\nTWILIO_ACCOUNT_SID = os.getenv(\"TWILIO_ACCOUNT_SID\")\nTWILIO_AUTH_TOKEN = os.getenv(\"TWILIO_AUTH_TOKEN\")\nTWILIO_FROM_NUMBER = os.getenv(\"TWILIO_FROM_NUMBER\")\n\n# Business time zone where 9:00 AM should be evaluated\nTIMEZONE_NAME = os.getenv(\"APP_TIMEZONE\", \"America/New_York\")\nLOCAL_TZ = ZoneInfo(TIMEZONE_NAME)\n\n# ---------------------------------------------------------------------------\n# Database Models\n# ---------------------------------------------------------------------------\nBase = declarative_base()\n\n\nclass Appointment(Base):\n    __tablename__ = \"appointments\"\n\n    id = Column(Integer, primary_key=True)\n    client_name = Column(String(100), nullable=False)\n    client_phone = Column(String(20), nullable=False)\n    # Stored strictly in UTC\n    appointment_time = Column(DateTime(timezone=True), nullable=False)\n    is_cancelled = Column(Boolean, default=False, nullable=False)\n    # Idempotency flag\n    reminder_sent = Column(Boolean, default=False, nullable=False)\n    reminder_sent_at = Column(DateTime(timezone=True), nullable=True)\n\n\n# ---------------------------------------------------------------------------\n# SMS Sender Helper\n# ---------------------------------------------------------------------------\ndef send_sms(to_number: str, message_body: str):\n    \"\"\"Sends SMS using Twilio, or falls back to dry-run if credentials missing.\"\"\"\n    if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER):\n        print(f\"[DRY-RUN SMS to {to_number}]: {message_body}\")\n        return\n\n    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)\n    client.messages.create(\n        body=message_body,\n        from_=TWILIO_FROM_NUMBER,\n        to=to_number,\n    )\n\n\n# ---------------------------------------------------------------------------\n# Main Routine\n# ---------------------------------------------------------------------------\ndef send_due_reminders():\n    engine = create_engine(DATABASE_URL)\n    Base.metadata.create_all(engine)\n    Session = sessionmaker(bind=engine)\n    session = Session()\n\n    try:\n        # 1. Get current time in local timezone\n        now_local = datetime.now(LOCAL_TZ)\n\n        # 2. Target date for appointments is \"tomorrow\" relative to local time\n        tomorrow_local = (now_local + timedelta(days=1)).date()\n\n        # 3. Create boundaries for \"all of tomorrow\" in local time, then convert to UTC\n        start_of_tomorrow_local = datetime.combine(tomorrow_local, time.min, tzinfo=LOCAL_TZ)\n        end_of_tomorrow_local = datetime.combine(tomorrow_local, time.max, tzinfo=LOCAL_TZ)\n\n        start_utc = start_of_tomorrow_local.astimezone(ZoneInfo(\"UTC\"))\n        end_utc = end_of_tomorrow_local.astimezone(ZoneInfo(\"UTC\"))\n\n        # 4. Fetch valid, unreminded, non-cancelled appointments scheduled for tomorrow\n        query = (\n            select(Appointment)\n            .where(\n                Appointment.appointment_time >= start_utc,\n                Appointment.appointment_time <= end_utc,\n                Appointment.is_cancelled.is_(False),\n                Appointment.reminder_sent.is_(False),\n            )\n            # Row-level lock if using Postgres to avoid race conditions:\n            # .with_for_update()\n        )\n\n        due_appointments = session.scalars(query).all()\n        print(f\"[{now_local.isoformat()}] Found {len(due_appointments)} reminders to send.\")\n\n        for appt in due_appointments:\n            # Convert appointment time back to local time for friendly display in SMS\n            appt_time_local = appt.appointment_time.astimezone(LOCAL_TZ)\n            formatted_time = appt_time_local.strftime(\"%I:%M %p\")\n\n            msg = (\n                f\"Hi {appt.client_name}, reminder: your appointment is scheduled \"\n                f\"for tomorrow, {tomorrow_local.strftime('%B %d')}, at {formatted_time}.\"\n            )\n\n            try:\n                send_sms(appt.client_phone, msg)\n\n                # 5. Mark as sent immediately to ensure idempotency\n                appt.reminder_sent = True\n                appt.reminder_sent_at = datetime.now(ZoneInfo(\"UTC\"))\n                session.commit()\n                print(f\"Reminder sent successfully to {appt.client_phone}\")\n\n            except Exception as e:\n                session.rollback()\n                print(f\"Failed to send reminder for appointment {appt.id}: {e}\", file=sys.stderr)\n\n    finally:\n        session.close()\n\n\nif __name__ == \"__main__\":\n    send_due_reminders()\n```\n\n---\n\n### How Requirements Are Met\n\n1. **Explicit Time Zone & DST Handling**:\n   - `zoneinfo.ZoneInfo(\"America/New_York\")` manages historical, current, and future DST transitions properly.\n   - The query calculates boundaries based on the **local wall-clock date** of tomorrow (`date + 1 day`), and maps those boundaries back to UTC. Even when DST transitions occur overnight, the target remains the actual calendar day of tomorrow.\n2. **Cancelled Appointments**:\n   - Filtered out via `Appointment.is_cancelled.is_(False)`.\n3. **Idempotency (No Double Sending)**:\n   - Queries `Appointment.reminder_sent.is_(False)`.\n   - As soon as the SMS is dispatched, `reminder_sent = True` is committed to the database. Running the script again will skip these records.\n\n### Scheduling (Cron)\n\nSet this script to run at **9:00 AM local time**. In the system running cron:\n\n```cron\n# Run at 9:00 AM every day\n0 9 * * * /usr/bin/python3 /path/to/reminder_cron.py >> /var/log/appointment_reminders.log 2>&1\n```",
+ "input_tokens": 85,
+ "output_tokens": 1618,
+ "cost_usd": 0.00613125,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 12.08,
+ "raw_api_response": {
+  "id": "q2D2arbUMuq1nsEPhN7L4Ac",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a complete, production-ready Python solution using **SQLAlchemy** (with SQLite by default) and **Twilio** for SMS delivery.\n\n### Setup\n\n```bash\npip install sqlalchemy twilio zoneinfo\n```\n*(Note: `zoneinfo` is built into standard Python 3.9+)*\n\n---\n\n### Script (`reminder_cron.py`)\n\n```python\nimport os\nimport sys\nfrom datetime import datetime, time, timedelta\nfrom zoneinfo import ZoneInfo\nfrom sqlalchemy import (\n    Boolean,\n    Column,\n    DateTime,\n    Integer,\n    String,\n    create_engine,\n    select,\n)\nfrom sqlalchemy.orm import declarative_base, sessionmaker\nfrom twilio.rest import Client\n\n# ---------------------------------------------------------------------------\n# Configuration\n# ---------------------------------------------------------------------------\nDATABASE_URL = os.getenv(\"DATABASE_URL\", \"sqlite:///appointments.db\")\nTWILIO_ACCOUNT_SID = os.getenv(\"TWILIO_ACCOUNT_SID\")\nTWILIO_AUTH_TOKEN = os.getenv(\"TWILIO_AUTH_TOKEN\")\nTWILIO_FROM_NUMBER = os.getenv(\"TWILIO_FROM_NUMBER\")\n\n# Business time zone where 9:00 AM should be evaluated\nTIMEZONE_NAME = os.getenv(\"APP_TIMEZONE\", \"America/New_York\")\nLOCAL_TZ = ZoneInfo(TIMEZONE_NAME)\n\n# ---------------------------------------------------------------------------\n# Database Models\n# ---------------------------------------------------------------------------\nBase = declarative_base()\n\n\nclass Appointment(Base):\n    __tablename__ = \"appointments\"\n\n    id = Column(Integer, primary_key=True)\n    client_name = Column(String(100), nullable=False)\n    client_phone = Column(String(20), nullable=False)\n    # Stored strictly in UTC\n    appointment_time = Column(DateTime(timezone=True), nullable=False)\n    is_cancelled = Column(Boolean, default=False, nullable=False)\n    # Idempotency flag\n    reminder_sent = Column(Boolean, default=False, nullable=False)\n    reminder_sent_at = Column(DateTime(timezone=True), nullable=True)\n\n\n# ---------------------------------------------------------------------------\n# SMS Sender Helper\n# ---------------------------------------------------------------------------\ndef send_sms(to_number: str, message_body: str):\n    \"\"\"Sends SMS using Twilio, or falls back to dry-run if credentials missing.\"\"\"\n    if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER):\n        print(f\"[DRY-RUN SMS to {to_number}]: {message_body}\")\n        return\n\n    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)\n    client.messages.create(\n        body=message_body,\n        from_=TWILIO_FROM_NUMBER,\n        to=to_number,\n    )\n\n\n# ---------------------------------------------------------------------------\n# Main Routine\n# ---------------------------------------------------------------------------\ndef send_due_reminders():\n    engine = create_engine(DATABASE_URL)\n    Base.metadata.create_all(engine)\n    Session = sessionmaker(bind=engine)\n    session = Session()\n\n    try:\n        # 1. Get current time in local timezone\n        now_local = datetime.now(LOCAL_TZ)\n\n        # 2. Target date for appointments is \"tomorrow\" relative to local time\n        tomorrow_local = (now_local + timedelta(days=1)).date()\n\n        # 3. Create boundaries for \"all of tomorrow\" in local time, then convert to UTC\n        start_of_tomorrow_local = datetime.combine(tomorrow_local, time.min, tzinfo=LOCAL_TZ)\n        end_of_tomorrow_local = datetime.combine(tomorrow_local, time.max, tzinfo=LOCAL_TZ)\n\n        start_utc = start_of_tomorrow_local.astimezone(ZoneInfo(\"UTC\"))\n        end_utc = end_of_tomorrow_local.astimezone(ZoneInfo(\"UTC\"))\n\n        # 4. Fetch valid, unreminded, non-cancelled appointments scheduled for tomorrow\n        query = (\n            select(Appointment)\n            .where(\n                Appointment.appointment_time >= start_utc,\n                Appointment.appointment_time <= end_utc,\n                Appointment.is_cancelled.is_(False),\n                Appointment.reminder_sent.is_(False),\n            )\n            # Row-level lock if using Postgres to avoid race conditions:\n            # .with_for_update()\n        )\n\n        due_appointments = session.scalars(query).all()\n        print(f\"[{now_local.isoformat()}] Found {len(due_appointments)} reminders to send.\")\n\n        for appt in due_appointments:\n            # Convert appointment time back to local time for friendly display in SMS\n            appt_time_local = appt.appointment_time.astimezone(LOCAL_TZ)\n            formatted_time = appt_time_local.strftime(\"%I:%M %p\")\n\n            msg = (\n                f\"Hi {appt.client_name}, reminder: your appointment is scheduled \"\n                f\"for tomorrow, {tomorrow_local.strftime('%B %d')}, at {formatted_time}.\"\n            )\n\n            try:\n                send_sms(appt.client_phone, msg)\n\n                # 5. Mark as sent immediately to ensure idempotency\n                appt.reminder_sent = True\n                appt.reminder_sent_at = datetime.now(ZoneInfo(\"UTC\"))\n                session.commit()\n                print(f\"Reminder sent successfully to {appt.client_phone}\")\n\n            except Exception as e:\n                session.rollback()\n                print(f\"Failed to send reminder for appointment {appt.id}: {e}\", file=sys.stderr)\n\n    finally:\n        session.close()\n\n\nif __name__ == \"__main__\":\n    send_due_reminders()\n```\n\n---\n\n### How Requirements Are Met\n\n1. **Explicit Time Zone & DST Handling**:\n   - `zoneinfo.ZoneInfo(\"America/New_York\")` manages historical, current, and future DST transitions properly.\n   - The query calculates boundaries based on the **local wall-clock date** of tomorrow (`date + 1 day`), and maps those boundaries back to UTC. Even when DST transitions occur overnight, the target remains the actual calendar day of tomorrow.\n2. **Cancelled Appointments**:\n   - Filtered out via `Appointment.is_cancelled.is_(False)`.\n3. **Idempotency (No Double Sending)**:\n   - Queries `Appointment.reminder_sent.is_(False)`.\n   - As soon as the SMS is dispatched, `reminder_sent = True` is committed to the database. Running the script again will skip these records.\n\n### Scheduling (Cron)\n\nSet this script to run at **9:00 AM local time**. In the system running cron:\n\n```cron\n# Run at 9:00 AM every day\n0 9 * * * /usr/bin/python3 /path/to/reminder_cron.py >> /var/log/appointment_reminders.log 2>&1\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TlyG/cWIZR71AWC8TAa7NeFrpB3bfVHG9Is/2qlm1J8wqGJ1TXCng+eOimqashrA/jQFQmpzl0+wqywPFZpMYq2BtI/rg+1Jbyxn/eZo4k1JFHImneqn5ZWWD0JUJwBSEkng="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794531511,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1618,
+   "prompt_tokens": 85,
+   "total_tokens": 1703,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "RM1": {
+     "met": false,
+     "reason": "The script uses an explicit appointment time zone, but cron runs at 9:00 in the system's time zone, which is not configured to match it."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "After a successful send, the script records the reminder as sent and skips it on subsequent runs."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The appointment query excludes appointments marked as cancelled."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "RM1": {
+     "met": true,
+     "reason": "The code uses ZoneInfo with a configurable time zone (APP_TIMEZONE) and calculates 'tomorrow' in local time before converting boundaries to UTC, ensuring 9:00 AM local time is consistently evaluated across DST transitions."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "The code queries only appointments where reminder_sent.is_(False) and immediately sets reminder_sent = True and commits before sending the next SMS, preventing duplicate sends on re-execution."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The code filters appointments using Appointment.is_cancelled.is_(False), excluding cancelled appointments from the reminder query."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "RM1": {
+     "met": false,
+     "reason": "The script uses ZoneInfo for the date boundaries, but the 9:00 trigger itself is a system cron entry (`0 9 * * *`) that runs in the server's timezone, not APP_TIMEZONE. The script never checks that it is actually 9:00 local time, so 9:00 local is not guaranteed across DST changes or on a UTC server."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "Appointments with reminder_sent=True are excluded from the query, and the flag is committed after each successful send, so a rerun skips them."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The query filters on Appointment.is_cancelled.is_(False), so cancelled appointments are never selected."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"RM1\":{\"met\":false,\"reason\":\"The script uses an explicit appointment time zone, but cron runs at 9:00 in the system's time zone, which is not configured to match it.\"},\"RM2\":{\"met\":true,\"reason\":\"After a successful send, the script records the reminder as sent and skips it on subsequent runs.\"},\"RM3\":{\"met\":true,\"reason\":\"The appointment query excludes appointments marked as cancelled.\"}}",
+  "qwen": "{\"_code\": true, \"RM1\": {\"met\": true, \"reason\": \"The code uses ZoneInfo with a configurable time zone (APP_TIMEZONE) and calculates 'tomorrow' in local time before converting boundaries to UTC, ensuring 9:00 AM local time is consistently evaluated across DST transitions.\"}, \"RM2\": {\"met\": true, \"reason\": \"The code queries only appointments where reminder_sent.is_(False) and immediately sets reminder_sent = True and commits before sending the next SMS, preventing duplicate sends on re-execution.\"}, \"RM3\": {\"met\": true, \"reason\": \"The code filters appointments using Appointment.is_cancelled.is_(False), excluding cancelled appointments from the reminder query.\"}}",
+  "claude": "{\"_code\": true, \"RM1\": {\"met\": false, \"reason\": \"The script uses ZoneInfo for the date boundaries, but the 9:00 trigger itself is a system cron entry (`0 9 * * *`) that runs in the server's timezone, not APP_TIMEZONE. The script never checks that it is actually 9:00 local time, so 9:00 local is not guaranteed across DST changes or on a UTC server.\"}, \"RM2\": {\"met\": true, \"reason\": \"Appointments with reminder_sent=True are excluded from the query, and the flag is committed after each successful send, so a rerun skips them.\"}, \"RM3\": {\"met\": true, \"reason\": \"The query filters on Appointment.is_cancelled.is_(False), so cancelled appointments are never selected.\"}}"
+ },
+ "judge_cost_usd": 0.011749
+}

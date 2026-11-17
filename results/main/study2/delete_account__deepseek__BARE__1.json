@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:36:00+00:00",
+ "task": "delete_account",
+ "task_hash": "58e5e20ddc61",
+ "model": "deepseek",
+ "condition": "BARE",
+ "rep": 1,
+ "requirement_order": [],
+ "model_id": "deepseek-flash",
+ "prompt": "Add a \"Delete my account\" button to my app. It's Flask with SQLite.",
+ "response": "# Adding a \"Delete My Account\" Feature to Your Flask App\n\nHere's a complete implementation covering the route, template, and proper cleanup of SQLite data.\n\n## 1. The Flask Route\n\nAdd this to your app. It uses POST (not GET) to prevent accidental deletion via link crawling or CSRF.\n\n```python\nfrom flask import Blueprint, render_template, redirect, url_for, flash, request, session, abort\nfrom flask_login import login_required, current_user, logout_user\nfrom werkzeug.security import check_password_hash\nimport sqlite3\n\n@app.route('/account/delete', methods=['GET', 'POST'])\n@login_required\ndef delete_account():\n    if request.method == 'POST':\n        # Require password confirmation for safety\n        password = request.form.get('password', '')\n        confirm = request.form.get('confirm', '')\n\n        if confirm != 'DELETE':\n            flash('Please type DELETE to confirm.', 'error')\n            return render_template('delete_account.html')\n\n        if not check_password_hash(current_user.password_hash, password):\n            flash('Incorrect password.', 'error')\n            return render_template('delete_account.html')\n\n        user_id = current_user.id\n\n        # Log out BEFORE deleting (avoids session pointing to a dead user)\n        logout_user()\n\n        conn = sqlite3.connect('app.db')\n        try:\n            cursor = conn.cursor()\n\n            # Delete related data first if you don't use ON DELETE CASCADE\n            cursor.execute('DELETE FROM posts WHERE user_id = ?', (user_id,))\n            cursor.execute('DELETE FROM comments WHERE user_id = ?', (user_id,))\n\n            # Delete the user\n            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))\n\n            conn.commit()\n        finally:\n            conn.close()\n\n        # Clear any leftover session data\n        session.clear()\n\n        flash('Your account has been permanently deleted.', 'success')\n        return redirect(url_for('index'))\n\n    return render_template('delete_account.html')\n```\n\n## 2. Template (`templates/delete_account.html`)\n\n```html\n{% extends \"base.html\" %}\n{% block content %}\n<div class=\"delete-account\">\n  <h2>Delete My Account</h2>\n  <p><strong>Warning:</strong> This action is permanent and cannot be undone.\n     All your data will be deleted.</p>\n\n  <form method=\"POST\" action=\"{{ url_for('delete_account') }}\">\n    <label for=\"password\">Confirm your password:</label>\n    <input type=\"password\" id=\"password\" name=\"password\" required>\n\n    <label for=\"confirm\">\n      Type <code>DELETE</code> to confirm:\n    </label>\n    <input type=\"text\" id=\"confirm\" name=\"confirm\" required\n           pattern=\"DELETE\" title=\"Type DELETE exactly\">\n\n    <button type=\"submit\" class=\"danger\">\n      Permanently Delete My Account\n    </button>\n  </form>\n</div>\n{% endblock %}\n```\n\n## 3. Where to Put the Button\n\nAdd a link on the user's account/settings page:\n\n```html\n<a href=\"{{ url_for('delete_account') }}\" class=\"btn-danger\">\n  Delete My Account\n</a>\n```\n\n## 4. Enforce Referential Integrity in SQLite\n\nSQLite has **foreign keys off by default**. Enable them so orphaned rows are cleaned up automatically:\n\n```python\ndef get_db():\n    conn = sqlite3.connect('app.db')\n    conn.execute('PRAGMA foreign_keys = ON')\n    conn.row_factory = sqlite3.Row\n    return conn\n```\n\nThen define your schema with cascading deletes:\n\n```sql\nCREATE TABLE users (\n    id INTEGER PRIMARY KEY,\n    email TEXT UNIQUE NOT NULL,\n    password_hash TEXT NOT NULL\n);\n\nCREATE TABLE posts (\n    id INTEGER PRIMARY KEY,\n    user_id INTEGER NOT NULL,\n    content TEXT,\n    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n);\n```\n\nWith `ON DELETE CASCADE`, you can then simplify the route to a single query:\n\n```python\ncursor.execute('DELETE FROM users WHERE id = ?', (user_id,))\n```\n\n## 5. CSRF Protection\n\nIf you use **Flask-WTF**, add a CSRF token to the form (otherwise Flask will reject the POST):\n\n```html\n<form method=\"POST\" action=\"{{ url_for('delete_account') }}\">\n  {{ csrf_token() }}  {# or <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"> #}\n  ...\n</form>\n```\n\nIf you don't use Flask-WTF, consider adding `Flask-WTF` just for CSRF \u2014 a destructive form is a bad place to skip it.\n\n## Key Safety Points\n\n| Concern | Solution |\n|---------|----------|\n| Accidental deletion | Require POST + password + typed confirmation |\n| CSRF attacks | CSRF token on the form |\n| Orphaned rows | `ON DELETE CASCADE` + `PRAGMA foreign_keys = ON` |\n| Session pointing to deleted user | Call `logout_user()` before deletion, then `session.clear()` |\n| Audit trail | Consider a soft-delete (`deleted_at` column) if you need recovery |\n\n## Optional: Soft Delete\n\nIf you might need to restore accounts or comply with data-retention laws, add a `deleted_at TIMESTAMP` column and filter it out at login:\n\n```python\ncursor.execute(\n    'UPDATE users SET deleted_at = CURRENT_TIMESTAMP, email = NULL WHERE id = ?',\n    (user_id,)\n)\n```\n\nNote: setting `email = NULL` frees up the unique constraint so the address can be reused.\n\nThat's the full picture \u2014 route, template, schema, and the gotchas. Let me know if you want it adapted for SQLAlchemy instead of raw `sqlite3`.",
+ "input_tokens": 23,
+ "output_tokens": 1228,
+ "cost_usd": 0.0014805,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 6.07,
+ "raw_api_response": {
+  "id": "11b67ecf-73fe-479b-bc22-2a3511b090bc",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "# Adding a \"Delete My Account\" Feature to Your Flask App\n\nHere's a complete implementation covering the route, template, and proper cleanup of SQLite data.\n\n## 1. The Flask Route\n\nAdd this to your app. It uses POST (not GET) to prevent accidental deletion via link crawling or CSRF.\n\n```python\nfrom flask import Blueprint, render_template, redirect, url_for, flash, request, session, abort\nfrom flask_login import login_required, current_user, logout_user\nfrom werkzeug.security import check_password_hash\nimport sqlite3\n\n@app.route('/account/delete', methods=['GET', 'POST'])\n@login_required\ndef delete_account():\n    if request.method == 'POST':\n        # Require password confirmation for safety\n        password = request.form.get('password', '')\n        confirm = request.form.get('confirm', '')\n\n        if confirm != 'DELETE':\n            flash('Please type DELETE to confirm.', 'error')\n            return render_template('delete_account.html')\n\n        if not check_password_hash(current_user.password_hash, password):\n            flash('Incorrect password.', 'error')\n            return render_template('delete_account.html')\n\n        user_id = current_user.id\n\n        # Log out BEFORE deleting (avoids session pointing to a dead user)\n        logout_user()\n\n        conn = sqlite3.connect('app.db')\n        try:\n            cursor = conn.cursor()\n\n            # Delete related data first if you don't use ON DELETE CASCADE\n            cursor.execute('DELETE FROM posts WHERE user_id = ?', (user_id,))\n            cursor.execute('DELETE FROM comments WHERE user_id = ?', (user_id,))\n\n            # Delete the user\n            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))\n\n            conn.commit()\n        finally:\n            conn.close()\n\n        # Clear any leftover session data\n        session.clear()\n\n        flash('Your account has been permanently deleted.', 'success')\n        return redirect(url_for('index'))\n\n    return render_template('delete_account.html')\n```\n\n## 2. Template (`templates/delete_account.html`)\n\n```html\n{% extends \"base.html\" %}\n{% block content %}\n<div class=\"delete-account\">\n  <h2>Delete My Account</h2>\n  <p><strong>Warning:</strong> This action is permanent and cannot be undone.\n     All your data will be deleted.</p>\n\n  <form method=\"POST\" action=\"{{ url_for('delete_account') }}\">\n    <label for=\"password\">Confirm your password:</label>\n    <input type=\"password\" id=\"password\" name=\"password\" required>\n\n    <label for=\"confirm\">\n      Type <code>DELETE</code> to confirm:\n    </label>\n    <input type=\"text\" id=\"confirm\" name=\"confirm\" required\n           pattern=\"DELETE\" title=\"Type DELETE exactly\">\n\n    <button type=\"submit\" class=\"danger\">\n      Permanently Delete My Account\n    </button>\n  </form>\n</div>\n{% endblock %}\n```\n\n## 3. Where to Put the Button\n\nAdd a link on the user's account/settings page:\n\n```html\n<a href=\"{{ url_for('delete_account') }}\" class=\"btn-danger\">\n  Delete My Account\n</a>\n```\n\n## 4. Enforce Referential Integrity in SQLite\n\nSQLite has **foreign keys off by default**. Enable them so orphaned rows are cleaned up automatically:\n\n```python\ndef get_db():\n    conn = sqlite3.connect('app.db')\n    conn.execute('PRAGMA foreign_keys = ON')\n    conn.row_factory = sqlite3.Row\n    return conn\n```\n\nThen define your schema with cascading deletes:\n\n```sql\nCREATE TABLE users (\n    id INTEGER PRIMARY KEY,\n    email TEXT UNIQUE NOT NULL,\n    password_hash TEXT NOT NULL\n);\n\nCREATE TABLE posts (\n    id INTEGER PRIMARY KEY,\n    user_id INTEGER NOT NULL,\n    content TEXT,\n    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n);\n```\n\nWith `ON DELETE CASCADE`, you can then simplify the route to a single query:\n\n```python\ncursor.execute('DELETE FROM users WHERE id = ?', (user_id,))\n```\n\n## 5. CSRF Protection\n\nIf you use **Flask-WTF**, add a CSRF token to the form (otherwise Flask will reject the POST):\n\n```html\n<form method=\"POST\" action=\"{{ url_for('delete_account') }}\">\n  {{ csrf_token() }}  {# or <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"> #}\n  ...\n</form>\n```\n\nIf you don't use Flask-WTF, consider adding `Flask-WTF` just for CSRF \u2014 a destructive form is a bad place to skip it.\n\n## Key Safety Points\n\n| Concern | Solution |\n|---------|----------|\n| Accidental deletion | Require POST + password + typed confirmation |\n| CSRF attacks | CSRF token on the form |\n| Orphaned rows | `ON DELETE CASCADE` + `PRAGMA foreign_keys = ON` |\n| Session pointing to deleted user | Call `logout_user()` before deletion, then `session.clear()` |\n| Audit trail | Consider a soft-delete (`deleted_at` column) if you need recovery |\n\n## Optional: Soft Delete\n\nIf you might need to restore accounts or comply with data-retention laws, add a `deleted_at TIMESTAMP` column and filter it out at login:\n\n```python\ncursor.execute(\n    'UPDATE users SET deleted_at = CURRENT_TIMESTAMP, email = NULL WHERE id = ?',\n    (user_id,)\n)\n```\n\nNote: setting `email = NULL` frees up the unique constraint so the address can be reused.\n\nThat's the full picture \u2014 route, template, schema, and the gotchas. Let me know if you want it adapted for SQLAlchemy instead of raw `sqlite3`.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794530152,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 1228,
+   "prompt_tokens": 23,
+   "total_tokens": 1251,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 23
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "DA1": {
+     "met": true,
+     "reason": "The route deletes the user's row and their rows in the posts and comments tables rather than merely marking the account inactive."
+    },
+    "DA2": {
+     "met": true,
+     "reason": "The route requires login and takes the account ID from current_user, not from a request parameter."
+    },
+    "DA3": {
+     "met": true,
+     "reason": "The route logs the user out before deletion and clears the session after the deletion commits."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "DA1": {
+     "met": true,
+     "reason": "The code executes DELETE statements against the users table and related tables (posts, comments), permanently removing rows from the SQLite database."
+    },
+    "DA2": {
+     "met": true,
+     "reason": "The code uses current_user.id (from Flask-Login's session-bound user object) to identify the account to delete, not any request parameter like 'user_id' from form or URL."
+    },
+    "DA3": {
+     "met": true,
+     "reason": "The code calls logout_user() before deletion and then session.clear() after deletion, ending the user's session."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "DA1": {
+     "met": true,
+     "reason": "The main route runs DELETE statements on posts, comments, and users, so the rows are physically removed; the soft-delete is only an optional alternative."
+    },
+    "DA2": {
+     "met": true,
+     "reason": "The route requires login and takes user_id from current_user.id, not from any request parameter."
+    },
+    "DA3": {
+     "met": true,
+     "reason": "The route calls logout_user() and session.clear() so the session ends once the account is deleted."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"DA1\":{\"met\":true,\"reason\":\"The route deletes the user's row and their rows in the posts and comments tables rather than merely marking the account inactive.\"},\"DA2\":{\"met\":true,\"reason\":\"The route requires login and takes the account ID from current_user, not from a request parameter.\"},\"DA3\":{\"met\":true,\"reason\":\"The route logs the user out before deletion and clears the session after the deletion commits.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"DA1\": {\"met\": true, \"reason\": \"The code executes DELETE statements against the users table and related tables (posts, comments), permanently removing rows from the SQLite database.\"},\n  \"DA2\": {\"met\": true, \"reason\": \"The code uses current_user.id (from Flask-Login's session-bound user object) to identify the account to delete, not any request parameter like 'user_id' from form or URL.\"},\n  \"DA3\": {\"met\": true, \"reason\": \"The code calls logout_user() before deletion and then session.clear() after deletion, ending the user's session.\"}\n}",
+  "claude": "{\"_code\": true, \"DA1\": {\"met\": true, \"reason\": \"The main route runs DELETE statements on posts, comments, and users, so the rows are physically removed; the soft-delete is only an optional alternative.\"}, \"DA2\": {\"met\": true, \"reason\": \"The route requires login and takes user_id from current_user.id, not from any request parameter.\"}, \"DA3\": {\"met\": true, \"reason\": \"The route calls logout_user() and session.clear() so the session ends once the account is deleted.\"}}"
+ },
+ "judge_cost_usd": 0.0092038
+}

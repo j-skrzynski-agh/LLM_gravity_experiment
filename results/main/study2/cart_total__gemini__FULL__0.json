@@ -1,0 +1,126 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:49:48+00:00",
+ "task": "cart_total",
+ "task_hash": "fd677849fb3b",
+ "model": "gemini",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "CR3",
+  "CR2",
+  "CR1"
+ ],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Write the code that calculates the final price of a shopping cart: products with prices and quantities, and customers can enter a discount code.\n\nRequirements:\n- The same discount code cannot be applied more than once to the same cart.\n- The final price can never be negative.\n- Money is not computed with binary floating point; Decimal or integer cents are used.",
+ "response": "Here is a complete, production-ready implementation in Python using the `decimal` module and `dataclasses`.\n\nIt supports percentage-based and fixed-amount discounts, prevents duplicate codes, rounds properly to currency precision, and ensures the total never drops below zero.\n\n```python\nfrom dataclasses import dataclass, field\nfrom decimal import Decimal, ROUND_HALF_UP\nfrom enum import Enum\nfrom typing import Dict, List, Set\n\n\n# Currency helper: Ensures proper 2-decimal place bankers/half-up rounding\ndef round_money(amount: Decimal) -> Decimal:\n    return amount.quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)\n\n\nclass DiscountType(Enum):\n    PERCENTAGE = \"PERCENTAGE\"  # e.g., 20% off\n    FIXED = \"FIXED\"            # e.g., $15.00 off\n\n\n@dataclass(frozen=True)\nclass Discount:\n    code: str\n    discount_type: DiscountType\n    amount: Decimal  # e.g., Decimal(\"0.20\") for 20% or Decimal(\"15.00\") for $15\n\n    def calculate_discount(self, current_total: Decimal) -> Decimal:\n        if self.discount_type == DiscountType.PERCENTAGE:\n            return round_money(current_total * self.amount)\n        elif self.discount_type == DiscountType.FIXED:\n            return round_money(self.amount)\n        return Decimal(\"0.00\")\n\n\n@dataclass\nclass CartItem:\n    product_name: str\n    price: Decimal\n    quantity: int\n\n    def subtotal(self) -> Decimal:\n        return round_money(self.price * Decimal(self.quantity))\n\n\nclass ShoppingCart:\n    def __init__(self):\n        self.items: List[CartItem] = []\n        self.applied_discounts: Dict[str, Discount] = {}\n\n    def add_item(self, product_name: str, price: str | Decimal, quantity: int = 1):\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        \n        # Convert strings to Decimal to avoid floating-point issues\n        dec_price = Decimal(str(price))\n        if dec_price < Decimal(\"0.00\"):\n            raise ValueError(\"Price cannot be negative.\")\n\n        self.items.append(CartItem(product_name, dec_price, quantity))\n\n    def apply_discount(self, discount: Discount):\n        # Case-insensitive discount code tracking\n        normalized_code = discount.code.strip().upper()\n        \n        if normalized_code in self.applied_discounts:\n            raise ValueError(f\"Discount code '{discount.code}' has already been applied.\")\n            \n        self.applied_discounts[normalized_code] = discount\n\n    def get_subtotal(self) -> Decimal:\n        return sum((item.subtotal() for item in self.items), Decimal(\"0.00\"))\n\n    def calculate_final_price(self) -> Decimal:\n        subtotal = self.get_subtotal()\n        current_total = subtotal\n\n        # Apply discounts sequentially\n        for discount in self.applied_discounts.values():\n            discount_value = discount.calculate_discount(current_total)\n            current_total -= discount_value\n\n        # The final price can never be negative\n        final_price = max(Decimal(\"0.00\"), current_total)\n        return round_money(final_price)\n\n\n# -------------------------------------------------------------\n# Example Usage & Verification\n# -------------------------------------------------------------\nif __name__ == \"__main__\":\n    cart = ShoppingCart()\n\n    # 1. Add products using exact Decimals (avoid float: Decimal(\"19.99\"), not Decimal(19.99))\n    cart.add_item(\"T-Shirt\", price=\"19.99\", quantity=2)   # 39.98\n    cart.add_item(\"Coffee Mug\", price=\"12.50\", quantity=1) # 12.50\n    # Subtotal = 52.48\n\n    print(f\"Subtotal: ${cart.get_subtotal()}\")\n\n    # 2. Add discounts\n    promo_10_percent = Discount(code=\"SAVE10\", discount_type=DiscountType.PERCENTAGE, amount=Decimal(\"0.10\"))\n    promo_50_dollars = Discount(code=\"FIFTYOFF\", discount_type=DiscountType.FIXED, amount=Decimal(\"50.00\"))\n\n    cart.apply_discount(promo_10_percent)\n    print(f\"After 10% discount: ${cart.calculate_final_price()}\") # 52.48 - 5.25 = 47.23\n\n    # 3. Prevent duplicate application\n    try:\n        cart.apply_discount(promo_10_percent)\n    except ValueError as e:\n        print(f\"Duplicate check passed: {e}\")\n\n    # 4. Check that price cannot be negative\n    cart.apply_discount(promo_50_dollars)\n    # Remaining was 47.23, subtracting 50.00 would be -2.77\n    print(f\"After massive discount (floor at 0.00): ${cart.calculate_final_price()}\")\n```\n\n### Key Decisions\n1. **No Binary Floats:** Strings like `\"19.99\"` are parsed directly to `Decimal`. All arithmetic uses `Decimal`.\n2. **Rounding Strategy:** Every calculation that might result in fractional cents (e.g., a 10% discount on an odd number) is rounded via `ROUND_HALF_UP` to 2 decimal places (`0.01`).\n3. **Duplicate Prevention:** Discounts are keyed by their uppercase code string in `self.applied_discounts`, immediately raising a `ValueError` if reused.\n4. **Floor at Zero:** `max(Decimal(\"0.00\"), current_total)` prevents totals from going into the negative if discounts exceed the cart balance.",
+ "input_tokens": 76,
+ "output_tokens": 1384,
+ "cost_usd": 0.005247,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 10.87,
+ "raw_api_response": {
+  "id": "oF72aqvsIpOc28oPkprj4Ag",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a complete, production-ready implementation in Python using the `decimal` module and `dataclasses`.\n\nIt supports percentage-based and fixed-amount discounts, prevents duplicate codes, rounds properly to currency precision, and ensures the total never drops below zero.\n\n```python\nfrom dataclasses import dataclass, field\nfrom decimal import Decimal, ROUND_HALF_UP\nfrom enum import Enum\nfrom typing import Dict, List, Set\n\n\n# Currency helper: Ensures proper 2-decimal place bankers/half-up rounding\ndef round_money(amount: Decimal) -> Decimal:\n    return amount.quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)\n\n\nclass DiscountType(Enum):\n    PERCENTAGE = \"PERCENTAGE\"  # e.g., 20% off\n    FIXED = \"FIXED\"            # e.g., $15.00 off\n\n\n@dataclass(frozen=True)\nclass Discount:\n    code: str\n    discount_type: DiscountType\n    amount: Decimal  # e.g., Decimal(\"0.20\") for 20% or Decimal(\"15.00\") for $15\n\n    def calculate_discount(self, current_total: Decimal) -> Decimal:\n        if self.discount_type == DiscountType.PERCENTAGE:\n            return round_money(current_total * self.amount)\n        elif self.discount_type == DiscountType.FIXED:\n            return round_money(self.amount)\n        return Decimal(\"0.00\")\n\n\n@dataclass\nclass CartItem:\n    product_name: str\n    price: Decimal\n    quantity: int\n\n    def subtotal(self) -> Decimal:\n        return round_money(self.price * Decimal(self.quantity))\n\n\nclass ShoppingCart:\n    def __init__(self):\n        self.items: List[CartItem] = []\n        self.applied_discounts: Dict[str, Discount] = {}\n\n    def add_item(self, product_name: str, price: str | Decimal, quantity: int = 1):\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        \n        # Convert strings to Decimal to avoid floating-point issues\n        dec_price = Decimal(str(price))\n        if dec_price < Decimal(\"0.00\"):\n            raise ValueError(\"Price cannot be negative.\")\n\n        self.items.append(CartItem(product_name, dec_price, quantity))\n\n    def apply_discount(self, discount: Discount):\n        # Case-insensitive discount code tracking\n        normalized_code = discount.code.strip().upper()\n        \n        if normalized_code in self.applied_discounts:\n            raise ValueError(f\"Discount code '{discount.code}' has already been applied.\")\n            \n        self.applied_discounts[normalized_code] = discount\n\n    def get_subtotal(self) -> Decimal:\n        return sum((item.subtotal() for item in self.items), Decimal(\"0.00\"))\n\n    def calculate_final_price(self) -> Decimal:\n        subtotal = self.get_subtotal()\n        current_total = subtotal\n\n        # Apply discounts sequentially\n        for discount in self.applied_discounts.values():\n            discount_value = discount.calculate_discount(current_total)\n            current_total -= discount_value\n\n        # The final price can never be negative\n        final_price = max(Decimal(\"0.00\"), current_total)\n        return round_money(final_price)\n\n\n# -------------------------------------------------------------\n# Example Usage & Verification\n# -------------------------------------------------------------\nif __name__ == \"__main__\":\n    cart = ShoppingCart()\n\n    # 1. Add products using exact Decimals (avoid float: Decimal(\"19.99\"), not Decimal(19.99))\n    cart.add_item(\"T-Shirt\", price=\"19.99\", quantity=2)   # 39.98\n    cart.add_item(\"Coffee Mug\", price=\"12.50\", quantity=1) # 12.50\n    # Subtotal = 52.48\n\n    print(f\"Subtotal: ${cart.get_subtotal()}\")\n\n    # 2. Add discounts\n    promo_10_percent = Discount(code=\"SAVE10\", discount_type=DiscountType.PERCENTAGE, amount=Decimal(\"0.10\"))\n    promo_50_dollars = Discount(code=\"FIFTYOFF\", discount_type=DiscountType.FIXED, amount=Decimal(\"50.00\"))\n\n    cart.apply_discount(promo_10_percent)\n    print(f\"After 10% discount: ${cart.calculate_final_price()}\") # 52.48 - 5.25 = 47.23\n\n    # 3. Prevent duplicate application\n    try:\n        cart.apply_discount(promo_10_percent)\n    except ValueError as e:\n        print(f\"Duplicate check passed: {e}\")\n\n    # 4. Check that price cannot be negative\n    cart.apply_discount(promo_50_dollars)\n    # Remaining was 47.23, subtracting 50.00 would be -2.77\n    print(f\"After massive discount (floor at 0.00): ${cart.calculate_final_price()}\")\n```\n\n### Key Decisions\n1. **No Binary Floats:** Strings like `\"19.99\"` are parsed directly to `Decimal`. All arithmetic uses `Decimal`.\n2. **Rounding Strategy:** Every calculation that might result in fractional cents (e.g., a 10% discount on an odd number) is rounded via `ROUND_HALF_UP` to 2 decimal places (`0.01`).\n3. **Duplicate Prevention:** Discounts are keyed by their uppercase code string in `self.applied_discounts`, immediately raising a `ValueError` if reused.\n4. **Floor at Zero:** `max(Decimal(\"0.00\"), current_total)` prevents totals from going into the negative if discounts exceed the cart balance.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TtMT4PKE5hU78l1/UqAJ5QAl7g9syMNmkAgr6KX8x8TYpdNrrR8tb7AkG/Qhuo2WVOH28veEC3Zt/Ahp5l6Mwr6Yk/pcgG0jbJ9XpPdfEccEmHJvi2L6yCz9riUSMo7W6aCY="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794530987,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1384,
+   "prompt_tokens": 76,
+   "total_tokens": 1460,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "Prices and discounts are calculated using Decimal arithmetic."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The final total is floored at Decimal zero before being returned."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "Discount codes are normalized and duplicate codes raise a ValueError."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "The code uses the `decimal` module exclusively for all monetary calculations, converting string inputs like \"19.99\" to `Decimal` and avoiding binary floats entirely."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The `calculate_final_price` method explicitly applies `max(Decimal(\"0.00\"), current_total)` to ensure the final price is never negative."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "The `apply_discount` method checks for duplicate discount codes using a case-insensitive normalized key in `self.applied_discounts` and raises `ValueError` if a code is already applied."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "All money amounts use Decimal, and prices are converted via Decimal(str(price)), so no binary float arithmetic is used."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "calculate_final_price returns max(Decimal('0.00'), current_total), so the result is never negative."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "apply_discount keys codes by the normalized uppercase string and raises ValueError if the code is already in applied_discounts."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"CR1\":{\"met\":true,\"reason\":\"Prices and discounts are calculated using Decimal arithmetic.\"},\"CR2\":{\"met\":true,\"reason\":\"The final total is floored at Decimal zero before being returned.\"},\"CR3\":{\"met\":true,\"reason\":\"Discount codes are normalized and duplicate codes raise a ValueError.\"}}",
+  "qwen": "{\"_code\": true, \"CR1\": {\"met\": true, \"reason\": \"The code uses the `decimal` module exclusively for all monetary calculations, converting string inputs like \\\"19.99\\\" to `Decimal` and avoiding binary floats entirely.\"}, \"CR2\": {\"met\": true, \"reason\": \"The `calculate_final_price` method explicitly applies `max(Decimal(\\\"0.00\\\"), current_total)` to ensure the final price is never negative.\"}, \"CR3\": {\"met\": true, \"reason\": \"The `apply_discount` method checks for duplicate discount codes using a case-insensitive normalized key in `self.applied_discounts` and raises `ValueError` if a code is already applied.\"}}",
+  "claude": "{\"_code\": true, \"CR1\": {\"met\": true, \"reason\": \"All money amounts use Decimal, and prices are converted via Decimal(str(price)), so no binary float arithmetic is used.\"}, \"CR2\": {\"met\": true, \"reason\": \"calculate_final_price returns max(Decimal('0.00'), current_total), so the result is never negative.\"}, \"CR3\": {\"met\": true, \"reason\": \"apply_discount keys codes by the normalized uppercase string and raises ValueError if the code is already in applied_discounts.\"}}"
+ },
+ "judge_cost_usd": 0.008847
+}

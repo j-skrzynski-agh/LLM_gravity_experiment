@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:06:01+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "qwen",
+ "condition": "ABL-HD2",
+ "rep": 0,
+ "requirement_order": [
+  "HD3",
+  "HD5",
+  "HD4",
+  "HD1"
+ ],
+ "passed": {
+  "HD1": true,
+  "HD2": true,
+  "HD3": true,
+  "HD4": true,
+  "HD5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. Critical tickets are handled before high ones, and high ones before normal ones.\n2. A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.\n3. Tickets of VIP customers are handled before all other tickets, even critical tickets of other customers.\n4. Opening a ticket with an empty title raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport heapq\nfrom typing import Optional, Tuple, Dict, Set\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        # Priority queue: (-vip_priority, -priority_level, timestamp, ticket_id)\n        # VIP tickets get priority 1, non-VIP get priority 0, so we use negative for max-heap behavior\n        # Priority levels: critical=2, high=1, normal=0, so negative gives correct ordering\n        self._queue = []\n        self._tickets = {}  # ticket_id -> (customer, title, priority, is_vip, is_closed)\n        self._next_id = 1\n        self._customer_vip_status = {}  # customer name -> bool\n        self._closed_tickets = set()  # set of closed ticket ids\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customer_vip_status[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title.strip():\n            raise ValueError(\"Ticket title cannot be empty\")\n        \n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Priority must be one of {self.PRIORITIES}\")\n        \n        ticket_id = self._next_id\n        self._next_id += 1\n        \n        is_vip = self._customer_vip_status.get(customer, False)\n        \n        # Priority calculation for heap:\n        # VIP tickets come first: use 1 for VIP, 0 for non-VIP\n        # Priority level: critical=2, high=1, normal=0\n        vip_priority = 1 if is_vip else 0\n        priority_level = self.PRIORITIES.index(priority)\n        \n        # Use negative values for max-heap behavior with heapq (which is min-heap)\n        # So higher priority values should have lower heap values\n        # We want: VIP > non-VIP, and critical > high > normal\n        # So key = (-vip_priority, -priority_level, timestamp, ticket_id)\n        # But since we want VIP to be highest, we use (1-vip_priority) or similar\n        # Better approach: use (vip_priority, priority_level) where higher is better,\n        # but heapq is min-heap, so we negate both: (-vip_priority, -priority_level)\n        # However, we want VIP (1) to be higher than non-VIP (0), so -1 < 0, meaning VIP comes first\n        # So key = (-vip_priority, -priority_level, timestamp, ticket_id)\n        # But wait: for VIP, vip_priority=1, so -1; for non-VIP, vip_priority=0, so 0. -1 < 0, so VIP comes first. Good.\n        # For priority: critical has priority_level=2, so -2; normal has 0, so 0. -2 < 0, so critical comes before normal. Good.\n        \n        # Use timestamp to break ties (earlier tickets first within same priority)\n        import time\n        timestamp = time.time()\n        \n        # Store ticket info\n        self._tickets[ticket_id] = (customer, title, priority, is_vip, False)\n        self._closed_tickets.discard(ticket_id)  # ensure it's not marked as closed\n        \n        # Push to heap with priority key\n        # Key: (-vip_priority, -priority_level, timestamp, ticket_id)\n        # This ensures VIP tickets come before non-VIP, and higher priority before lower\n        heapq.heappush(self._queue, (-vip_priority, -priority_level, timestamp, ticket_id))\n        \n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        # Remove closed tickets from the front of the queue\n        while self._queue:\n            # Check the top element\n            _, _, _, ticket_id = self._queue[0]\n            if ticket_id in self._closed_tickets:\n                heapq.heappop(self._queue)\n                continue\n            # Found a valid ticket\n            _, _, _, ticket_id = heapq.heappop(self._queue)\n            return ticket_id\n        \n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        self._closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        if ticket_id in self._closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}\")\n        \n        # Get ticket info to reconstruct priority\n        customer, title, priority, is_vip, _ = self._tickets[ticket_id]\n        \n        # Recalculate priority values\n        vip_priority = 1 if is_vip else 0\n        priority_level = self.PRIORITIES.index(priority)\n        \n        import time\n        timestamp = time.time()\n        \n        # Push back to queue\n        heapq.heappush(self._queue, (-vip_priority, -priority_level, timestamp, ticket_id))\n```",
+ "code": "import heapq\nfrom typing import Optional, Tuple, Dict, Set\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        # Priority queue: (-vip_priority, -priority_level, timestamp, ticket_id)\n        # VIP tickets get priority 1, non-VIP get priority 0, so we use negative for max-heap behavior\n        # Priority levels: critical=2, high=1, normal=0, so negative gives correct ordering\n        self._queue = []\n        self._tickets = {}  # ticket_id -> (customer, title, priority, is_vip, is_closed)\n        self._next_id = 1\n        self._customer_vip_status = {}  # customer name -> bool\n        self._closed_tickets = set()  # set of closed ticket ids\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customer_vip_status[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title.strip():\n            raise ValueError(\"Ticket title cannot be empty\")\n        \n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Priority must be one of {self.PRIORITIES}\")\n        \n        ticket_id = self._next_id\n        self._next_id += 1\n        \n        is_vip = self._customer_vip_status.get(customer, False)\n        \n        # Priority calculation for heap:\n        # VIP tickets come first: use 1 for VIP, 0 for non-VIP\n        # Priority level: critical=2, high=1, normal=0\n        vip_priority = 1 if is_vip else 0\n        priority_level = self.PRIORITIES.index(priority)\n        \n        # Use negative values for max-heap behavior with heapq (which is min-heap)\n        # So higher priority values should have lower heap values\n        # We want: VIP > non-VIP, and critical > high > normal\n        # So key = (-vip_priority, -priority_level, timestamp, ticket_id)\n        # But since we want VIP to be highest, we use (1-vip_priority) or similar\n        # Better approach: use (vip_priority, priority_level) where higher is better,\n        # but heapq is min-heap, so we negate both: (-vip_priority, -priority_level)\n        # However, we want VIP (1) to be higher than non-VIP (0), so -1 < 0, meaning VIP comes first\n        # So key = (-vip_priority, -priority_level, timestamp, ticket_id)\n        # But wait: for VIP, vip_priority=1, so -1; for non-VIP, vip_priority=0, so 0. -1 < 0, so VIP comes first. Good.\n        # For priority: critical has priority_level=2, so -2; normal has 0, so 0. -2 < 0, so critical comes before normal. Good.\n        \n        # Use timestamp to break ties (earlier tickets first within same priority)\n        import time\n        timestamp = time.time()\n        \n        # Store ticket info\n        self._tickets[ticket_id] = (customer, title, priority, is_vip, False)\n        self._closed_tickets.discard(ticket_id)  # ensure it's not marked as closed\n        \n        # Push to heap with priority key\n        # Key: (-vip_priority, -priority_level, timestamp, ticket_id)\n        # This ensures VIP tickets come before non-VIP, and higher priority before lower\n        heapq.heappush(self._queue, (-vip_priority, -priority_level, timestamp, ticket_id))\n        \n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        # Remove closed tickets from the front of the queue\n        while self._queue:\n            # Check the top element\n            _, _, _, ticket_id = self._queue[0]\n            if ticket_id in self._closed_tickets:\n                heapq.heappop(self._queue)\n                continue\n            # Found a valid ticket\n            _, _, _, ticket_id = heapq.heappop(self._queue)\n            return ticket_id\n        \n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        self._closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        if ticket_id in self._closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}\")\n        \n        # Get ticket info to reconstruct priority\n        customer, title, priority, is_vip, _ = self._tickets[ticket_id]\n        \n        # Recalculate priority values\n        vip_priority = 1 if is_vip else 0\n        priority_level = self.PRIORITIES.index(priority)\n        \n        import time\n        timestamp = time.time()\n        \n        # Push back to queue\n        heapq.heappush(self._queue, (-vip_priority, -priority_level, timestamp, ticket_id))\n",
+ "input_tokens": 297,
+ "output_tokens": 1115,
+ "cost_usd": 0.0014567999999999998,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 20.28,
+ "raw_api_response": {
+  "id": "gen-1794891935-Pno7CZGEduU6v7iLNHGF",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport heapq\nfrom typing import Optional, Tuple, Dict, Set\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        # Priority queue: (-vip_priority, -priority_level, timestamp, ticket_id)\n        # VIP tickets get priority 1, non-VIP get priority 0, so we use negative for max-heap behavior\n        # Priority levels: critical=2, high=1, normal=0, so negative gives correct ordering\n        self._queue = []\n        self._tickets = {}  # ticket_id -> (customer, title, priority, is_vip, is_closed)\n        self._next_id = 1\n        self._customer_vip_status = {}  # customer name -> bool\n        self._closed_tickets = set()  # set of closed ticket ids\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self._customer_vip_status[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title.strip():\n            raise ValueError(\"Ticket title cannot be empty\")\n        \n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Priority must be one of {self.PRIORITIES}\")\n        \n        ticket_id = self._next_id\n        self._next_id += 1\n        \n        is_vip = self._customer_vip_status.get(customer, False)\n        \n        # Priority calculation for heap:\n        # VIP tickets come first: use 1 for VIP, 0 for non-VIP\n        # Priority level: critical=2, high=1, normal=0\n        vip_priority = 1 if is_vip else 0\n        priority_level = self.PRIORITIES.index(priority)\n        \n        # Use negative values for max-heap behavior with heapq (which is min-heap)\n        # So higher priority values should have lower heap values\n        # We want: VIP > non-VIP, and critical > high > normal\n        # So key = (-vip_priority, -priority_level, timestamp, ticket_id)\n        # But since we want VIP to be highest, we use (1-vip_priority) or similar\n        # Better approach: use (vip_priority, priority_level) where higher is better,\n        # but heapq is min-heap, so we negate both: (-vip_priority, -priority_level)\n        # However, we want VIP (1) to be higher than non-VIP (0), so -1 < 0, meaning VIP comes first\n        # So key = (-vip_priority, -priority_level, timestamp, ticket_id)\n        # But wait: for VIP, vip_priority=1, so -1; for non-VIP, vip_priority=0, so 0. -1 < 0, so VIP comes first. Good.\n        # For priority: critical has priority_level=2, so -2; normal has 0, so 0. -2 < 0, so critical comes before normal. Good.\n        \n        # Use timestamp to break ties (earlier tickets first within same priority)\n        import time\n        timestamp = time.time()\n        \n        # Store ticket info\n        self._tickets[ticket_id] = (customer, title, priority, is_vip, False)\n        self._closed_tickets.discard(ticket_id)  # ensure it's not marked as closed\n        \n        # Push to heap with priority key\n        # Key: (-vip_priority, -priority_level, timestamp, ticket_id)\n        # This ensures VIP tickets come before non-VIP, and higher priority before lower\n        heapq.heappush(self._queue, (-vip_priority, -priority_level, timestamp, ticket_id))\n        \n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        # Remove closed tickets from the front of the queue\n        while self._queue:\n            # Check the top element\n            _, _, _, ticket_id = self._queue[0]\n            if ticket_id in self._closed_tickets:\n                heapq.heappop(self._queue)\n                continue\n            # Found a valid ticket\n            _, _, _, ticket_id = heapq.heappop(self._queue)\n            return ticket_id\n        \n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        self._closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self._tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        if ticket_id in self._closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}\")\n        \n        # Get ticket info to reconstruct priority\n        customer, title, priority, is_vip, _ = self._tickets[ticket_id]\n        \n        # Recalculate priority values\n        vip_priority = 1 if is_vip else 0\n        priority_level = self.PRIORITIES.index(priority)\n        \n        import time\n        timestamp = time.time()\n        \n        # Push back to queue\n        heapq.heappush(self._queue, (-vip_priority, -priority_level, timestamp, ticket_id))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794891935,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1115,
+   "prompt_tokens": 297,
+   "total_tokens": 1412,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00094692,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00094692,
+    "upstream_inference_prompt_cost": 7.722e-05,
+    "upstream_inference_completions_cost": 0.0008697
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

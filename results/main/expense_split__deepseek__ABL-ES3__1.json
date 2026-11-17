@@ -1,0 +1,87 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:50:32+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "deepseek",
+ "condition": "ABL-ES3",
+ "rep": 1,
+ "requirement_order": [
+  "ES5",
+  "ES6",
+  "ES1",
+  "ES4",
+  "ES2"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": false,
+  "ES4": true,
+  "ES5": true,
+  "ES6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. When an amount cannot be split into equal cents, the leftover cents are borne by the payer: every other participant owes exactly the amount rounded down to the cent.\n2. settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off and not included in the proposed payments.\n3. Adding an expense whose payer or any participant is not a group member raises ValueError.\n4. settle_up() proposes at most (number of members - 1) payments.\n5. If participants are not given, the expense is split equally among all group members.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = list(members)\n        self._balances = {m: 0.0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if payer not in self._balances:\n            raise ValueError(f\"Payer {payer!r} is not a member\")\n        if participants is None:\n            participants = list(self.members)\n        for p in participants:\n            if p not in self._balances:\n                raise ValueError(f\"Participant {p!r} is not a member\")\n        if not participants:\n            return\n\n        # Convert to integer cents to avoid float drift.\n        total_cents = int(round(amount * 100))\n\n        n = len(participants)\n        base_share = total_cents // n\n        remainder = total_cents - base_share * n  # extra cents\n\n        # Every participant's share in cents. The payer absorbs the remainder:\n        # non-payer participants each owe base_share; payer's own share is\n        # base_share plus remainder cents.\n        # Update balances: payer is credited the total, each participant debited share.\n        self._balances[payer] += total_cents / 100.0\n        for p in participants:\n            share = base_share\n            if p == payer:\n                share += remainder\n            self._balances[p] -= share / 100.0\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(v, 2) for m, v in self._balances.items()}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        # Work in cents, floor debts to 1.00 minimum.\n        cents = {m: int(round(v * 100)) for m, v in self._balances.items()}\n\n        debtors = [[m, -c] for m, c in cents.items() if c < 0]\n        creditors = [[m, c] for m, c in cents.items() if c > 0]\n        debtors.sort(key=lambda x: -x[1])\n        creditors.sort(key=lambda x: -x[1])\n\n        threshold = 100  # 1.00 in cents\n\n        payments = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            d, d_amt = debtors[i]\n            c, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            if pay >= threshold:\n                payments.append((d, c, round(pay / 100.0, 2)))\n                d_amt -= pay\n                c_amt -= pay\n            else:\n                # Below threshold: write off both (can't form a valid payment).\n                d_amt = 0\n                c_amt = 0\n            debtors[i][1] = d_amt\n            creditors[j][1] = c_amt\n            if d_amt == 0:\n                i += 1\n            if c_amt == 0:\n                j += 1\n\n        # Limit to at most members - 1 payments. If we exceed, merge greedily.\n        max_payments = max(0, len(self.members) - 1)\n        if len(payments) > max_payments and max_payments > 0:\n            # Re-settle with a simpler greedy that merges: recompute from cents\n            payments = self._settle_limited(cents, max_payments)\n\n        return payments\n\n    def _settle_limited(self, cents, max_payments):\n        # Greedy: repeatedly match largest debtor with largest creditor.\n        # Since greedy min-debtor/creditor yields at most n-1 payments\n        # when amounts are exact, we re-run with full precision (no write-off\n        # merge needed unless cents drops below 100, which greedy handles).\n        threshold = 100\n        debtors = [[m, -c] for m, c in cents.items() if c < 0]\n        creditors = [[m, c] for m, c in cents.items() if c > 0]\n        debtors.sort(key=lambda x: -x[1])\n        creditors.sort(key=lambda x: -x[1])\n\n        payments = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors) and len(payments) < max_payments:\n            d, d_amt = debtors[i]\n            c, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            if pay < threshold:\n                # Write off\n                debtors[i][1] = 0\n                creditors[j][1] = 0\n                i += 1\n                j += 1\n                continue\n            payments.append((d, c, round(pay / 100.0, 2)))\n            debtors[i][1] -= pay\n            creditors[j][1] -= pay\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n\n        return payments\n```",
+ "code": "class Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = list(members)\n        self._balances = {m: 0.0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if payer not in self._balances:\n            raise ValueError(f\"Payer {payer!r} is not a member\")\n        if participants is None:\n            participants = list(self.members)\n        for p in participants:\n            if p not in self._balances:\n                raise ValueError(f\"Participant {p!r} is not a member\")\n        if not participants:\n            return\n\n        # Convert to integer cents to avoid float drift.\n        total_cents = int(round(amount * 100))\n\n        n = len(participants)\n        base_share = total_cents // n\n        remainder = total_cents - base_share * n  # extra cents\n\n        # Every participant's share in cents. The payer absorbs the remainder:\n        # non-payer participants each owe base_share; payer's own share is\n        # base_share plus remainder cents.\n        # Update balances: payer is credited the total, each participant debited share.\n        self._balances[payer] += total_cents / 100.0\n        for p in participants:\n            share = base_share\n            if p == payer:\n                share += remainder\n            self._balances[p] -= share / 100.0\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(v, 2) for m, v in self._balances.items()}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        # Work in cents, floor debts to 1.00 minimum.\n        cents = {m: int(round(v * 100)) for m, v in self._balances.items()}\n\n        debtors = [[m, -c] for m, c in cents.items() if c < 0]\n        creditors = [[m, c] for m, c in cents.items() if c > 0]\n        debtors.sort(key=lambda x: -x[1])\n        creditors.sort(key=lambda x: -x[1])\n\n        threshold = 100  # 1.00 in cents\n\n        payments = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            d, d_amt = debtors[i]\n            c, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            if pay >= threshold:\n                payments.append((d, c, round(pay / 100.0, 2)))\n                d_amt -= pay\n                c_amt -= pay\n            else:\n                # Below threshold: write off both (can't form a valid payment).\n                d_amt = 0\n                c_amt = 0\n            debtors[i][1] = d_amt\n            creditors[j][1] = c_amt\n            if d_amt == 0:\n                i += 1\n            if c_amt == 0:\n                j += 1\n\n        # Limit to at most members - 1 payments. If we exceed, merge greedily.\n        max_payments = max(0, len(self.members) - 1)\n        if len(payments) > max_payments and max_payments > 0:\n            # Re-settle with a simpler greedy that merges: recompute from cents\n            payments = self._settle_limited(cents, max_payments)\n\n        return payments\n\n    def _settle_limited(self, cents, max_payments):\n        # Greedy: repeatedly match largest debtor with largest creditor.\n        # Since greedy min-debtor/creditor yields at most n-1 payments\n        # when amounts are exact, we re-run with full precision (no write-off\n        # merge needed unless cents drops below 100, which greedy handles).\n        threshold = 100\n        debtors = [[m, -c] for m, c in cents.items() if c < 0]\n        creditors = [[m, c] for m, c in cents.items() if c > 0]\n        debtors.sort(key=lambda x: -x[1])\n        creditors.sort(key=lambda x: -x[1])\n\n        payments = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors) and len(payments) < max_payments:\n            d, d_amt = debtors[i]\n            c, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            if pay < threshold:\n                # Write off\n                debtors[i][1] = 0\n                creditors[j][1] = 0\n                i += 1\n                j += 1\n                continue\n            payments.append((d, c, round(pay / 100.0, 2)))\n            debtors[i][1] -= pay\n            creditors[j][1] -= pay\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n\n        return payments\n",
+ "input_tokens": 344,
+ "output_tokens": 1148,
+ "cost_usd": 0.0014808,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 5.48,
+ "raw_api_response": {
+  "id": "304e7324-601f-49a0-9d6a-66642b1d2d36",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = list(members)\n        self._balances = {m: 0.0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if payer not in self._balances:\n            raise ValueError(f\"Payer {payer!r} is not a member\")\n        if participants is None:\n            participants = list(self.members)\n        for p in participants:\n            if p not in self._balances:\n                raise ValueError(f\"Participant {p!r} is not a member\")\n        if not participants:\n            return\n\n        # Convert to integer cents to avoid float drift.\n        total_cents = int(round(amount * 100))\n\n        n = len(participants)\n        base_share = total_cents // n\n        remainder = total_cents - base_share * n  # extra cents\n\n        # Every participant's share in cents. The payer absorbs the remainder:\n        # non-payer participants each owe base_share; payer's own share is\n        # base_share plus remainder cents.\n        # Update balances: payer is credited the total, each participant debited share.\n        self._balances[payer] += total_cents / 100.0\n        for p in participants:\n            share = base_share\n            if p == payer:\n                share += remainder\n            self._balances[p] -= share / 100.0\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(v, 2) for m, v in self._balances.items()}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        # Work in cents, floor debts to 1.00 minimum.\n        cents = {m: int(round(v * 100)) for m, v in self._balances.items()}\n\n        debtors = [[m, -c] for m, c in cents.items() if c < 0]\n        creditors = [[m, c] for m, c in cents.items() if c > 0]\n        debtors.sort(key=lambda x: -x[1])\n        creditors.sort(key=lambda x: -x[1])\n\n        threshold = 100  # 1.00 in cents\n\n        payments = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            d, d_amt = debtors[i]\n            c, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            if pay >= threshold:\n                payments.append((d, c, round(pay / 100.0, 2)))\n                d_amt -= pay\n                c_amt -= pay\n            else:\n                # Below threshold: write off both (can't form a valid payment).\n                d_amt = 0\n                c_amt = 0\n            debtors[i][1] = d_amt\n            creditors[j][1] = c_amt\n            if d_amt == 0:\n                i += 1\n            if c_amt == 0:\n                j += 1\n\n        # Limit to at most members - 1 payments. If we exceed, merge greedily.\n        max_payments = max(0, len(self.members) - 1)\n        if len(payments) > max_payments and max_payments > 0:\n            # Re-settle with a simpler greedy that merges: recompute from cents\n            payments = self._settle_limited(cents, max_payments)\n\n        return payments\n\n    def _settle_limited(self, cents, max_payments):\n        # Greedy: repeatedly match largest debtor with largest creditor.\n        # Since greedy min-debtor/creditor yields at most n-1 payments\n        # when amounts are exact, we re-run with full precision (no write-off\n        # merge needed unless cents drops below 100, which greedy handles).\n        threshold = 100\n        debtors = [[m, -c] for m, c in cents.items() if c < 0]\n        creditors = [[m, c] for m, c in cents.items() if c > 0]\n        debtors.sort(key=lambda x: -x[1])\n        creditors.sort(key=lambda x: -x[1])\n\n        payments = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors) and len(payments) < max_payments:\n            d, d_amt = debtors[i]\n            c, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            if pay < threshold:\n                # Write off\n                debtors[i][1] = 0\n                creditors[j][1] = 0\n                i += 1\n                j += 1\n                continue\n            payments.append((d, c, round(pay / 100.0, 2)))\n            debtors[i][1] -= pay\n            creditors[j][1] -= pay\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n\n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794451818,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 1148,
+   "prompt_tokens": 344,
+   "total_tokens": 1492,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 128,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 128,
+   "prompt_cache_miss_tokens": 216
+  }
+ }
+}

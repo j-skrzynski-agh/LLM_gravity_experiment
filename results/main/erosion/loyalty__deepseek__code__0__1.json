@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:39:32+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 0,
+ "step": 1,
+ "change": "Add a method `customers(self) -> list[str]` that returns all customers, sorted.",
+ "start_file": "loyalty__deepseek__FULL__0.json",
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": true,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_day, points) for pending earnings\n        self._pending = {}\n        # customer -> total currently spendable points\n        self._available = {}\n\n    def _mature(self, customer: str, day: date) -> None:\n        \"\"\"Move any pending points whose availability day has arrived\n        (i.e., available from purchase day + 14 days) into available balance.\"\"\"\n        pending = self._pending.get(customer)\n        if not pending:\n            return\n        still_pending = []\n        matured = 0\n        for available_day, pts in pending:\n            if available_day <= day:\n                matured += pts\n            else:\n                still_pending.append((available_day, pts))\n        if matured:\n            self._available[customer] = self._available.get(customer, 0) + matured\n        if still_pending:\n            self._pending[customer] = still_pending\n        else:\n            self._pending.pop(customer, None)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        if points > 0:\n            available_day = day + timedelta(days=14)\n            self._pending.setdefault(customer, []).append((available_day, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        self._mature(customer, day)\n        return self._available.get(customer, 0)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points <= 0:\n            raise ValueError(\"Redeemed points must be positive\")\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        self._mature(customer, day)\n        current = self._available.get(customer, 0)\n        if points > current:\n            raise ValueError(\"Insufficient points balance\")\n        self._available[customer] = current - points\n```\n\n## Change request\nAdd a method `customers(self) -> list[str]` that returns all customers, sorted.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_day, points) for pending earnings\n        self._pending = {}\n        # customer -> total currently spendable points\n        self._available = {}\n\n    def _mature(self, customer: str, day: date) -> None:\n        \"\"\"Move any pending points whose availability day has arrived\n        (i.e., available from purchase day + 14 days) into available balance.\"\"\"\n        pending = self._pending.get(customer)\n        if not pending:\n            return\n        still_pending = []\n        matured = 0\n        for available_day, pts in pending:\n            if available_day <= day:\n                matured += pts\n            else:\n                still_pending.append((available_day, pts))\n        if matured:\n            self._available[customer] = self._available.get(customer, 0) + matured\n        if still_pending:\n            self._pending[customer] = still_pending\n        else:\n            self._pending.pop(customer, None)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        if points > 0:\n            available_day = day + timedelta(days=14)\n            self._pending.setdefault(customer, []).append((available_day, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        self._mature(customer, day)\n        return self._available.get(customer, 0)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points <= 0:\n            raise ValueError(\"Redeemed points must be positive\")\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        self._mature(customer, day)\n        current = self._available.get(customer, 0)\n        if points > current:\n            raise ValueError(\"Insufficient points balance\")\n        self._available[customer] = current - points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return all customers, sorted.\"\"\"\n        return sorted(set(self._pending) | set(self._available))\n```",
+ "code": "from datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_day, points) for pending earnings\n        self._pending = {}\n        # customer -> total currently spendable points\n        self._available = {}\n\n    def _mature(self, customer: str, day: date) -> None:\n        \"\"\"Move any pending points whose availability day has arrived\n        (i.e., available from purchase day + 14 days) into available balance.\"\"\"\n        pending = self._pending.get(customer)\n        if not pending:\n            return\n        still_pending = []\n        matured = 0\n        for available_day, pts in pending:\n            if available_day <= day:\n                matured += pts\n            else:\n                still_pending.append((available_day, pts))\n        if matured:\n            self._available[customer] = self._available.get(customer, 0) + matured\n        if still_pending:\n            self._pending[customer] = still_pending\n        else:\n            self._pending.pop(customer, None)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        if points > 0:\n            available_day = day + timedelta(days=14)\n            self._pending.setdefault(customer, []).append((available_day, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        self._mature(customer, day)\n        return self._available.get(customer, 0)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points <= 0:\n            raise ValueError(\"Redeemed points must be positive\")\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        self._mature(customer, day)\n        current = self._available.get(customer, 0)\n        if points > current:\n            raise ValueError(\"Insufficient points balance\")\n        self._available[customer] = current - points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return all customers, sorted.\"\"\"\n        return sorted(set(self._pending) | set(self._available))\n",
+ "input_tokens": 558,
+ "output_tokens": 531,
+ "cost_usd": 0.0008045999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.02,
+ "raw_api_response": {
+  "id": "7851fc60-5f78-45bc-9f5b-5f2f29e09c03",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # customer -> list of (available_day, points) for pending earnings\n        self._pending = {}\n        # customer -> total currently spendable points\n        self._available = {}\n\n    def _mature(self, customer: str, day: date) -> None:\n        \"\"\"Move any pending points whose availability day has arrived\n        (i.e., available from purchase day + 14 days) into available balance.\"\"\"\n        pending = self._pending.get(customer)\n        if not pending:\n            return\n        still_pending = []\n        matured = 0\n        for available_day, pts in pending:\n            if available_day <= day:\n                matured += pts\n            else:\n                still_pending.append((available_day, pts))\n        if matured:\n            self._available[customer] = self._available.get(customer, 0) + matured\n        if still_pending:\n            self._pending[customer] = still_pending\n        else:\n            self._pending.pop(customer, None)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        if points > 0:\n            available_day = day + timedelta(days=14)\n            self._pending.setdefault(customer, []).append((available_day, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        self._mature(customer, day)\n        return self._available.get(customer, 0)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points <= 0:\n            raise ValueError(\"Redeemed points must be positive\")\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100\")\n        self._mature(customer, day)\n        current = self._available.get(customer, 0)\n        if points > current:\n            raise ValueError(\"Insufficient points balance\")\n        self._available[customer] = current - points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return all customers, sorted.\"\"\"\n        return sorted(set(self._pending) | set(self._available))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794526764,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 531,
+   "prompt_tokens": 558,
+   "total_tokens": 1089,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 558
+  }
+ }
+}

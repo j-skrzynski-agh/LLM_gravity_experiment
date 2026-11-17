@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:07:21+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "qwen",
+ "condition": "ABL-HD3",
+ "rep": 0,
+ "requirement_order": [
+  "HD5",
+  "HD4",
+  "HD1",
+  "HD2"
+ ],
+ "passed": {
+  "HD1": true,
+  "HD2": true,
+  "HD3": false,
+  "HD4": true,
+  "HD5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.\n2. Tickets of VIP customers are handled before all other tickets, even critical tickets of other customers.\n3. Opening a ticket with an empty title raises ValueError.\n4. Tickets with the same priority are handled in the order in which they were opened.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom typing import List, Optional, Tuple, Dict, Set\nimport heapq\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers: Dict[str, bool] = {}  # name -> vip status\n        self.tickets: Dict[int, Dict[str, any]] = {}  # ticket_id -> ticket info\n        self.next_ticket_id: int = 1\n        self.closed_tickets: Set[int] = set()\n        # Priority queue: (priority_score, insertion_order, ticket_id)\n        # priority_score: lower is higher priority\n        # VIP tickets get priority_score 0, then priority-based scores for non-VIP\n        # insertion_order ensures FIFO for same priority\n        self.ticket_queue: List[Tuple[int, int, int]] = []\n        self.insertion_order: int = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title.strip():\n            raise ValueError(\"Ticket title cannot be empty\")\n        \n        if customer not in self.customers:\n            raise ValueError(f\"Customer '{customer}' not found\")\n        \n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n        \n        ticket_id = self.next_ticket_id\n        self.next_ticket_id += 1\n        \n        # Calculate priority score: VIP tickets get highest priority (score 0)\n        # Non-VIP tickets: critical=1, high=2, normal=3\n        if self.customers[customer]:\n            priority_score = 0\n        else:\n            priority_score = self.PRIORITIES.index(priority) + 1\n        \n        # Store ticket info\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": self.customers[customer]\n        }\n        \n        # Add to priority queue\n        heapq.heappush(self.ticket_queue, (priority_score, self.insertion_order, ticket_id))\n        self.insertion_order += 1\n        \n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        while self.ticket_queue:\n            # Get the highest priority ticket\n            priority_score, order, ticket_id = heapq.heappop(self.ticket_queue)\n            \n            # Skip if already closed\n            if ticket_id in self.closed_tickets:\n                continue\n                \n            # Return this ticket\n            return ticket_id\n        \n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        \n        self.closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        \n        if ticket_id in self.closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}\")\n        \n        # Get ticket info to reconstruct priority\n        ticket_info = self.tickets[ticket_id]\n        customer = ticket_info[\"customer\"]\n        priority = ticket_info[\"priority\"]\n        \n        # Calculate priority score again\n        if self.customers[customer]:\n            priority_score = 0\n        else:\n            priority_score = self.PRIORITIES.index(priority) + 1\n        \n        # Add back to queue with current insertion order\n        heapq.heappush(self.ticket_queue, (priority_score, self.insertion_order, ticket_id))\n        self.insertion_order += 1\n```",
+ "code": "from typing import List, Optional, Tuple, Dict, Set\nimport heapq\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers: Dict[str, bool] = {}  # name -> vip status\n        self.tickets: Dict[int, Dict[str, any]] = {}  # ticket_id -> ticket info\n        self.next_ticket_id: int = 1\n        self.closed_tickets: Set[int] = set()\n        # Priority queue: (priority_score, insertion_order, ticket_id)\n        # priority_score: lower is higher priority\n        # VIP tickets get priority_score 0, then priority-based scores for non-VIP\n        # insertion_order ensures FIFO for same priority\n        self.ticket_queue: List[Tuple[int, int, int]] = []\n        self.insertion_order: int = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title.strip():\n            raise ValueError(\"Ticket title cannot be empty\")\n        \n        if customer not in self.customers:\n            raise ValueError(f\"Customer '{customer}' not found\")\n        \n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n        \n        ticket_id = self.next_ticket_id\n        self.next_ticket_id += 1\n        \n        # Calculate priority score: VIP tickets get highest priority (score 0)\n        # Non-VIP tickets: critical=1, high=2, normal=3\n        if self.customers[customer]:\n            priority_score = 0\n        else:\n            priority_score = self.PRIORITIES.index(priority) + 1\n        \n        # Store ticket info\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": self.customers[customer]\n        }\n        \n        # Add to priority queue\n        heapq.heappush(self.ticket_queue, (priority_score, self.insertion_order, ticket_id))\n        self.insertion_order += 1\n        \n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        while self.ticket_queue:\n            # Get the highest priority ticket\n            priority_score, order, ticket_id = heapq.heappop(self.ticket_queue)\n            \n            # Skip if already closed\n            if ticket_id in self.closed_tickets:\n                continue\n                \n            # Return this ticket\n            return ticket_id\n        \n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        \n        self.closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        \n        if ticket_id in self.closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}\")\n        \n        # Get ticket info to reconstruct priority\n        ticket_info = self.tickets[ticket_id]\n        customer = ticket_info[\"customer\"]\n        priority = ticket_info[\"priority\"]\n        \n        # Calculate priority score again\n        if self.customers[customer]:\n            priority_score = 0\n        else:\n            priority_score = self.PRIORITIES.index(priority) + 1\n        \n        # Add back to queue with current insertion order\n        heapq.heappush(self.ticket_queue, (priority_score, self.insertion_order, ticket_id))\n        self.insertion_order += 1\n",
+ "input_tokens": 298,
+ "output_tokens": 785,
+ "cost_usd": 0.0010612,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 15.07,
+ "raw_api_response": {
+  "id": "gen-1794892020-iW6VXTH9luCvZfSZBx1W",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom typing import List, Optional, Tuple, Dict, Set\nimport heapq\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers: Dict[str, bool] = {}  # name -> vip status\n        self.tickets: Dict[int, Dict[str, any]] = {}  # ticket_id -> ticket info\n        self.next_ticket_id: int = 1\n        self.closed_tickets: Set[int] = set()\n        # Priority queue: (priority_score, insertion_order, ticket_id)\n        # priority_score: lower is higher priority\n        # VIP tickets get priority_score 0, then priority-based scores for non-VIP\n        # insertion_order ensures FIFO for same priority\n        self.ticket_queue: List[Tuple[int, int, int]] = []\n        self.insertion_order: int = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title.strip():\n            raise ValueError(\"Ticket title cannot be empty\")\n        \n        if customer not in self.customers:\n            raise ValueError(f\"Customer '{customer}' not found\")\n        \n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n        \n        ticket_id = self.next_ticket_id\n        self.next_ticket_id += 1\n        \n        # Calculate priority score: VIP tickets get highest priority (score 0)\n        # Non-VIP tickets: critical=1, high=2, normal=3\n        if self.customers[customer]:\n            priority_score = 0\n        else:\n            priority_score = self.PRIORITIES.index(priority) + 1\n        \n        # Store ticket info\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": self.customers[customer]\n        }\n        \n        # Add to priority queue\n        heapq.heappush(self.ticket_queue, (priority_score, self.insertion_order, ticket_id))\n        self.insertion_order += 1\n        \n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        while self.ticket_queue:\n            # Get the highest priority ticket\n            priority_score, order, ticket_id = heapq.heappop(self.ticket_queue)\n            \n            # Skip if already closed\n            if ticket_id in self.closed_tickets:\n                continue\n                \n            # Return this ticket\n            return ticket_id\n        \n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        \n        self.closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Ticket {ticket_id} does not exist\")\n        \n        if ticket_id in self.closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket {ticket_id}\")\n        \n        # Get ticket info to reconstruct priority\n        ticket_info = self.tickets[ticket_id]\n        customer = ticket_info[\"customer\"]\n        priority = ticket_info[\"priority\"]\n        \n        # Calculate priority score again\n        if self.customers[customer]:\n            priority_score = 0\n        else:\n            priority_score = self.PRIORITIES.index(priority) + 1\n        \n        # Add back to queue with current insertion order\n        heapq.heappush(self.ticket_queue, (priority_score, self.insertion_order, ticket_id))\n        self.insertion_order += 1\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794892020,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 785,
+   "prompt_tokens": 298,
+   "total_tokens": 1083,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00068978,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00068978,
+    "upstream_inference_prompt_cost": 7.748e-05,
+    "upstream_inference_completions_cost": 0.0006123
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

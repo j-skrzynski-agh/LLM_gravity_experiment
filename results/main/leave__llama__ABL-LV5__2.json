@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:22:37+00:00",
+ "app": "leave",
+ "app_hash": "c3276e419d06",
+ "model": "llama",
+ "condition": "ABL-LV5",
+ "rep": 2,
+ "requirement_order": [
+  "LV4",
+  "LV1",
+  "LV3",
+  "LV2"
+ ],
+ "passed": {
+  "LV1": true,
+  "LV2": true,
+  "LV3": true,
+  "LV4": true,
+  "LV5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that tracks employees' annual leave requests.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None: ...\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n\n    def remaining(self, employee: str, year: int) -> int: ...\n```\n\n## Requirements\n1. A request made less than 3 days before its start date is rejected with ValueError.\n2. A request whose end date is before its start date raises ValueError.\n3. Weekends and the given holidays do not use leave days.\n4. A request that needs more days than the employee has remaining raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\nfrom typing import List, Optional\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Optional[List[date]] = None) -> None:\n        \"\"\"\n        Initialize the LeaveTracker.\n\n        Args:\n        - days_per_year: The number of annual leave days per year. Defaults to 26.\n        - holidays: A list of holiday dates. Defaults to None.\n        \"\"\"\n        self.days_per_year = days_per_year\n        self.holidays = holidays if holidays else []\n        self.employees = {}\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"\n        Request leave from start to end (inclusive); returns the number of leave days used.\n\n        Args:\n        - employee: The employee's name.\n        - start: The start date of the leave.\n        - end: The end date of the leave.\n        - today: The current date.\n\n        Returns:\n        - The number of leave days used.\n\n        Raises:\n        - ValueError: If the request is made less than 3 days before its start date.\n        - ValueError: If the end date is before the start date.\n        - ValueError: If the request needs more days than the employee has remaining.\n        \"\"\"\n        # Check if the request is made less than 3 days before its start date\n        if (start - today).days < 3:\n            raise ValueError(\"Request must be made at least 3 days before its start date\")\n\n        # Check if the end date is before the start date\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n\n        # Calculate the number of leave days\n        leave_days = self._calculate_leave_days(start, end)\n\n        # Initialize the employee's leave balance if not already initialized\n        if employee not in self.employees:\n            self.employees[employee] = self.days_per_year\n\n        # Check if the request needs more days than the employee has remaining\n        if leave_days > self.employees[employee]:\n            raise ValueError(\"Not enough leave days remaining\")\n\n        # Update the employee's leave balance\n        self.employees[employee] -= leave_days\n\n        return leave_days\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"\n        Get the number of remaining leave days for an employee in a given year.\n\n        Args:\n        - employee: The employee's name.\n        - year: The year for which to get the remaining leave days.\n\n        Returns:\n        - The number of remaining leave days.\n        \"\"\"\n        # Initialize the employee's leave balance if not already initialized\n        if employee not in self.employees:\n            self.employees[employee] = self.days_per_year\n\n        return self.employees[employee]\n\n    def _calculate_leave_days(self, start: date, end: date) -> int:\n        \"\"\"\n        Calculate the number of leave days between two dates, excluding weekends and holidays.\n\n        Args:\n        - start: The start date.\n        - end: The end date.\n\n        Returns:\n        - The number of leave days.\n        \"\"\"\n        leave_days = 0\n        current_date = start\n\n        while current_date <= end:\n            # Check if the current date is a weekend or holiday\n            if current_date.weekday() >= 5 or current_date in self.holidays:\n                pass\n            else:\n                leave_days += 1\n\n            # Move to the next day\n            current_date += timedelta(days=1)\n\n        return leave_days\n```",
+ "code": "from datetime import date, timedelta\nfrom typing import List, Optional\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Optional[List[date]] = None) -> None:\n        \"\"\"\n        Initialize the LeaveTracker.\n\n        Args:\n        - days_per_year: The number of annual leave days per year. Defaults to 26.\n        - holidays: A list of holiday dates. Defaults to None.\n        \"\"\"\n        self.days_per_year = days_per_year\n        self.holidays = holidays if holidays else []\n        self.employees = {}\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"\n        Request leave from start to end (inclusive); returns the number of leave days used.\n\n        Args:\n        - employee: The employee's name.\n        - start: The start date of the leave.\n        - end: The end date of the leave.\n        - today: The current date.\n\n        Returns:\n        - The number of leave days used.\n\n        Raises:\n        - ValueError: If the request is made less than 3 days before its start date.\n        - ValueError: If the end date is before the start date.\n        - ValueError: If the request needs more days than the employee has remaining.\n        \"\"\"\n        # Check if the request is made less than 3 days before its start date\n        if (start - today).days < 3:\n            raise ValueError(\"Request must be made at least 3 days before its start date\")\n\n        # Check if the end date is before the start date\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n\n        # Calculate the number of leave days\n        leave_days = self._calculate_leave_days(start, end)\n\n        # Initialize the employee's leave balance if not already initialized\n        if employee not in self.employees:\n            self.employees[employee] = self.days_per_year\n\n        # Check if the request needs more days than the employee has remaining\n        if leave_days > self.employees[employee]:\n            raise ValueError(\"Not enough leave days remaining\")\n\n        # Update the employee's leave balance\n        self.employees[employee] -= leave_days\n\n        return leave_days\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"\n        Get the number of remaining leave days for an employee in a given year.\n\n        Args:\n        - employee: The employee's name.\n        - year: The year for which to get the remaining leave days.\n\n        Returns:\n        - The number of remaining leave days.\n        \"\"\"\n        # Initialize the employee's leave balance if not already initialized\n        if employee not in self.employees:\n            self.employees[employee] = self.days_per_year\n\n        return self.employees[employee]\n\n    def _calculate_leave_days(self, start: date, end: date) -> int:\n        \"\"\"\n        Calculate the number of leave days between two dates, excluding weekends and holidays.\n\n        Args:\n        - start: The start date.\n        - end: The end date.\n\n        Returns:\n        - The number of leave days.\n        \"\"\"\n        leave_days = 0\n        current_date = start\n\n        while current_date <= end:\n            # Check if the current date is a weekend or holiday\n            if current_date.weekday() >= 5 or current_date in self.holidays:\n                pass\n            else:\n                leave_days += 1\n\n            # Move to the next day\n            current_date += timedelta(days=1)\n\n        return leave_days\n",
+ "input_tokens": 224,
+ "output_tokens": 746,
+ "cost_usd": 0.00026112,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.8,
+ "raw_api_response": {
+  "id": "gen-1794896543-CfcKqZuJ6MQnW8aG8Oyt",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\nfrom typing import List, Optional\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Optional[List[date]] = None) -> None:\n        \"\"\"\n        Initialize the LeaveTracker.\n\n        Args:\n        - days_per_year: The number of annual leave days per year. Defaults to 26.\n        - holidays: A list of holiday dates. Defaults to None.\n        \"\"\"\n        self.days_per_year = days_per_year\n        self.holidays = holidays if holidays else []\n        self.employees = {}\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"\n        Request leave from start to end (inclusive); returns the number of leave days used.\n\n        Args:\n        - employee: The employee's name.\n        - start: The start date of the leave.\n        - end: The end date of the leave.\n        - today: The current date.\n\n        Returns:\n        - The number of leave days used.\n\n        Raises:\n        - ValueError: If the request is made less than 3 days before its start date.\n        - ValueError: If the end date is before the start date.\n        - ValueError: If the request needs more days than the employee has remaining.\n        \"\"\"\n        # Check if the request is made less than 3 days before its start date\n        if (start - today).days < 3:\n            raise ValueError(\"Request must be made at least 3 days before its start date\")\n\n        # Check if the end date is before the start date\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n\n        # Calculate the number of leave days\n        leave_days = self._calculate_leave_days(start, end)\n\n        # Initialize the employee's leave balance if not already initialized\n        if employee not in self.employees:\n            self.employees[employee] = self.days_per_year\n\n        # Check if the request needs more days than the employee has remaining\n        if leave_days > self.employees[employee]:\n            raise ValueError(\"Not enough leave days remaining\")\n\n        # Update the employee's leave balance\n        self.employees[employee] -= leave_days\n\n        return leave_days\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"\n        Get the number of remaining leave days for an employee in a given year.\n\n        Args:\n        - employee: The employee's name.\n        - year: The year for which to get the remaining leave days.\n\n        Returns:\n        - The number of remaining leave days.\n        \"\"\"\n        # Initialize the employee's leave balance if not already initialized\n        if employee not in self.employees:\n            self.employees[employee] = self.days_per_year\n\n        return self.employees[employee]\n\n    def _calculate_leave_days(self, start: date, end: date) -> int:\n        \"\"\"\n        Calculate the number of leave days between two dates, excluding weekends and holidays.\n\n        Args:\n        - start: The start date.\n        - end: The end date.\n\n        Returns:\n        - The number of leave days.\n        \"\"\"\n        leave_days = 0\n        current_date = start\n\n        while current_date <= end:\n            # Check if the current date is a weekend or holiday\n            if current_date.weekday() >= 5 or current_date in self.holidays:\n                pass\n            else:\n                leave_days += 1\n\n            # Move to the next day\n            current_date += timedelta(days=1)\n\n        return leave_days\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794896543,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 746,
+   "prompt_tokens": 224,
+   "total_tokens": 970,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 160,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.0006887,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.0006887,
+    "upstream_inference_prompt_cost": 0.00015904,
+    "upstream_inference_completions_cost": 0.00052966
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

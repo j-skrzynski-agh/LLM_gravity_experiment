@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T04:40:18+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "qwen",
+ "condition": "ABL-AP3",
+ "rep": 1,
+ "requirement_order": [
+  "AP2",
+  "AP4",
+  "AP5",
+  "AP1"
+ ],
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": false,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for booking appointments with doctors in a small clinic.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None: ...\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n\n    def cancel(self, appointment_id: int, now: datetime) -> None: ...\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n```\n\n## Requirements\n1. Booking an appointment that overlaps another appointment of the same doctor raises ValueError.\n2. Cancelling an appointment less than 24 hours before its start does not free the time slot; the slot stays blocked.\n3. A patient can have at most one upcoming appointment; booking another one while the first is still upcoming raises ValueError.\n4. Booking an appointment that starts before `now` raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = {}  # appointment_id -> {patient, doctor, start, end, cancelled}\n        self.next_id = 1\n        self.patient_appointments = {}  # patient -> list of appointment_ids\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        # Requirement 4: Booking an appointment that starts before `now` raises ValueError\n        if start < now:\n            raise ValueError(\"Appointment cannot start before current time\")\n        \n        # Requirement 1: Check for overlapping appointments for the same doctor\n        for appointment_id, appointment in self.appointments.items():\n            if not appointment.get('cancelled', False) and appointment['doctor'] == doctor:\n                # Check if there's overlap between [start, end] and [appointment['start'], appointment['end']]\n                if not (end <= appointment['start'] or start >= appointment['end']):\n                    raise ValueError(\"Doctor is not available during the requested time slot\")\n        \n        # Requirement 3: A patient can have at most one upcoming appointment\n        # Find all upcoming appointments for this patient\n        upcoming_patient_appointments = []\n        for appointment_id, appointment in self.appointments.items():\n            if not appointment.get('cancelled', False) and appointment['patient'] == patient:\n                if appointment['start'] > now:\n                    upcoming_patient_appointments.append(appointment_id)\n        \n        if len(upcoming_patient_appointments) >= 1:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n        \n        # Create new appointment\n        appointment_id = self.next_id\n        self.next_id += 1\n        \n        self.appointments[appointment_id] = {\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end,\n            'cancelled': False\n        }\n        \n        # Track patient's appointments\n        if patient not in self.patient_appointments:\n            self.patient_appointments[patient] = []\n        self.patient_appointments[patient].append(appointment_id)\n        \n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self.appointments:\n            raise ValueError(\"Appointment does not exist\")\n        \n        appointment = self.appointments[appointment_id]\n        \n        # If appointment is already cancelled, do nothing\n        if appointment.get('cancelled', False):\n            return\n            \n        # Requirement 2: Cancelling an appointment less than 24 hours before its start \n        # does not free the time slot; the slot stays blocked.\n        # We still mark it as cancelled but don't free the slot (so no special handling needed here)\n        # since our is_free method will check for cancelled appointments with the 24-hour rule\n        \n        # Mark as cancelled\n        appointment['cancelled'] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        # Check all appointments for this doctor\n        for appointment_id, appointment in self.appointments.items():\n            # Skip cancelled appointments that are more than 24 hours before their start time\n            if appointment.get('cancelled', False):\n                # If cancelled less than 24 hours before start, it's still blocked\n                # If cancelled 24+ hours before start, it's freed\n                if appointment['start'] - now >= timedelta(hours=24):\n                    continue\n            \n            # Skip non-cancelled appointments or cancelled ones that are still blocking\n            if not appointment.get('cancelled', False) or (appointment['start'] - now < timedelta(hours=24)):\n                if appointment['doctor'] == doctor:\n                    # Check for overlap\n                    if not (end <= appointment['start'] or start >= appointment['end']):\n                        return False\n        \n        return True\n```",
+ "code": "from datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = {}  # appointment_id -> {patient, doctor, start, end, cancelled}\n        self.next_id = 1\n        self.patient_appointments = {}  # patient -> list of appointment_ids\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        # Requirement 4: Booking an appointment that starts before `now` raises ValueError\n        if start < now:\n            raise ValueError(\"Appointment cannot start before current time\")\n        \n        # Requirement 1: Check for overlapping appointments for the same doctor\n        for appointment_id, appointment in self.appointments.items():\n            if not appointment.get('cancelled', False) and appointment['doctor'] == doctor:\n                # Check if there's overlap between [start, end] and [appointment['start'], appointment['end']]\n                if not (end <= appointment['start'] or start >= appointment['end']):\n                    raise ValueError(\"Doctor is not available during the requested time slot\")\n        \n        # Requirement 3: A patient can have at most one upcoming appointment\n        # Find all upcoming appointments for this patient\n        upcoming_patient_appointments = []\n        for appointment_id, appointment in self.appointments.items():\n            if not appointment.get('cancelled', False) and appointment['patient'] == patient:\n                if appointment['start'] > now:\n                    upcoming_patient_appointments.append(appointment_id)\n        \n        if len(upcoming_patient_appointments) >= 1:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n        \n        # Create new appointment\n        appointment_id = self.next_id\n        self.next_id += 1\n        \n        self.appointments[appointment_id] = {\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end,\n            'cancelled': False\n        }\n        \n        # Track patient's appointments\n        if patient not in self.patient_appointments:\n            self.patient_appointments[patient] = []\n        self.patient_appointments[patient].append(appointment_id)\n        \n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self.appointments:\n            raise ValueError(\"Appointment does not exist\")\n        \n        appointment = self.appointments[appointment_id]\n        \n        # If appointment is already cancelled, do nothing\n        if appointment.get('cancelled', False):\n            return\n            \n        # Requirement 2: Cancelling an appointment less than 24 hours before its start \n        # does not free the time slot; the slot stays blocked.\n        # We still mark it as cancelled but don't free the slot (so no special handling needed here)\n        # since our is_free method will check for cancelled appointments with the 24-hour rule\n        \n        # Mark as cancelled\n        appointment['cancelled'] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        # Check all appointments for this doctor\n        for appointment_id, appointment in self.appointments.items():\n            # Skip cancelled appointments that are more than 24 hours before their start time\n            if appointment.get('cancelled', False):\n                # If cancelled less than 24 hours before start, it's still blocked\n                # If cancelled 24+ hours before start, it's freed\n                if appointment['start'] - now >= timedelta(hours=24):\n                    continue\n            \n            # Skip non-cancelled appointments or cancelled ones that are still blocking\n            if not appointment.get('cancelled', False) or (appointment['start'] - now < timedelta(hours=24)):\n                if appointment['doctor'] == doctor:\n                    # Check for overlap\n                    if not (end <= appointment['start'] or start >= appointment['end']):\n                        return False\n        \n        return True\n",
+ "input_tokens": 261,
+ "output_tokens": 830,
+ "cost_usd": 0.0011004,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 15.98,
+ "raw_api_response": {
+  "id": "gen-1794890396-RKKSeGSYt3XbvXxK3kef",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self.appointments = {}  # appointment_id -> {patient, doctor, start, end, cancelled}\n        self.next_id = 1\n        self.patient_appointments = {}  # patient -> list of appointment_ids\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        # Requirement 4: Booking an appointment that starts before `now` raises ValueError\n        if start < now:\n            raise ValueError(\"Appointment cannot start before current time\")\n        \n        # Requirement 1: Check for overlapping appointments for the same doctor\n        for appointment_id, appointment in self.appointments.items():\n            if not appointment.get('cancelled', False) and appointment['doctor'] == doctor:\n                # Check if there's overlap between [start, end] and [appointment['start'], appointment['end']]\n                if not (end <= appointment['start'] or start >= appointment['end']):\n                    raise ValueError(\"Doctor is not available during the requested time slot\")\n        \n        # Requirement 3: A patient can have at most one upcoming appointment\n        # Find all upcoming appointments for this patient\n        upcoming_patient_appointments = []\n        for appointment_id, appointment in self.appointments.items():\n            if not appointment.get('cancelled', False) and appointment['patient'] == patient:\n                if appointment['start'] > now:\n                    upcoming_patient_appointments.append(appointment_id)\n        \n        if len(upcoming_patient_appointments) >= 1:\n            raise ValueError(\"Patient already has an upcoming appointment\")\n        \n        # Create new appointment\n        appointment_id = self.next_id\n        self.next_id += 1\n        \n        self.appointments[appointment_id] = {\n            'patient': patient,\n            'doctor': doctor,\n            'start': start,\n            'end': end,\n            'cancelled': False\n        }\n        \n        # Track patient's appointments\n        if patient not in self.patient_appointments:\n            self.patient_appointments[patient] = []\n        self.patient_appointments[patient].append(appointment_id)\n        \n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        if appointment_id not in self.appointments:\n            raise ValueError(\"Appointment does not exist\")\n        \n        appointment = self.appointments[appointment_id]\n        \n        # If appointment is already cancelled, do nothing\n        if appointment.get('cancelled', False):\n            return\n            \n        # Requirement 2: Cancelling an appointment less than 24 hours before its start \n        # does not free the time slot; the slot stays blocked.\n        # We still mark it as cancelled but don't free the slot (so no special handling needed here)\n        # since our is_free method will check for cancelled appointments with the 24-hour rule\n        \n        # Mark as cancelled\n        appointment['cancelled'] = True\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n        # Check all appointments for this doctor\n        for appointment_id, appointment in self.appointments.items():\n            # Skip cancelled appointments that are more than 24 hours before their start time\n            if appointment.get('cancelled', False):\n                # If cancelled less than 24 hours before start, it's still blocked\n                # If cancelled 24+ hours before start, it's freed\n                if appointment['start'] - now >= timedelta(hours=24):\n                    continue\n            \n            # Skip non-cancelled appointments or cancelled ones that are still blocking\n            if not appointment.get('cancelled', False) or (appointment['start'] - now < timedelta(hours=24)):\n                if appointment['doctor'] == doctor:\n                    # Check for overlap\n                    if not (end <= appointment['start'] or start >= appointment['end']):\n                        return False\n        \n        return True\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794890396,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 830,
+   "prompt_tokens": 261,
+   "total_tokens": 1091,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00071526,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00071526,
+    "upstream_inference_prompt_cost": 6.786e-05,
+    "upstream_inference_completions_cost": 0.0006474
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

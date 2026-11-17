@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:32:15+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "llama",
+ "condition": "ABL-LY3",
+ "rep": 1,
+ "requirement_order": [
+  "LY1",
+  "LY5",
+  "LY2",
+  "LY4"
+ ],
+ "passed": {
+  "LY1": true,
+  "LY2": false,
+  "LY3": false,
+  "LY4": false,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA customer loyalty program: customers earn points for purchases and redeem them later.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None: ...\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n\n    def redeem(self, customer: str, points: int, day: date) -> None: ...\n```\n\n## Requirements\n1. A purchase with an amount of zero or less raises ValueError.\n2. Points can be redeemed only in multiples of 100; other amounts raise ValueError.\n3. Redeeming more points than the available balance raises ValueError.\n4. Points from a purchase become available only 14 days after the purchase.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        \"\"\"Initialize the loyalty program.\"\"\"\n        self.purchases = {}\n        self.balances = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"\n        Record a purchase; returns the number of points earned.\n\n        :param customer: The customer's name.\n        :param amount: The purchase amount.\n        :param day: The date of the purchase.\n        :return: The number of points earned.\n        :raises ValueError: If the purchase amount is zero or less.\n        \"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n\n        # Assuming 1 point per dollar\n        points = int(amount)\n\n        # Initialize the customer's purchases if necessary\n        if customer not in self.purchases:\n            self.purchases[customer] = []\n\n        # Add the purchase to the customer's history\n        self.purchases[customer].append((points, day))\n\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"\n        Points the customer can spend on the given day.\n\n        :param customer: The customer's name.\n        :param day: The date to check the balance.\n        :return: The available points.\n        \"\"\"\n        # Initialize the customer's balance if necessary\n        if customer not in self.balances:\n            self.balances[customer] = 0\n\n        # Update the balance by considering points that become available\n        if customer in self.purchases:\n            available_points = 0\n            for points, purchase_day in self.purchases[customer]:\n                if purchase_day + timedelta(days=14) <= day:\n                    available_points += points\n            self.balances[customer] = available_points\n\n        return self.balances[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"\n        Redeem points.\n\n        :param customer: The customer's name.\n        :param points: The number of points to redeem.\n        :param day: The date of redemption.\n        :raises ValueError: If the points are not a multiple of 100 or exceed the available balance.\n        \"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100.\")\n\n        available_points = self.balance(customer, day)\n        if points > available_points:\n            raise ValueError(\"Insufficient points to redeem.\")\n\n        # Update the balance\n        self.balances[customer] -= points\n```\n\nThis implementation uses dictionaries to store the customers' purchases and balances. The `purchase` method records a purchase and returns the points earned. The `balance` method calculates the available points by considering points that become available 14 days after the purchase. The `redeem` method checks if the points can be redeemed and updates the balance accordingly.",
+ "code": "from datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        \"\"\"Initialize the loyalty program.\"\"\"\n        self.purchases = {}\n        self.balances = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"\n        Record a purchase; returns the number of points earned.\n\n        :param customer: The customer's name.\n        :param amount: The purchase amount.\n        :param day: The date of the purchase.\n        :return: The number of points earned.\n        :raises ValueError: If the purchase amount is zero or less.\n        \"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n\n        # Assuming 1 point per dollar\n        points = int(amount)\n\n        # Initialize the customer's purchases if necessary\n        if customer not in self.purchases:\n            self.purchases[customer] = []\n\n        # Add the purchase to the customer's history\n        self.purchases[customer].append((points, day))\n\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"\n        Points the customer can spend on the given day.\n\n        :param customer: The customer's name.\n        :param day: The date to check the balance.\n        :return: The available points.\n        \"\"\"\n        # Initialize the customer's balance if necessary\n        if customer not in self.balances:\n            self.balances[customer] = 0\n\n        # Update the balance by considering points that become available\n        if customer in self.purchases:\n            available_points = 0\n            for points, purchase_day in self.purchases[customer]:\n                if purchase_day + timedelta(days=14) <= day:\n                    available_points += points\n            self.balances[customer] = available_points\n\n        return self.balances[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"\n        Redeem points.\n\n        :param customer: The customer's name.\n        :param points: The number of points to redeem.\n        :param day: The date of redemption.\n        :raises ValueError: If the points are not a multiple of 100 or exceed the available balance.\n        \"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100.\")\n\n        available_points = self.balance(customer, day)\n        if points > available_points:\n            raise ValueError(\"Insufficient points to redeem.\")\n\n        # Update the balance\n        self.balances[customer] -= points\n",
+ "input_tokens": 229,
+ "output_tokens": 619,
+ "cost_usd": 0.00022098000000000002,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.4,
+ "raw_api_response": {
+  "id": "gen-1794897121-yfNgxRSje7bm5PN4qPnk",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        \"\"\"Initialize the loyalty program.\"\"\"\n        self.purchases = {}\n        self.balances = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"\n        Record a purchase; returns the number of points earned.\n\n        :param customer: The customer's name.\n        :param amount: The purchase amount.\n        :param day: The date of the purchase.\n        :return: The number of points earned.\n        :raises ValueError: If the purchase amount is zero or less.\n        \"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n\n        # Assuming 1 point per dollar\n        points = int(amount)\n\n        # Initialize the customer's purchases if necessary\n        if customer not in self.purchases:\n            self.purchases[customer] = []\n\n        # Add the purchase to the customer's history\n        self.purchases[customer].append((points, day))\n\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"\n        Points the customer can spend on the given day.\n\n        :param customer: The customer's name.\n        :param day: The date to check the balance.\n        :return: The available points.\n        \"\"\"\n        # Initialize the customer's balance if necessary\n        if customer not in self.balances:\n            self.balances[customer] = 0\n\n        # Update the balance by considering points that become available\n        if customer in self.purchases:\n            available_points = 0\n            for points, purchase_day in self.purchases[customer]:\n                if purchase_day + timedelta(days=14) <= day:\n                    available_points += points\n            self.balances[customer] = available_points\n\n        return self.balances[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"\n        Redeem points.\n\n        :param customer: The customer's name.\n        :param points: The number of points to redeem.\n        :param day: The date of redemption.\n        :raises ValueError: If the points are not a multiple of 100 or exceed the available balance.\n        \"\"\"\n        if points % 100 != 0:\n            raise ValueError(\"Points can only be redeemed in multiples of 100.\")\n\n        available_points = self.balance(customer, day)\n        if points > available_points:\n            raise ValueError(\"Insufficient points to redeem.\")\n\n        # Update the balance\n        self.balances[customer] -= points\n```\n\nThis implementation uses dictionaries to store the customers' purchases and balances. The `purchase` method records a purchase and returns the points earned. The `balance` method calculates the available points by considering points that become available 14 days after the purchase. The `redeem` method checks if the points can be redeemed and updates the balance accordingly.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794897121,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 619,
+   "prompt_tokens": 229,
+   "total_tokens": 848,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 128,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00060208,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00060208,
+    "upstream_inference_prompt_cost": 0.00016259,
+    "upstream_inference_completions_cost": 0.00043949
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

@@ -1,0 +1,98 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T04:49:48+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "qwen",
+ "condition": "ABL-ES1",
+ "rep": 1,
+ "requirement_order": [
+  "ES4",
+  "ES6",
+  "ES5",
+  "ES2",
+  "ES3"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": true,
+  "ES4": true,
+  "ES5": true,
+  "ES6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. settle_up() proposes at most (number of members - 1) payments.\n2. settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off and not included in the proposed payments.\n3. When an amount cannot be split into equal cents, the leftover cents are borne by the payer: every other participant owes exactly the amount rounded down to the cent.\n4. If participants are not given, the expense is split equally among all group members.\n5. Adding an expense with an amount that is zero or negative raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = members.copy()\n        # Initialize balances to zero for each member\n        self._balances = {member: 0.0 for member in self.members}\n    \n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"Amount must be positive\")\n        \n        if payer not in self.members:\n            raise ValueError(f\"Payer '{payer}' is not a member of the group\")\n        \n        if participants is None:\n            # Split equally among all members\n            participants = self.members\n        else:\n            # Validate all participants are members\n            for participant in participants:\n                if participant not in self.members:\n                    raise ValueError(f\"Participant '{participant}' is not a member of the group\")\n        \n        if len(participants) == 0:\n            # No participants means no one owes anything, but payer paid amount\n            # So payer is owed the full amount\n            self._balances[payer] += amount\n            return\n        \n        # Calculate share per participant (rounded down to cent)\n        # Convert to cents to avoid floating point errors\n        amount_cents = round(amount * 100)\n        share_cents = amount_cents // len(participants)\n        # The leftover cents are borne by the payer\n        total_shared_cents = share_cents * len(participants)\n        leftover_cents = amount_cents - total_shared_cents\n        \n        # Each participant owes their share (in dollars)\n        share_dollars = share_cents / 100.0\n        \n        # Update balances:\n        # Payer gets credited with the full amount they paid\n        # Each participant gets debited with their share\n        self._balances[payer] += amount\n        \n        for participant in participants:\n            if participant != payer:\n                self._balances[participant] -= share_dollars\n            else:\n                # If payer is also a participant, they only owe their share minus what they paid\n                # But since they paid the full amount, their net is: -share_dollars + amount\n                # Which equals: amount - share_dollars\n                # But we handle this by subtracting share from everyone including payer,\n                # then adding back the leftover to payer\n                self._balances[participant] -= share_dollars\n        \n        # Add leftover cents to payer's balance (since they bear the leftover)\n        # This means payer effectively pays the leftover amount\n        leftover_dollars = leftover_cents / 100.0\n        self._balances[payer] -= leftover_dollars\n    \n    def balances(self) -> dict[str, float]:\n        # Return a copy of the balances\n        return self._balances.copy()\n    \n    def settle_up(self) -> list[tuple[str, str, float]]:\n        balances = self.balances()\n        \n        # Create lists of debtors (negative balance) and creditors (positive balance)\n        debtors = []  # (person, amount_owed) where amount_owed is positive\n        creditors = []  # (person, amount_owed) where amount_owed is positive\n        \n        for person, balance in balances.items():\n            if balance > 0:\n                creditors.append((person, balance))\n            elif balance < 0:\n                debtors.append((person, -balance))\n        \n        # Sort creditors and debtors to get deterministic output\n        # (though not required by spec, helps with testing)\n        creditors.sort(key=lambda x: x[0])\n        debtors.sort(key=lambda x: x[0])\n        \n        payments = []\n        \n        # Use two pointers to match debtors with creditors\n        i = 0  # debtor index\n        j = 0  # creditor index\n        \n        while i < len(debtors) and j < len(creditors):\n            debtor, debtor_amount = debtors[i]\n            creditor, creditor_amount = creditors[j]\n            \n            # Determine payment amount\n            payment = min(debtor_amount, creditor_amount)\n            \n            # Only include payments >= 1.00\n            if payment >= 1.00:\n                # Round to nearest cent to avoid floating point issues\n                payment = round(payment, 2)\n                if payment >= 1.00:\n                    payments.append((debtor, creditor, payment))\n            \n            # Update remaining amounts\n            debtors[i] = (debtor, debtor_amount - payment)\n            creditors[j] = (creditor, creditor_amount - payment)\n            \n            # Move pointers if current debtor or creditor is settled\n            if abs(debtors[i][1]) < 1e-10:  # effectively zero\n                i += 1\n            if abs(creditors[j][1]) < 1e-10:  # effectively zero\n                j += 1\n        \n        return payments\n```",
+ "code": "class Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = members.copy()\n        # Initialize balances to zero for each member\n        self._balances = {member: 0.0 for member in self.members}\n    \n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"Amount must be positive\")\n        \n        if payer not in self.members:\n            raise ValueError(f\"Payer '{payer}' is not a member of the group\")\n        \n        if participants is None:\n            # Split equally among all members\n            participants = self.members\n        else:\n            # Validate all participants are members\n            for participant in participants:\n                if participant not in self.members:\n                    raise ValueError(f\"Participant '{participant}' is not a member of the group\")\n        \n        if len(participants) == 0:\n            # No participants means no one owes anything, but payer paid amount\n            # So payer is owed the full amount\n            self._balances[payer] += amount\n            return\n        \n        # Calculate share per participant (rounded down to cent)\n        # Convert to cents to avoid floating point errors\n        amount_cents = round(amount * 100)\n        share_cents = amount_cents // len(participants)\n        # The leftover cents are borne by the payer\n        total_shared_cents = share_cents * len(participants)\n        leftover_cents = amount_cents - total_shared_cents\n        \n        # Each participant owes their share (in dollars)\n        share_dollars = share_cents / 100.0\n        \n        # Update balances:\n        # Payer gets credited with the full amount they paid\n        # Each participant gets debited with their share\n        self._balances[payer] += amount\n        \n        for participant in participants:\n            if participant != payer:\n                self._balances[participant] -= share_dollars\n            else:\n                # If payer is also a participant, they only owe their share minus what they paid\n                # But since they paid the full amount, their net is: -share_dollars + amount\n                # Which equals: amount - share_dollars\n                # But we handle this by subtracting share from everyone including payer,\n                # then adding back the leftover to payer\n                self._balances[participant] -= share_dollars\n        \n        # Add leftover cents to payer's balance (since they bear the leftover)\n        # This means payer effectively pays the leftover amount\n        leftover_dollars = leftover_cents / 100.0\n        self._balances[payer] -= leftover_dollars\n    \n    def balances(self) -> dict[str, float]:\n        # Return a copy of the balances\n        return self._balances.copy()\n    \n    def settle_up(self) -> list[tuple[str, str, float]]:\n        balances = self.balances()\n        \n        # Create lists of debtors (negative balance) and creditors (positive balance)\n        debtors = []  # (person, amount_owed) where amount_owed is positive\n        creditors = []  # (person, amount_owed) where amount_owed is positive\n        \n        for person, balance in balances.items():\n            if balance > 0:\n                creditors.append((person, balance))\n            elif balance < 0:\n                debtors.append((person, -balance))\n        \n        # Sort creditors and debtors to get deterministic output\n        # (though not required by spec, helps with testing)\n        creditors.sort(key=lambda x: x[0])\n        debtors.sort(key=lambda x: x[0])\n        \n        payments = []\n        \n        # Use two pointers to match debtors with creditors\n        i = 0  # debtor index\n        j = 0  # creditor index\n        \n        while i < len(debtors) and j < len(creditors):\n            debtor, debtor_amount = debtors[i]\n            creditor, creditor_amount = creditors[j]\n            \n            # Determine payment amount\n            payment = min(debtor_amount, creditor_amount)\n            \n            # Only include payments >= 1.00\n            if payment >= 1.00:\n                # Round to nearest cent to avoid floating point issues\n                payment = round(payment, 2)\n                if payment >= 1.00:\n                    payments.append((debtor, creditor, payment))\n            \n            # Update remaining amounts\n            debtors[i] = (debtor, debtor_amount - payment)\n            creditors[j] = (creditor, creditor_amount - payment)\n            \n            # Move pointers if current debtor or creditor is settled\n            if abs(debtors[i][1]) < 1e-10:  # effectively zero\n                i += 1\n            if abs(creditors[j][1]) < 1e-10:  # effectively zero\n                j += 1\n        \n        return payments\n",
+ "input_tokens": 343,
+ "output_tokens": 1042,
+ "cost_usd": 0.0013876,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 19.48,
+ "raw_api_response": {
+  "id": "gen-1794890961-tkadrsxaUSQocve7GpBP",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = members.copy()\n        # Initialize balances to zero for each member\n        self._balances = {member: 0.0 for member in self.members}\n    \n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"Amount must be positive\")\n        \n        if payer not in self.members:\n            raise ValueError(f\"Payer '{payer}' is not a member of the group\")\n        \n        if participants is None:\n            # Split equally among all members\n            participants = self.members\n        else:\n            # Validate all participants are members\n            for participant in participants:\n                if participant not in self.members:\n                    raise ValueError(f\"Participant '{participant}' is not a member of the group\")\n        \n        if len(participants) == 0:\n            # No participants means no one owes anything, but payer paid amount\n            # So payer is owed the full amount\n            self._balances[payer] += amount\n            return\n        \n        # Calculate share per participant (rounded down to cent)\n        # Convert to cents to avoid floating point errors\n        amount_cents = round(amount * 100)\n        share_cents = amount_cents // len(participants)\n        # The leftover cents are borne by the payer\n        total_shared_cents = share_cents * len(participants)\n        leftover_cents = amount_cents - total_shared_cents\n        \n        # Each participant owes their share (in dollars)\n        share_dollars = share_cents / 100.0\n        \n        # Update balances:\n        # Payer gets credited with the full amount they paid\n        # Each participant gets debited with their share\n        self._balances[payer] += amount\n        \n        for participant in participants:\n            if participant != payer:\n                self._balances[participant] -= share_dollars\n            else:\n                # If payer is also a participant, they only owe their share minus what they paid\n                # But since they paid the full amount, their net is: -share_dollars + amount\n                # Which equals: amount - share_dollars\n                # But we handle this by subtracting share from everyone including payer,\n                # then adding back the leftover to payer\n                self._balances[participant] -= share_dollars\n        \n        # Add leftover cents to payer's balance (since they bear the leftover)\n        # This means payer effectively pays the leftover amount\n        leftover_dollars = leftover_cents / 100.0\n        self._balances[payer] -= leftover_dollars\n    \n    def balances(self) -> dict[str, float]:\n        # Return a copy of the balances\n        return self._balances.copy()\n    \n    def settle_up(self) -> list[tuple[str, str, float]]:\n        balances = self.balances()\n        \n        # Create lists of debtors (negative balance) and creditors (positive balance)\n        debtors = []  # (person, amount_owed) where amount_owed is positive\n        creditors = []  # (person, amount_owed) where amount_owed is positive\n        \n        for person, balance in balances.items():\n            if balance > 0:\n                creditors.append((person, balance))\n            elif balance < 0:\n                debtors.append((person, -balance))\n        \n        # Sort creditors and debtors to get deterministic output\n        # (though not required by spec, helps with testing)\n        creditors.sort(key=lambda x: x[0])\n        debtors.sort(key=lambda x: x[0])\n        \n        payments = []\n        \n        # Use two pointers to match debtors with creditors\n        i = 0  # debtor index\n        j = 0  # creditor index\n        \n        while i < len(debtors) and j < len(creditors):\n            debtor, debtor_amount = debtors[i]\n            creditor, creditor_amount = creditors[j]\n            \n            # Determine payment amount\n            payment = min(debtor_amount, creditor_amount)\n            \n            # Only include payments >= 1.00\n            if payment >= 1.00:\n                # Round to nearest cent to avoid floating point issues\n                payment = round(payment, 2)\n                if payment >= 1.00:\n                    payments.append((debtor, creditor, payment))\n            \n            # Update remaining amounts\n            debtors[i] = (debtor, debtor_amount - payment)\n            creditors[j] = (creditor, creditor_amount - payment)\n            \n            # Move pointers if current debtor or creditor is settled\n            if abs(debtors[i][1]) < 1e-10:  # effectively zero\n                i += 1\n            if abs(creditors[j][1]) < 1e-10:  # effectively zero\n                j += 1\n        \n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794890961,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1042,
+   "prompt_tokens": 343,
+   "total_tokens": 1385,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00090194,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00090194,
+    "upstream_inference_prompt_cost": 8.918e-05,
+    "upstream_inference_completions_cost": 0.00081276
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

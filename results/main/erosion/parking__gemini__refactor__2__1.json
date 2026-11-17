@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:41:48+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "gemini",
+ "variant": "refactor",
+ "rep": 2,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "parking__gemini__FULL__2.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime\nimport math\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n        total_seconds = duration.total_seconds()\n\n        # Requirement 2: Stays of at most 15 minutes are free.\n        if total_seconds <= 15 * 60:\n            return 0.00\n\n        # Requirement 3: Stays longer than 24 hours are charged a flat penalty of 200.00.\n        if total_seconds > 24 * 3600:\n            return round(200.00, 2)\n\n        # Requirement 5: Every started hour is charged as a full hour.\n        # Requirement 2: ...longer stays are charged for their whole duration.\n        hours = math.ceil(total_seconds / 3600.0)\n        total_fee = hours * self.hourly_rate\n\n        # Requirement 1: The fee is rounded to two decimal places.\n        return round(total_fee, 2)\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the refactored, cleaner, and more idiomatic implementation:\n\n```python\nfrom datetime import datetime, timedelta\nimport math\n\n# Business rule constants\nFREE_GRACE_PERIOD = timedelta(minutes=15)\nMAX_REGULAR_DURATION = timedelta(hours=24)\nMAX_DURATION_PENALTY = 200.00\n\n\nclass ParkingMeter:\n    \"\"\"Calculates parking fees based on duration and hourly rate.\"\"\"\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"Calculate the parking fee between entry and exit times.\"\"\"\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        # Stays within the grace period are free\n        if duration <= FREE_GRACE_PERIOD:\n            return 0.0\n\n        # Stays exceeding 24 hours incur a flat penalty\n        if duration > MAX_REGULAR_DURATION:\n            return MAX_DURATION_PENALTY\n\n        # Every started hour is charged as a full hour\n        billable_hours = math.ceil(duration.total_seconds() / 3600.0)\n        return round(billable_hours * self.hourly_rate, 2)\n```",
+ "code": "from datetime import datetime, timedelta\nimport math\n\n# Business rule constants\nFREE_GRACE_PERIOD = timedelta(minutes=15)\nMAX_REGULAR_DURATION = timedelta(hours=24)\nMAX_DURATION_PENALTY = 200.00\n\n\nclass ParkingMeter:\n    \"\"\"Calculates parking fees based on duration and hourly rate.\"\"\"\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"Calculate the parking fee between entry and exit times.\"\"\"\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        # Stays within the grace period are free\n        if duration <= FREE_GRACE_PERIOD:\n            return 0.0\n\n        # Stays exceeding 24 hours incur a flat penalty\n        if duration > MAX_REGULAR_DURATION:\n            return MAX_DURATION_PENALTY\n\n        # Every started hour is charged as a full hour\n        billable_hours = math.ceil(duration.total_seconds() / 3600.0)\n        return round(billable_hours * self.hourly_rate, 2)\n",
+ "input_tokens": 378,
+ "output_tokens": 318,
+ "cost_usd": 0.001476,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 3.41,
+ "raw_api_response": {
+  "id": "8638atSmOKepkdUPocHbsQU",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the refactored, cleaner, and more idiomatic implementation:\n\n```python\nfrom datetime import datetime, timedelta\nimport math\n\n# Business rule constants\nFREE_GRACE_PERIOD = timedelta(minutes=15)\nMAX_REGULAR_DURATION = timedelta(hours=24)\nMAX_DURATION_PENALTY = 200.00\n\n\nclass ParkingMeter:\n    \"\"\"Calculates parking fees based on duration and hourly rate.\"\"\"\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"Calculate the parking fee between entry and exit times.\"\"\"\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        # Stays within the grace period are free\n        if duration <= FREE_GRACE_PERIOD:\n            return 0.0\n\n        # Stays exceeding 24 hours incur a flat penalty\n        if duration > MAX_REGULAR_DURATION:\n            return MAX_DURATION_PENALTY\n\n        # Every started hour is charged as a full hour\n        billable_hours = math.ceil(duration.total_seconds() / 3600.0)\n        return round(billable_hours * self.hourly_rate, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EpIBCo8BAWkUfRMsQVQq5nRNQ6ufYHQp3qwP0Po0S8Yb3H+VuX6xzXvLuNvkHHr2WxN3YucZpKDe0UHFT8fLDeVT3tsbm01+UEVOWmO5KeN4kpB2J7dhsdRlxSIpfKmIRulqr2S7HlBxMi3ypHT6me/N18UyGgEgKdfTMOcP/FTxIYCJnSmb3hjqrUAbc2R9e4l4Yw8="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794944503,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 318,
+   "prompt_tokens": 378,
+   "total_tokens": 696,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

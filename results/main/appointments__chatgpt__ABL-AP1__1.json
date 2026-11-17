@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:20:52+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "chatgpt",
+ "condition": "ABL-AP1",
+ "rep": 1,
+ "requirement_order": [
+  "AP5",
+  "AP3",
+  "AP4",
+  "AP2"
+ ],
+ "passed": {
+  "AP1": false,
+  "AP2": true,
+  "AP3": true,
+  "AP4": true,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for booking appointments with doctors in a small clinic.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime\n\nclass Scheduler:\n    def __init__(self) -> None: ...\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        \"\"\"Book an appointment; returns its id. `now` is the current time.\"\"\"\n\n    def cancel(self, appointment_id: int, now: datetime) -> None: ...\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        \"\"\"True if the doctor can be booked between start and end.\"\"\"\n```\n\n## Requirements\n1. A patient can have at most one upcoming appointment; booking another one while the first is still upcoming raises ValueError.\n2. Appointments that only touch (one ends exactly when the other starts) do not overlap.\n3. Cancelling an appointment less than 24 hours before its start does not free the time slot; the slot stays blocked.\n4. Booking an appointment that overlaps another appointment of the same doctor raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(\n        self,\n        patient: str,\n        doctor: str,\n        start: datetime,\n        end: datetime,\n        now: datetime,\n    ) -> int:\n        if start >= end:\n            raise ValueError(\"Appointment start must be before its end\")\n\n        if any(\n            appointment[\"patient\"] == patient\n            and appointment[\"active\"]\n            and appointment[\"start\"] > now\n            for appointment in self._appointments.values()\n        ):\n            raise ValueError(\"Patient already has an upcoming appointment\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        appointment_id = self._next_id\n        self._next_id += 1\n        self._appointments[appointment_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"active\": True,\n            \"blocks_slot\": True,\n        }\n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appointment = self._appointments.get(appointment_id)\n        if appointment is None or not appointment[\"active\"]:\n            raise ValueError(\"Appointment does not exist or is already cancelled\")\n\n        appointment[\"active\"] = False\n        if now <= appointment[\"start\"] - timedelta(hours=24):\n            appointment[\"blocks_slot\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        if start >= end:\n            raise ValueError(\"Appointment start must be before its end\")\n\n        return not any(\n            appointment[\"doctor\"] == doctor\n            and appointment[\"blocks_slot\"]\n            and start < appointment[\"end\"]\n            and appointment[\"start\"] < end\n            for appointment in self._appointments.values()\n        )\n```",
+ "code": "from datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(\n        self,\n        patient: str,\n        doctor: str,\n        start: datetime,\n        end: datetime,\n        now: datetime,\n    ) -> int:\n        if start >= end:\n            raise ValueError(\"Appointment start must be before its end\")\n\n        if any(\n            appointment[\"patient\"] == patient\n            and appointment[\"active\"]\n            and appointment[\"start\"] > now\n            for appointment in self._appointments.values()\n        ):\n            raise ValueError(\"Patient already has an upcoming appointment\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        appointment_id = self._next_id\n        self._next_id += 1\n        self._appointments[appointment_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"active\": True,\n            \"blocks_slot\": True,\n        }\n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appointment = self._appointments.get(appointment_id)\n        if appointment is None or not appointment[\"active\"]:\n            raise ValueError(\"Appointment does not exist or is already cancelled\")\n\n        appointment[\"active\"] = False\n        if now <= appointment[\"start\"] - timedelta(hours=24):\n            appointment[\"blocks_slot\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        if start >= end:\n            raise ValueError(\"Appointment start must be before its end\")\n\n        return not any(\n            appointment[\"doctor\"] == doctor\n            and appointment[\"blocks_slot\"]\n            and start < appointment[\"end\"]\n            and appointment[\"start\"] < end\n            for appointment in self._appointments.values()\n        )\n",
+ "input_tokens": 266,
+ "output_tokens": 623,
+ "cost_usd": 0.003381,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 7.75,
+ "raw_api_response": {
+  "id": "chatcmpl-EjGadhD4LoddvbiKH8gqtPv9MoEg7",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(\n        self,\n        patient: str,\n        doctor: str,\n        start: datetime,\n        end: datetime,\n        now: datetime,\n    ) -> int:\n        if start >= end:\n            raise ValueError(\"Appointment start must be before its end\")\n\n        if any(\n            appointment[\"patient\"] == patient\n            and appointment[\"active\"]\n            and appointment[\"start\"] > now\n            for appointment in self._appointments.values()\n        ):\n            raise ValueError(\"Patient already has an upcoming appointment\")\n\n        if not self.is_free(doctor, start, end):\n            raise ValueError(\"Doctor is not free during this time\")\n\n        appointment_id = self._next_id\n        self._next_id += 1\n        self._appointments[appointment_id] = {\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"active\": True,\n            \"blocks_slot\": True,\n        }\n        return appointment_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appointment = self._appointments.get(appointment_id)\n        if appointment is None or not appointment[\"active\"]:\n            raise ValueError(\"Appointment does not exist or is already cancelled\")\n\n        appointment[\"active\"] = False\n        if now <= appointment[\"start\"] - timedelta(hours=24):\n            appointment[\"blocks_slot\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        if start >= end:\n            raise ValueError(\"Appointment start must be before its end\")\n\n        return not any(\n            appointment[\"doctor\"] == doctor\n            and appointment[\"blocks_slot\"]\n            and start < appointment[\"end\"]\n            and appointment[\"start\"] < end\n            for appointment in self._appointments.values()\n        )\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794457239,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 623,
+   "prompt_tokens": 266,
+   "total_tokens": 889,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 199,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

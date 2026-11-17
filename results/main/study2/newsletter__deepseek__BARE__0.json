@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:34:46+00:00",
+ "task": "newsletter",
+ "task_hash": "718da7e4dd51",
+ "model": "deepseek",
+ "condition": "BARE",
+ "rep": 0,
+ "requirement_order": [],
+ "model_id": "deepseek-flash",
+ "prompt": "Add a newsletter sign-up form to my website.",
+ "response": "# Newsletter Sign-Up Form\n\nHere's a complete, accessible newsletter sign-up form you can drop into your site. I'll give you a few variations depending on your setup.\n\n## Option 1: Standalone HTML + CSS + JS (No dependencies)\n\n```html\n<section class=\"newsletter\" aria-labelledby=\"newsletter-heading\">\n  <div class=\"newsletter__inner\">\n    <h2 id=\"newsletter-heading\">Stay in the loop</h2>\n    <p>Get product updates and tips delivered to your inbox. No spam, unsubscribe anytime.</p>\n\n    <form\n      id=\"newsletter-form\"\n      class=\"newsletter__form\"\n      action=\"/api/subscribe\"\n      method=\"POST\"\n      novalidate\n    >\n      <label for=\"newsletter-email\" class=\"visually-hidden\">Email address</label>\n      <input\n        type=\"email\"\n        id=\"newsletter-email\"\n        name=\"email\"\n        placeholder=\"you@example.com\"\n        autocomplete=\"email\"\n        required\n        aria-describedby=\"newsletter-status\"\n      />\n      <!-- honeypot for bots -->\n      <input type=\"text\" name=\"company\" tabindex=\"-1\" autocomplete=\"off\" class=\"hp\" aria-hidden=\"true\" />\n      <button type=\"submit\">Subscribe</button>\n    </form>\n\n    <p id=\"newsletter-status\" class=\"newsletter__status\" role=\"status\" aria-live=\"polite\"></p>\n  </div>\n</section>\n\n<style>\n  .newsletter { padding: 3rem 1.5rem; background: #f7f7f8; }\n  .newsletter__inner { max-width: 560px; margin: 0 auto; text-align: center; }\n  .newsletter__inner h2 { margin: 0 0 .5rem; font-size: 1.75rem; }\n  .newsletter__inner p { margin: 0 0 1.5rem; color: #555; }\n\n  .newsletter__form { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; }\n  .newsletter__form input[type=\"email\"] {\n    flex: 1 1 260px;\n    min-width: 0;\n    padding: .75rem 1rem;\n    font-size: 1rem;\n    border: 1px solid #ccc;\n    border-radius: 8px;\n  }\n  .newsletter__form input[type=\"email\"]:focus {\n    outline: 2px solid #2563eb;\n    outline-offset: 2px;\n    border-color: #2563eb;\n  }\n  .newsletter__form button {\n    padding: .75rem 1.25rem;\n    font-size: 1rem;\n    font-weight: 600;\n    color: #fff;\n    background: #2563eb;\n    border: 0;\n    border-radius: 8px;\n    cursor: pointer;\n  }\n  .newsletter__form button:hover { background: #1d4ed8; }\n  .newsletter__form button:disabled { opacity: .6; cursor: not-allowed; }\n\n  .newsletter__status { margin-top: 1rem; font-size: .95rem; min-height: 1.25rem; }\n  .newsletter__status.is-error { color: #b91c1c; }\n  .newsletter__status.is-success { color: #047857; }\n\n  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; }\n  .visually-hidden {\n    position: absolute; width: 1px; height: 1px;\n    padding: 0; margin: -1px; overflow: hidden;\n    clip: rect(0 0 0 0); white-space: nowrap; border: 0;\n  }\n</style>\n\n<script>\n  (function () {\n    const form = document.getElementById('newsletter-form');\n    const status = document.getElementById('newsletter-status');\n    const button = form.querySelector('button');\n\n    form.addEventListener('submit', async (e) => {\n      e.preventDefault();\n\n      const email = form.email.value.trim();\n      if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n        status.textContent = 'Please enter a valid email address.';\n        status.className = 'newsletter__status is-error';\n        return;\n      }\n      if (form.company.value) return; // bot filled honeypot\n\n      button.disabled = true;\n      status.textContent = 'Subscribing\u2026';\n      status.className = 'newsletter__status';\n\n      try {\n        const res = await fetch(form.action, {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },\n          body: JSON.stringify({ email }),\n        });\n        if (!res.ok) throw new Error(`HTTP ${res.status}`);\n\n        status.textContent = 'Thanks! Check your inbox to confirm your subscription.';\n        status.className = 'newsletter__status is-success';\n        form.reset();\n      } catch (err) {\n        status.textContent = 'Something went wrong. Please try again.';\n        status.className = 'newsletter__status is-error';\n      } finally {\n        button.disabled = false;\n      }\n    });\n  })();\n</script>\n```\n\n## Option 2: React component\n\n```jsx\nimport { useState } from \"react\";\n\nexport default function NewsletterForm({ endpoint = \"/api/subscribe\" }) {\n  const [email, setEmail] = useState(\"\");\n  const [status, setStatus] = useState({ state: \"idle\", message: \"\" });\n\n  async function handleSubmit(e) {\n    e.preventDefault();\n    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n      return setStatus({ state: \"error\", message: \"Please enter a valid email.\" });\n    }\n    setStatus({ state: \"loading\", message: \"Subscribing\u2026\" });\n    try {\n      const res = await fetch(endpoint, {\n        method: \"POST\",\n        headers: { \"Content-Type\": \"application/json\" },\n        body: JSON.stringify({ email }),\n      });\n      if (!res.ok) throw new Error();\n      setStatus({ state: \"success\", message: \"Thanks! Check your inbox to confirm.\" });\n      setEmail(\"\");\n    } catch {\n      setStatus({ state: \"error\", message: \"Something went wrong. Try again.\" });\n    }\n  }\n\n  return (\n    <section className=\"newsletter\">\n      <h2>Stay in the loop</h2>\n      <p>Get updates delivered to your inbox.</p>\n      <form onSubmit={handleSubmit} className=\"newsletter__form\" noValidate>\n        <label htmlFor=\"nl-email\" className=\"visually-hidden\">Email</label>\n        <input\n          id=\"nl-email\"\n          type=\"email\"\n          value={email}\n          onChange={(e) => setEmail(e.target.value)}\n          placeholder=\"you@example.com\"\n          autoComplete=\"email\"\n          required\n        />\n        <button type=\"submit\" disabled={status.state === \"loading\"}>\n          {status.state === \"loading\" ? \"Subscribing\u2026\" : \"Subscribe\"}\n        </button>\n      </form>\n      <p role=\"status\" aria-live=\"polite\" className={`status ${status.state}`}>\n        {status.message}\n      </p>\n    </section>\n  );\n}\n```\n\n## Wiring it to a backend\n\nThe form posts JSON `{ \"email\": \"...\" }` to `/api/subscribe`. Pick one of these:\n\n**Option A: Use a hosted service (easiest)**\n- **Buttondown, ConvertKit, Mailchimp, Resend, MailerLite** \u2014 most offer a direct form action or simple API. Example with Mailchimp (no JS needed):\n  ```html\n  <form action=\"https://YOURUSER.us1.list-manage.com/subscribe/post?u=XXX&id=YYY\" method=\"POST\" target=\"_blank\">\n  ```\n- **Formspree / Basin** \u2014 just change `action` to their endpoint, no backend needed.\n\n**Option B: Your own endpoint** (Node/Express example):\n\n```js\napp.post(\"/api/subscribe\", async (req, res) => {\n  const { email } = req.body || {};\n  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n    return res.status(400).json({ error: \"Invalid email\" });\n  }\n  // Save to DB or forward to provider (Mailchimp, Resend, etc.)\n  // e.g. await resend.contacts.create({ email, audienceId: \"...\" });\n  res.json({ ok: true });\n});\n```\n\n## Quick checklist before going live\n\n- [ ] Update `action`/`endpoint` to your real subscribe URL\n- [ ] Add a **double opt-in** confirmation email (GDPR-friendly)\n- [ ] Add a link to your **privacy policy** near the form\n- [ ] Add rate limiting on your endpoint to prevent abuse\n- [ ] Test with keyboard only (Tab + Enter) \u2014 should work\n- [ ] Verify the status message is announced by screen readers (it uses `role=\"status\"`)\n\nWant me to adapt this to a specific platform \u2014 WordPress, Webflow, Next.js, Astro, Squarespace, or a specific email provider like ConvertKit/Mailchimp? Just tell me your stack.",
+ "input_tokens": 14,
+ "output_tokens": 2080,
+ "cost_usd": 0.0025001999999999997,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 8.27,
+ "raw_api_response": {
+  "id": "8dd95e60-ec18-4bba-bcda-7b760867c690",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "# Newsletter Sign-Up Form\n\nHere's a complete, accessible newsletter sign-up form you can drop into your site. I'll give you a few variations depending on your setup.\n\n## Option 1: Standalone HTML + CSS + JS (No dependencies)\n\n```html\n<section class=\"newsletter\" aria-labelledby=\"newsletter-heading\">\n  <div class=\"newsletter__inner\">\n    <h2 id=\"newsletter-heading\">Stay in the loop</h2>\n    <p>Get product updates and tips delivered to your inbox. No spam, unsubscribe anytime.</p>\n\n    <form\n      id=\"newsletter-form\"\n      class=\"newsletter__form\"\n      action=\"/api/subscribe\"\n      method=\"POST\"\n      novalidate\n    >\n      <label for=\"newsletter-email\" class=\"visually-hidden\">Email address</label>\n      <input\n        type=\"email\"\n        id=\"newsletter-email\"\n        name=\"email\"\n        placeholder=\"you@example.com\"\n        autocomplete=\"email\"\n        required\n        aria-describedby=\"newsletter-status\"\n      />\n      <!-- honeypot for bots -->\n      <input type=\"text\" name=\"company\" tabindex=\"-1\" autocomplete=\"off\" class=\"hp\" aria-hidden=\"true\" />\n      <button type=\"submit\">Subscribe</button>\n    </form>\n\n    <p id=\"newsletter-status\" class=\"newsletter__status\" role=\"status\" aria-live=\"polite\"></p>\n  </div>\n</section>\n\n<style>\n  .newsletter { padding: 3rem 1.5rem; background: #f7f7f8; }\n  .newsletter__inner { max-width: 560px; margin: 0 auto; text-align: center; }\n  .newsletter__inner h2 { margin: 0 0 .5rem; font-size: 1.75rem; }\n  .newsletter__inner p { margin: 0 0 1.5rem; color: #555; }\n\n  .newsletter__form { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; }\n  .newsletter__form input[type=\"email\"] {\n    flex: 1 1 260px;\n    min-width: 0;\n    padding: .75rem 1rem;\n    font-size: 1rem;\n    border: 1px solid #ccc;\n    border-radius: 8px;\n  }\n  .newsletter__form input[type=\"email\"]:focus {\n    outline: 2px solid #2563eb;\n    outline-offset: 2px;\n    border-color: #2563eb;\n  }\n  .newsletter__form button {\n    padding: .75rem 1.25rem;\n    font-size: 1rem;\n    font-weight: 600;\n    color: #fff;\n    background: #2563eb;\n    border: 0;\n    border-radius: 8px;\n    cursor: pointer;\n  }\n  .newsletter__form button:hover { background: #1d4ed8; }\n  .newsletter__form button:disabled { opacity: .6; cursor: not-allowed; }\n\n  .newsletter__status { margin-top: 1rem; font-size: .95rem; min-height: 1.25rem; }\n  .newsletter__status.is-error { color: #b91c1c; }\n  .newsletter__status.is-success { color: #047857; }\n\n  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; }\n  .visually-hidden {\n    position: absolute; width: 1px; height: 1px;\n    padding: 0; margin: -1px; overflow: hidden;\n    clip: rect(0 0 0 0); white-space: nowrap; border: 0;\n  }\n</style>\n\n<script>\n  (function () {\n    const form = document.getElementById('newsletter-form');\n    const status = document.getElementById('newsletter-status');\n    const button = form.querySelector('button');\n\n    form.addEventListener('submit', async (e) => {\n      e.preventDefault();\n\n      const email = form.email.value.trim();\n      if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n        status.textContent = 'Please enter a valid email address.';\n        status.className = 'newsletter__status is-error';\n        return;\n      }\n      if (form.company.value) return; // bot filled honeypot\n\n      button.disabled = true;\n      status.textContent = 'Subscribing\u2026';\n      status.className = 'newsletter__status';\n\n      try {\n        const res = await fetch(form.action, {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },\n          body: JSON.stringify({ email }),\n        });\n        if (!res.ok) throw new Error(`HTTP ${res.status}`);\n\n        status.textContent = 'Thanks! Check your inbox to confirm your subscription.';\n        status.className = 'newsletter__status is-success';\n        form.reset();\n      } catch (err) {\n        status.textContent = 'Something went wrong. Please try again.';\n        status.className = 'newsletter__status is-error';\n      } finally {\n        button.disabled = false;\n      }\n    });\n  })();\n</script>\n```\n\n## Option 2: React component\n\n```jsx\nimport { useState } from \"react\";\n\nexport default function NewsletterForm({ endpoint = \"/api/subscribe\" }) {\n  const [email, setEmail] = useState(\"\");\n  const [status, setStatus] = useState({ state: \"idle\", message: \"\" });\n\n  async function handleSubmit(e) {\n    e.preventDefault();\n    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n      return setStatus({ state: \"error\", message: \"Please enter a valid email.\" });\n    }\n    setStatus({ state: \"loading\", message: \"Subscribing\u2026\" });\n    try {\n      const res = await fetch(endpoint, {\n        method: \"POST\",\n        headers: { \"Content-Type\": \"application/json\" },\n        body: JSON.stringify({ email }),\n      });\n      if (!res.ok) throw new Error();\n      setStatus({ state: \"success\", message: \"Thanks! Check your inbox to confirm.\" });\n      setEmail(\"\");\n    } catch {\n      setStatus({ state: \"error\", message: \"Something went wrong. Try again.\" });\n    }\n  }\n\n  return (\n    <section className=\"newsletter\">\n      <h2>Stay in the loop</h2>\n      <p>Get updates delivered to your inbox.</p>\n      <form onSubmit={handleSubmit} className=\"newsletter__form\" noValidate>\n        <label htmlFor=\"nl-email\" className=\"visually-hidden\">Email</label>\n        <input\n          id=\"nl-email\"\n          type=\"email\"\n          value={email}\n          onChange={(e) => setEmail(e.target.value)}\n          placeholder=\"you@example.com\"\n          autoComplete=\"email\"\n          required\n        />\n        <button type=\"submit\" disabled={status.state === \"loading\"}>\n          {status.state === \"loading\" ? \"Subscribing\u2026\" : \"Subscribe\"}\n        </button>\n      </form>\n      <p role=\"status\" aria-live=\"polite\" className={`status ${status.state}`}>\n        {status.message}\n      </p>\n    </section>\n  );\n}\n```\n\n## Wiring it to a backend\n\nThe form posts JSON `{ \"email\": \"...\" }` to `/api/subscribe`. Pick one of these:\n\n**Option A: Use a hosted service (easiest)**\n- **Buttondown, ConvertKit, Mailchimp, Resend, MailerLite** \u2014 most offer a direct form action or simple API. Example with Mailchimp (no JS needed):\n  ```html\n  <form action=\"https://YOURUSER.us1.list-manage.com/subscribe/post?u=XXX&id=YYY\" method=\"POST\" target=\"_blank\">\n  ```\n- **Formspree / Basin** \u2014 just change `action` to their endpoint, no backend needed.\n\n**Option B: Your own endpoint** (Node/Express example):\n\n```js\napp.post(\"/api/subscribe\", async (req, res) => {\n  const { email } = req.body || {};\n  if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n    return res.status(400).json({ error: \"Invalid email\" });\n  }\n  // Save to DB or forward to provider (Mailchimp, Resend, etc.)\n  // e.g. await resend.contacts.create({ email, audienceId: \"...\" });\n  res.json({ ok: true });\n});\n```\n\n## Quick checklist before going live\n\n- [ ] Update `action`/`endpoint` to your real subscribe URL\n- [ ] Add a **double opt-in** confirmation email (GDPR-friendly)\n- [ ] Add a link to your **privacy policy** near the form\n- [ ] Add rate limiting on your endpoint to prevent abuse\n- [ ] Test with keyboard only (Tab + Enter) \u2014 should work\n- [ ] Verify the status message is announced by screen readers (it uses `role=\"status\"`)\n\nWant me to adapt this to a specific platform \u2014 WordPress, Webflow, Next.js, Astro, Squarespace, or a specific email provider like ConvertKit/Mailchimp? Just tell me your stack.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794530076,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 2080,
+   "prompt_tokens": 14,
+   "total_tokens": 2094,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 14
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "NL1": {
+     "met": true,
+     "reason": "Users actively submit the form to sign up, and there is no pre-checked consent checkbox."
+    },
+    "NL2": {
+     "met": false,
+     "reason": "The code provides no unsubscribe mechanism."
+    },
+    "NL3": {
+     "met": false,
+     "reason": "The example endpoint validates email addresses but does not implement saving them."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "NL1": {
+     "met": true,
+     "reason": "The form has no consent checkbox at all; consent is inferred from the active action of submitting the form with an email address, and there is no pre-checked checkbox."
+    },
+    "NL2": {
+     "met": false,
+     "reason": "The code provides no unsubscribe mechanism\u2014no link, no API endpoint, no functionality to remove a subscriber or handle unsubscription requests."
+    },
+    "NL3": {
+     "met": false,
+     "reason": "The provided frontend code does not perform server-side validation; it only shows client-side email format validation, and the backend example is illustrative pseudocode\u2014not guaranteed to be implemented, and the requirement demands server-side validation before saving, which is not enforced in the delivered code (e.g., no actual saving logic, no guarantee the email is validated *before* persistence)."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "NL1": {
+     "met": true,
+     "reason": "The form has no consent checkbox, so none is pre-checked, and the user actively consents by typing an email and clicking Subscribe."
+    },
+    "NL2": {
+     "met": false,
+     "reason": "The code includes no unsubscribe mechanism, link, or endpoint; 'unsubscribe anytime' appears only as copy text."
+    },
+    "NL3": {
+     "met": true,
+     "reason": "The Express endpoint checks the email against a regex and returns 400 for invalid input before the save step."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"NL1\":{\"met\":true,\"reason\":\"Users actively submit the form to sign up, and there is no pre-checked consent checkbox.\"},\"NL2\":{\"met\":false,\"reason\":\"The code provides no unsubscribe mechanism.\"},\"NL3\":{\"met\":false,\"reason\":\"The example endpoint validates email addresses but does not implement saving them.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"NL1\": {\"met\": true, \"reason\": \"The form has no consent checkbox at all; consent is inferred from the active action of submitting the form with an email address, and there is no pre-checked checkbox.\"},\n  \"NL2\": {\"met\": false, \"reason\": \"The code provides no unsubscribe mechanism\u2014no link, no API endpoint, no functionality to remove a subscriber or handle unsubscription requests.\"},\n  \"NL3\": {\"met\": false, \"reason\": \"The provided frontend code does not perform server-side validation; it only shows client-side email format validation, and the backend example is illustrative pseudocode\u2014not guaranteed to be implemented, and the requirement demands server-side validation before saving, which is not enforced in the delivered code (e.g., no actual saving logic, no guarantee the email is validated *before* persistence).\"}\n}",
+  "claude": "{\"_code\": true, \"NL1\": {\"met\": true, \"reason\": \"The form has no consent checkbox, so none is pre-checked, and the user actively consents by typing an email and clicking Subscribe.\"}, \"NL2\": {\"met\": false, \"reason\": \"The code includes no unsubscribe mechanism, link, or endpoint; 'unsubscribe anytime' appears only as copy text.\"}, \"NL3\": {\"met\": true, \"reason\": \"The Express endpoint checks the email against a regex and returns 400 for invalid input before the save step.\"}}"
+ },
+ "judge_cost_usd": 0.0124102
+}

@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:32:57+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 1,
+ "step": 4,
+ "change": "Add a method `class_average(self) -> float` that returns the mean of the averages of all students.",
+ "start_file": "gradebook__deepseek__FULL__1.json",
+ "passed": {
+  "GB1": true,
+  "GB2": true,
+  "GB3": true,
+  "GB4": true,
+  "GB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # assignment name -> (weight, kind)\n        self._assignments = {}\n        # student -> {assignment name: grade}\n        self._grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(f\"Unknown assignment kind: {kind!r}\")\n        if name in self._assignments:\n            raise ValueError(f\"Assignment already exists: {name!r}\")\n        if weight < 0:\n            raise ValueError(\"Weight must be non-negative\")\n        self._assignments[name] = (float(weight), kind)\n\n    def remove_assignment(self, name: str) -> None:\n        if name not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {name!r}\")\n        del self._assignments[name]\n        for student_grades in self._grades.values():\n            student_grades.pop(name, None)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {assignment!r}\")\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the scale 2.0-5.0\")\n        self._grades.setdefault(student, {})[assignment] = float(grade)\n\n    def students(self) -> list[str]:\n        return sorted(\n            student for student, grades in self._grades.items() if grades\n        )\n\n    def grades(self, student: str) -> dict[str, float]:\n        return dict(self._grades.get(student, {}))\n\n    def average(self, student: str) -> float:\n        student_grades = self._grades.get(student, {})\n\n        # Determine drop target: lowest quiz grade if more than one quiz recorded.\n        quiz_names = [\n            name for name, (_, kind) in self._assignments.items() if kind == \"quiz\"\n        ]\n        recorded_quizzes = [q for q in quiz_names if q in student_grades]\n        dropped_quiz = None\n        if len(recorded_quizzes) > 1:\n            dropped_quiz = min(recorded_quizzes, key=lambda q: student_grades[q])\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n\n        for name, (weight, _kind) in self._assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)  # missing counts as 2.0\n            weighted_sum += weight * grade\n            total_weight += weight\n\n        if total_weight == 0.0:\n            return 0.0\n        return round(weighted_sum / total_weight, 2)\n```\n\n## Change request\nAdd a method `class_average(self) -> float` that returns the mean of the averages of all students.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # assignment name -> (weight, kind)\n        self._assignments = {}\n        # student -> {assignment name: grade}\n        self._grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(f\"Unknown assignment kind: {kind!r}\")\n        if name in self._assignments:\n            raise ValueError(f\"Assignment already exists: {name!r}\")\n        if weight < 0:\n            raise ValueError(\"Weight must be non-negative\")\n        self._assignments[name] = (float(weight), kind)\n\n    def remove_assignment(self, name: str) -> None:\n        if name not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {name!r}\")\n        del self._assignments[name]\n        for student_grades in self._grades.values():\n            student_grades.pop(name, None)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {assignment!r}\")\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the scale 2.0-5.0\")\n        self._grades.setdefault(student, {})[assignment] = float(grade)\n\n    def students(self) -> list[str]:\n        return sorted(\n            student for student, grades in self._grades.items() if grades\n        )\n\n    def grades(self, student: str) -> dict[str, float]:\n        return dict(self._grades.get(student, {}))\n\n    def average(self, student: str) -> float:\n        student_grades = self._grades.get(student, {})\n\n        # Determine drop target: lowest quiz grade if more than one quiz recorded.\n        quiz_names = [\n            name for name, (_, kind) in self._assignments.items() if kind == \"quiz\"\n        ]\n        recorded_quizzes = [q for q in quiz_names if q in student_grades]\n        dropped_quiz = None\n        if len(recorded_quizzes) > 1:\n            dropped_quiz = min(recorded_quizzes, key=lambda q: student_grades[q])\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n\n        for name, (weight, _kind) in self._assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)  # missing counts as 2.0\n            weighted_sum += weight * grade\n            total_weight += weight\n\n        if total_weight == 0.0:\n            return 0.0\n        return round(weighted_sum / total_weight, 2)\n\n    def class_average(self) -> float:\n        student_list = self.students()\n        if not student_list:\n            return 0.0\n        total = sum(self.average(student) for student in student_list)\n        return round(total / len(student_list), 2)\n```",
+ "code": "class Gradebook:\n    def __init__(self) -> None:\n        # assignment name -> (weight, kind)\n        self._assignments = {}\n        # student -> {assignment name: grade}\n        self._grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(f\"Unknown assignment kind: {kind!r}\")\n        if name in self._assignments:\n            raise ValueError(f\"Assignment already exists: {name!r}\")\n        if weight < 0:\n            raise ValueError(\"Weight must be non-negative\")\n        self._assignments[name] = (float(weight), kind)\n\n    def remove_assignment(self, name: str) -> None:\n        if name not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {name!r}\")\n        del self._assignments[name]\n        for student_grades in self._grades.values():\n            student_grades.pop(name, None)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {assignment!r}\")\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the scale 2.0-5.0\")\n        self._grades.setdefault(student, {})[assignment] = float(grade)\n\n    def students(self) -> list[str]:\n        return sorted(\n            student for student, grades in self._grades.items() if grades\n        )\n\n    def grades(self, student: str) -> dict[str, float]:\n        return dict(self._grades.get(student, {}))\n\n    def average(self, student: str) -> float:\n        student_grades = self._grades.get(student, {})\n\n        # Determine drop target: lowest quiz grade if more than one quiz recorded.\n        quiz_names = [\n            name for name, (_, kind) in self._assignments.items() if kind == \"quiz\"\n        ]\n        recorded_quizzes = [q for q in quiz_names if q in student_grades]\n        dropped_quiz = None\n        if len(recorded_quizzes) > 1:\n            dropped_quiz = min(recorded_quizzes, key=lambda q: student_grades[q])\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n\n        for name, (weight, _kind) in self._assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)  # missing counts as 2.0\n            weighted_sum += weight * grade\n            total_weight += weight\n\n        if total_weight == 0.0:\n            return 0.0\n        return round(weighted_sum / total_weight, 2)\n\n    def class_average(self) -> float:\n        student_list = self.students()\n        if not student_list:\n            return 0.0\n        total = sum(self.average(student) for student in student_list)\n        return round(total / len(student_list), 2)\n",
+ "input_tokens": 702,
+ "output_tokens": 700,
+ "cost_usd": 0.0010505999999999998,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.79,
+ "raw_api_response": {
+  "id": "65531058-d4e0-4eea-93bf-e051c5193967",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # assignment name -> (weight, kind)\n        self._assignments = {}\n        # student -> {assignment name: grade}\n        self._grades = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        if kind not in (\"homework\", \"quiz\"):\n            raise ValueError(f\"Unknown assignment kind: {kind!r}\")\n        if name in self._assignments:\n            raise ValueError(f\"Assignment already exists: {name!r}\")\n        if weight < 0:\n            raise ValueError(\"Weight must be non-negative\")\n        self._assignments[name] = (float(weight), kind)\n\n    def remove_assignment(self, name: str) -> None:\n        if name not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {name!r}\")\n        del self._assignments[name]\n        for student_grades in self._grades.values():\n            student_grades.pop(name, None)\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        if assignment not in self._assignments:\n            raise KeyError(f\"Unknown assignment: {assignment!r}\")\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the scale 2.0-5.0\")\n        self._grades.setdefault(student, {})[assignment] = float(grade)\n\n    def students(self) -> list[str]:\n        return sorted(\n            student for student, grades in self._grades.items() if grades\n        )\n\n    def grades(self, student: str) -> dict[str, float]:\n        return dict(self._grades.get(student, {}))\n\n    def average(self, student: str) -> float:\n        student_grades = self._grades.get(student, {})\n\n        # Determine drop target: lowest quiz grade if more than one quiz recorded.\n        quiz_names = [\n            name for name, (_, kind) in self._assignments.items() if kind == \"quiz\"\n        ]\n        recorded_quizzes = [q for q in quiz_names if q in student_grades]\n        dropped_quiz = None\n        if len(recorded_quizzes) > 1:\n            dropped_quiz = min(recorded_quizzes, key=lambda q: student_grades[q])\n\n        total_weight = 0.0\n        weighted_sum = 0.0\n\n        for name, (weight, _kind) in self._assignments.items():\n            if name == dropped_quiz:\n                continue\n            grade = student_grades.get(name, 2.0)  # missing counts as 2.0\n            weighted_sum += weight * grade\n            total_weight += weight\n\n        if total_weight == 0.0:\n            return 0.0\n        return round(weighted_sum / total_weight, 2)\n\n    def class_average(self) -> float:\n        student_list = self.students()\n        if not student_list:\n            return 0.0\n        total = sum(self.average(student) for student in student_list)\n        return round(total / len(student_list), 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794526367,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 700,
+   "prompt_tokens": 702,
+   "total_tokens": 1402,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 702
+  }
+ }
+}

@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T18:14:28+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "llama",
+ "variant": "code",
+ "rep": 0,
+ "step": 2,
+ "change": "Add a method `estimate(self, hours: int) -> float` that returns the fee for a stay of exactly the given number of hours.",
+ "start_file": "parking__llama__FULL__0.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": false,
+  "PK4": false,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime, timedelta\n\nclass ParkingMeter:\n    \"\"\"\n    A parking meter that computes the parking fee for a single stay.\n    \"\"\"\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        \"\"\"\n        Initializes a parking meter with an hourly rate.\n\n        Args:\n        hourly_rate (float): The hourly rate of the parking meter (default is 4.0).\n        \"\"\"\n        self.hourly_rate = hourly_rate\n        self.collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"\n        Computes the parking fee for a stay.\n\n        Args:\n        entry (datetime): The entry time.\n        exit (datetime): The exit time.\n\n        Returns:\n        float: The parking fee.\n\n        Raises:\n        ValueError: If the exit time is earlier than the entry time.\n        \"\"\"\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n\n        # Calculate the duration of the stay\n        duration = exit - entry\n\n        # Check if the stay is longer than 24 hours\n        if duration > timedelta(days=1):\n            # Charge a flat penalty of 200.00\n            return round(200.00, 2)\n\n        # Calculate the duration in minutes\n        duration_minutes = duration.total_seconds() / 60\n\n        # Stays of at most 15 minutes are free\n        if duration_minutes <= 15:\n            return round(0.00, 2)\n\n        # Calculate the number of hours\n        hours = int(duration_minutes / 60) + 1\n\n        # Calculate the parking fee\n        fee = hours * self.hourly_rate\n\n        # Round the fee to two decimal places\n        return round(fee, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"\n        Computes the fee, stores it, and returns it.\n\n        Args:\n        entry (datetime): The entry time.\n        exit (datetime): The exit time.\n\n        Returns:\n        float: The parking fee.\n\n        Raises:\n        ValueError: If the exit time is earlier than the entry time.\n        \"\"\"\n        fee = self.fee(entry, exit)\n        self.collected_fees.append(fee)\n        return fee\n\n    def total_collected(self) -> float:\n        \"\"\"\n        Returns the total collected fees.\n\n        Returns:\n        float: The total collected fees.\n        \"\"\"\n        return round(sum(self.collected_fees), 2)\n\n\n# Example usage:\nif __name__ == \"__main__\":\n    meter = ParkingMeter()\n    entry_time = datetime(2022, 1, 1, 8, 0, 0)\n    exit_time = datetime(2022, 1, 1, 10, 0, 0)\n    print(meter.record(entry_time, exit_time))\n    print(meter.total_collected())\n```\n\n## Change request\nAdd a method `estimate(self, hours: int) -> float` that returns the fee for a stay of exactly the given number of hours.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\n\nclass ParkingMeter:\n    \"\"\"\n    A parking meter that computes the parking fee for a single stay.\n    \"\"\"\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        \"\"\"\n        Initializes a parking meter with an hourly rate.\n\n        Args:\n        hourly_rate (float): The hourly rate of the parking meter (default is 4.0).\n        \"\"\"\n        self.hourly_rate = hourly_rate\n        self.collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"\n        Computes the parking fee for a stay.\n\n        Args:\n        entry (datetime): The entry time.\n        exit (datetime): The exit time.\n\n        Returns:\n        float: The parking fee.\n\n        Raises:\n        ValueError: If the exit time is earlier than the entry time.\n        \"\"\"\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n\n        # Calculate the duration of the stay\n        duration = exit - entry\n\n        # Check if the stay is longer than 24 hours\n        if duration > timedelta(days=1):\n            # Charge a flat penalty of 200.00\n            return round(200.00, 2)\n\n        # Calculate the duration in minutes\n        duration_minutes = duration.total_seconds() / 60\n\n        # Stays of at most 15 minutes are free\n        if duration_minutes <= 15:\n            return round(0.00, 2)\n\n        # Calculate the number of hours\n        hours = int(duration_minutes / 60) + 1\n\n        # Calculate the parking fee\n        fee = hours * self.hourly_rate\n\n        # Round the fee to two decimal places\n        return round(fee, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"\n        Computes the fee, stores it, and returns it.\n\n        Args:\n        entry (datetime): The entry time.\n        exit (datetime): The exit time.\n\n        Returns:\n        float: The parking fee.\n\n        Raises:\n        ValueError: If the exit time is earlier than the entry time.\n        \"\"\"\n        fee = self.fee(entry, exit)\n        self.collected_fees.append(fee)\n        return fee\n\n    def total_collected(self) -> float:\n        \"\"\"\n        Returns the total collected fees.\n\n        Returns:\n        float: The total collected fees.\n        \"\"\"\n        return round(sum(self.collected_fees), 2)\n\n    def estimate(self, hours: int) -> float:\n        \"\"\"\n        Estimates the fee for a stay of exactly the given number of hours.\n\n        Args:\n        hours (int): The number of hours.\n\n        Returns:\n        float: The estimated parking fee.\n        \"\"\"\n        if hours <= 0:\n            # Stays of at most 15 minutes are free, so we can return 0 for 0 hours\n            return round(0.00, 2)\n        elif hours > 24:\n            # Charge a flat penalty of 200.00 for stays longer than 24 hours\n            return round(200.00, 2)\n        else:\n            # Calculate the parking fee\n            fee = hours * self.hourly_rate\n\n            # Round the fee to two decimal places\n            return round(fee, 2)\n\n\n# Example usage:\nif __name__ == \"__main__\":\n    meter = ParkingMeter()\n    entry_time = datetime(2022, 1, 1, 8, 0, 0)\n    exit_time = datetime(2022, 1, 1, 10, 0, 0)\n    print(meter.record(entry_time, exit_time))\n    print(meter.total_collected())\n    print(meter.estimate(2))\n```",
+ "code": "from datetime import datetime, timedelta\n\nclass ParkingMeter:\n    \"\"\"\n    A parking meter that computes the parking fee for a single stay.\n    \"\"\"\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        \"\"\"\n        Initializes a parking meter with an hourly rate.\n\n        Args:\n        hourly_rate (float): The hourly rate of the parking meter (default is 4.0).\n        \"\"\"\n        self.hourly_rate = hourly_rate\n        self.collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"\n        Computes the parking fee for a stay.\n\n        Args:\n        entry (datetime): The entry time.\n        exit (datetime): The exit time.\n\n        Returns:\n        float: The parking fee.\n\n        Raises:\n        ValueError: If the exit time is earlier than the entry time.\n        \"\"\"\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n\n        # Calculate the duration of the stay\n        duration = exit - entry\n\n        # Check if the stay is longer than 24 hours\n        if duration > timedelta(days=1):\n            # Charge a flat penalty of 200.00\n            return round(200.00, 2)\n\n        # Calculate the duration in minutes\n        duration_minutes = duration.total_seconds() / 60\n\n        # Stays of at most 15 minutes are free\n        if duration_minutes <= 15:\n            return round(0.00, 2)\n\n        # Calculate the number of hours\n        hours = int(duration_minutes / 60) + 1\n\n        # Calculate the parking fee\n        fee = hours * self.hourly_rate\n\n        # Round the fee to two decimal places\n        return round(fee, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"\n        Computes the fee, stores it, and returns it.\n\n        Args:\n        entry (datetime): The entry time.\n        exit (datetime): The exit time.\n\n        Returns:\n        float: The parking fee.\n\n        Raises:\n        ValueError: If the exit time is earlier than the entry time.\n        \"\"\"\n        fee = self.fee(entry, exit)\n        self.collected_fees.append(fee)\n        return fee\n\n    def total_collected(self) -> float:\n        \"\"\"\n        Returns the total collected fees.\n\n        Returns:\n        float: The total collected fees.\n        \"\"\"\n        return round(sum(self.collected_fees), 2)\n\n    def estimate(self, hours: int) -> float:\n        \"\"\"\n        Estimates the fee for a stay of exactly the given number of hours.\n\n        Args:\n        hours (int): The number of hours.\n\n        Returns:\n        float: The estimated parking fee.\n        \"\"\"\n        if hours <= 0:\n            # Stays of at most 15 minutes are free, so we can return 0 for 0 hours\n            return round(0.00, 2)\n        elif hours > 24:\n            # Charge a flat penalty of 200.00 for stays longer than 24 hours\n            return round(200.00, 2)\n        else:\n            # Calculate the parking fee\n            fee = hours * self.hourly_rate\n\n            # Round the fee to two decimal places\n            return round(fee, 2)\n\n\n# Example usage:\nif __name__ == \"__main__\":\n    meter = ParkingMeter()\n    entry_time = datetime(2022, 1, 1, 8, 0, 0)\n    exit_time = datetime(2022, 1, 1, 10, 0, 0)\n    print(meter.record(entry_time, exit_time))\n    print(meter.total_collected())\n    print(meter.estimate(2))\n",
+ "input_tokens": 683,
+ "output_tokens": 792,
+ "cost_usd": 0.00032174,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 8.44,
+ "raw_api_response": {
+  "id": "gen-1794939254-W6fz9a0IMadeGiS3Upji",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\n\nclass ParkingMeter:\n    \"\"\"\n    A parking meter that computes the parking fee for a single stay.\n    \"\"\"\n\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        \"\"\"\n        Initializes a parking meter with an hourly rate.\n\n        Args:\n        hourly_rate (float): The hourly rate of the parking meter (default is 4.0).\n        \"\"\"\n        self.hourly_rate = hourly_rate\n        self.collected_fees = []\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"\n        Computes the parking fee for a stay.\n\n        Args:\n        entry (datetime): The entry time.\n        exit (datetime): The exit time.\n\n        Returns:\n        float: The parking fee.\n\n        Raises:\n        ValueError: If the exit time is earlier than the entry time.\n        \"\"\"\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n\n        # Calculate the duration of the stay\n        duration = exit - entry\n\n        # Check if the stay is longer than 24 hours\n        if duration > timedelta(days=1):\n            # Charge a flat penalty of 200.00\n            return round(200.00, 2)\n\n        # Calculate the duration in minutes\n        duration_minutes = duration.total_seconds() / 60\n\n        # Stays of at most 15 minutes are free\n        if duration_minutes <= 15:\n            return round(0.00, 2)\n\n        # Calculate the number of hours\n        hours = int(duration_minutes / 60) + 1\n\n        # Calculate the parking fee\n        fee = hours * self.hourly_rate\n\n        # Round the fee to two decimal places\n        return round(fee, 2)\n\n    def record(self, entry: datetime, exit: datetime) -> float:\n        \"\"\"\n        Computes the fee, stores it, and returns it.\n\n        Args:\n        entry (datetime): The entry time.\n        exit (datetime): The exit time.\n\n        Returns:\n        float: The parking fee.\n\n        Raises:\n        ValueError: If the exit time is earlier than the entry time.\n        \"\"\"\n        fee = self.fee(entry, exit)\n        self.collected_fees.append(fee)\n        return fee\n\n    def total_collected(self) -> float:\n        \"\"\"\n        Returns the total collected fees.\n\n        Returns:\n        float: The total collected fees.\n        \"\"\"\n        return round(sum(self.collected_fees), 2)\n\n    def estimate(self, hours: int) -> float:\n        \"\"\"\n        Estimates the fee for a stay of exactly the given number of hours.\n\n        Args:\n        hours (int): The number of hours.\n\n        Returns:\n        float: The estimated parking fee.\n        \"\"\"\n        if hours <= 0:\n            # Stays of at most 15 minutes are free, so we can return 0 for 0 hours\n            return round(0.00, 2)\n        elif hours > 24:\n            # Charge a flat penalty of 200.00 for stays longer than 24 hours\n            return round(200.00, 2)\n        else:\n            # Calculate the parking fee\n            fee = hours * self.hourly_rate\n\n            # Round the fee to two decimal places\n            return round(fee, 2)\n\n\n# Example usage:\nif __name__ == \"__main__\":\n    meter = ParkingMeter()\n    entry_time = datetime(2022, 1, 1, 8, 0, 0)\n    exit_time = datetime(2022, 1, 1, 10, 0, 0)\n    print(meter.record(entry_time, exit_time))\n    print(meter.total_collected())\n    print(meter.estimate(2))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794939254,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 792,
+   "prompt_tokens": 683,
+   "total_tokens": 1475,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 96,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00104725,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00104725,
+    "upstream_inference_prompt_cost": 0.00048493,
+    "upstream_inference_completions_cost": 0.00056232
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

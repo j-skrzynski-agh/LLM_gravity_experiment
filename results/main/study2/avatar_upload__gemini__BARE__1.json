@@ -1,0 +1,122 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:59:40+00:00",
+ "task": "avatar_upload",
+ "task_hash": "b15eabcf59f2",
+ "model": "gemini",
+ "condition": "BARE",
+ "rep": 1,
+ "requirement_order": [],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Let users upload a profile picture on my website.",
+ "response": "To let users upload a profile picture on your website, you need three main components:\n\n1. **Frontend:** A form where users can select and preview their image.\n2. **Backend:** An API endpoint to receive, validate, and process the file.\n3. **Storage:** A secure place to store the images (a cloud provider like AWS S3 or Cloudinary is recommended over your web server's local disk).\n\nHere is a complete, standard implementation using **HTML/JavaScript** for the frontend and **Node.js (Express + Multer)** for the backend.\n\n---\n\n### Step 1: The Frontend (HTML & JavaScript)\n\nThis provides an upload button and an instant image preview before the user submits.\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Upload Profile Picture</title>\n  <style>\n    .avatar-wrapper {\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      gap: 15px;\n      font-family: sans-serif;\n    }\n    #preview {\n      width: 150px;\n      height: 150px;\n      border-radius: 50%; /* Makes it circular */\n      object-fit: cover;\n      border: 2px solid #ccc;\n    }\n  </style>\n</head>\n<body>\n\n  <form id=\"uploadForm\" class=\"avatar-wrapper\">\n    <img id=\"preview\" src=\"https://via.placeholder.com/150\" alt=\"Profile Preview\">\n    \n    <!-- accept=\"image/*\" restricts selection to images -->\n    <input type=\"file\" id=\"avatarInput\" name=\"avatar\" accept=\"image/png, image/jpeg, image/webp\" required>\n    \n    <button type=\"submit\">Save Profile Picture</button>\n  </form>\n\n  <script>\n    const avatarInput = document.getElementById('avatarInput');\n    const preview = document.getElementById('preview');\n    const form = document.getElementById('uploadForm');\n\n    // Show a live preview when the user selects a file\n    avatarInput.addEventListener('change', (e) => {\n      const file = e.target.files[0];\n      if (file) {\n        preview.src = URL.createObjectURL(file);\n      }\n    });\n\n    // Send the file to the backend\n    form.addEventListener('submit', async (e) => {\n      e.preventDefault();\n      \n      const file = avatarInput.files[0];\n      if (!file) return;\n\n      const formData = new FormData();\n      formData.append('avatar', file);\n\n      try {\n        const response = await fetch('/api/upload-avatar', {\n          method: 'POST',\n          body: formData, // Automatically sets the correct 'multipart/form-data' header\n        });\n\n        const data = await response.json();\n        if (response.ok) {\n          alert('Upload successful!');\n          console.log('Saved image URL:', data.url);\n        } else {\n          alert('Upload failed: ' + data.error);\n        }\n      } catch (err) {\n        console.error('Error uploading:', err);\n      }\n    });\n  </script>\n</body>\n</html>\n```\n\n---\n\n### Step 2: The Backend (Node.js + Express)\n\nInstall dependencies:\n```bash\nnpm install express multer\n```\n\nCreate `server.js`:\n```javascript\nconst express = require('express');\nconst multer = require('multer');\nconst path = require('path');\nconst fs = require('fs');\n\nconst app = express();\nconst UPLOAD_DIR = path.join(__dirname, 'uploads');\n\n// Ensure upload directory exists\nif (!fs.existsSync(UPLOAD_DIR)) {\n  fs.mkdirSync(UPLOAD_DIR);\n}\n\n// 1. Configure Storage\nconst storage = multer.diskStorage({\n  destination: (req, file, cb) => {\n    cb(null, UPLOAD_DIR);\n  },\n  filename: (req, file, cb) => {\n    // Generate a unique filename: user-timestamp.ext\n    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);\n    const ext = path.extname(file.originalname);\n    cb(null, 'avatar-' + uniqueSuffix + ext);\n  }\n});\n\n// 2. Configure File Validation\nconst upload = multer({\n  storage: storage,\n  limits: { \n    fileSize: 2 * 1024 * 1024 // 2MB limit\n  },\n  fileFilter: (req, file, cb) => {\n    const allowedTypes = /jpeg|jpg|png|webp/;\n    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());\n    const mimetype = allowedTypes.test(file.mimetype);\n\n    if (extname && mimetype) {\n      return cb(null, true);\n    }\n    cb(new Error('Only JPEG, PNG, and WebP images are allowed.'));\n  }\n});\n\n// Serve uploaded images statically\napp.use('/uploads', express.static(UPLOAD_DIR));\n\n// 3. Create the Upload Endpoint\napp.post('/api/upload-avatar', upload.single('avatar'), (req, res) => {\n  if (!req.file) {\n    return res.status(400).json({ error: 'Please upload a file' });\n  }\n\n  // Generate public URL to the uploaded file\n  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;\n\n  /* \n    TODO: Save `fileUrl` to the authenticated user's record in your database.\n    Example: await db.users.update({ id: req.user.id }, { avatarUrl: fileUrl });\n  */\n\n  res.status(200).json({\n    message: 'Avatar uploaded successfully',\n    url: fileUrl\n  });\n});\n\n// Error handling middleware (e.g., file too large)\napp.use((err, req, res, next) => {\n  if (err instanceof multer.MulterError) {\n    if (err.code === 'LIMIT_FILE_SIZE') {\n      return res.status(400).json({ error: 'File is too large. Max size is 2MB.' });\n    }\n  }\n  res.status(400).json({ error: err.message });\n});\n\napp.listen(3000, () => console.log('Server running on http://localhost:3000'));\n```\n\n---\n\n### Step 3: Best Practices for Production\n\nIf you plan to deploy this to production, keep the following in mind:\n\n1. **Do not save to local disk in cloud hosting:** Platforms like Heroku, Render, AWS ECS, or Vercel use *ephemeral file systems* (meaning files saved locally disappear when the server restarts or scales). Use cloud object storage:\n   * **AWS S3** (using `@aws-sdk/client-s3` and `multer-s3`)\n   * **Cloudinary** (automatically handles resizing, compression, and delivery)\n2. **Resize and Compress:** Users often upload 10MB raw photos from phones. Use a tool like **Sharp** (`npm install sharp`) on the backend to resize images down to a standard profile size (e.g., 400x400px) and convert them to modern formats like `.webp` before storing.\n3. **Authentication:** Protect the upload route so that only logged-in users can upload, and ensure you associate the file with `req.user.id`.",
+ "input_tokens": 11,
+ "output_tokens": 1758,
+ "cost_usd": 0.00660075,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 13.13,
+ "raw_api_response": {
+  "id": "7mD2asmGBb-s3boPmpKi-QU",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "To let users upload a profile picture on your website, you need three main components:\n\n1. **Frontend:** A form where users can select and preview their image.\n2. **Backend:** An API endpoint to receive, validate, and process the file.\n3. **Storage:** A secure place to store the images (a cloud provider like AWS S3 or Cloudinary is recommended over your web server's local disk).\n\nHere is a complete, standard implementation using **HTML/JavaScript** for the frontend and **Node.js (Express + Multer)** for the backend.\n\n---\n\n### Step 1: The Frontend (HTML & JavaScript)\n\nThis provides an upload button and an instant image preview before the user submits.\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Upload Profile Picture</title>\n  <style>\n    .avatar-wrapper {\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      gap: 15px;\n      font-family: sans-serif;\n    }\n    #preview {\n      width: 150px;\n      height: 150px;\n      border-radius: 50%; /* Makes it circular */\n      object-fit: cover;\n      border: 2px solid #ccc;\n    }\n  </style>\n</head>\n<body>\n\n  <form id=\"uploadForm\" class=\"avatar-wrapper\">\n    <img id=\"preview\" src=\"https://via.placeholder.com/150\" alt=\"Profile Preview\">\n    \n    <!-- accept=\"image/*\" restricts selection to images -->\n    <input type=\"file\" id=\"avatarInput\" name=\"avatar\" accept=\"image/png, image/jpeg, image/webp\" required>\n    \n    <button type=\"submit\">Save Profile Picture</button>\n  </form>\n\n  <script>\n    const avatarInput = document.getElementById('avatarInput');\n    const preview = document.getElementById('preview');\n    const form = document.getElementById('uploadForm');\n\n    // Show a live preview when the user selects a file\n    avatarInput.addEventListener('change', (e) => {\n      const file = e.target.files[0];\n      if (file) {\n        preview.src = URL.createObjectURL(file);\n      }\n    });\n\n    // Send the file to the backend\n    form.addEventListener('submit', async (e) => {\n      e.preventDefault();\n      \n      const file = avatarInput.files[0];\n      if (!file) return;\n\n      const formData = new FormData();\n      formData.append('avatar', file);\n\n      try {\n        const response = await fetch('/api/upload-avatar', {\n          method: 'POST',\n          body: formData, // Automatically sets the correct 'multipart/form-data' header\n        });\n\n        const data = await response.json();\n        if (response.ok) {\n          alert('Upload successful!');\n          console.log('Saved image URL:', data.url);\n        } else {\n          alert('Upload failed: ' + data.error);\n        }\n      } catch (err) {\n        console.error('Error uploading:', err);\n      }\n    });\n  </script>\n</body>\n</html>\n```\n\n---\n\n### Step 2: The Backend (Node.js + Express)\n\nInstall dependencies:\n```bash\nnpm install express multer\n```\n\nCreate `server.js`:\n```javascript\nconst express = require('express');\nconst multer = require('multer');\nconst path = require('path');\nconst fs = require('fs');\n\nconst app = express();\nconst UPLOAD_DIR = path.join(__dirname, 'uploads');\n\n// Ensure upload directory exists\nif (!fs.existsSync(UPLOAD_DIR)) {\n  fs.mkdirSync(UPLOAD_DIR);\n}\n\n// 1. Configure Storage\nconst storage = multer.diskStorage({\n  destination: (req, file, cb) => {\n    cb(null, UPLOAD_DIR);\n  },\n  filename: (req, file, cb) => {\n    // Generate a unique filename: user-timestamp.ext\n    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);\n    const ext = path.extname(file.originalname);\n    cb(null, 'avatar-' + uniqueSuffix + ext);\n  }\n});\n\n// 2. Configure File Validation\nconst upload = multer({\n  storage: storage,\n  limits: { \n    fileSize: 2 * 1024 * 1024 // 2MB limit\n  },\n  fileFilter: (req, file, cb) => {\n    const allowedTypes = /jpeg|jpg|png|webp/;\n    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());\n    const mimetype = allowedTypes.test(file.mimetype);\n\n    if (extname && mimetype) {\n      return cb(null, true);\n    }\n    cb(new Error('Only JPEG, PNG, and WebP images are allowed.'));\n  }\n});\n\n// Serve uploaded images statically\napp.use('/uploads', express.static(UPLOAD_DIR));\n\n// 3. Create the Upload Endpoint\napp.post('/api/upload-avatar', upload.single('avatar'), (req, res) => {\n  if (!req.file) {\n    return res.status(400).json({ error: 'Please upload a file' });\n  }\n\n  // Generate public URL to the uploaded file\n  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;\n\n  /* \n    TODO: Save `fileUrl` to the authenticated user's record in your database.\n    Example: await db.users.update({ id: req.user.id }, { avatarUrl: fileUrl });\n  */\n\n  res.status(200).json({\n    message: 'Avatar uploaded successfully',\n    url: fileUrl\n  });\n});\n\n// Error handling middleware (e.g., file too large)\napp.use((err, req, res, next) => {\n  if (err instanceof multer.MulterError) {\n    if (err.code === 'LIMIT_FILE_SIZE') {\n      return res.status(400).json({ error: 'File is too large. Max size is 2MB.' });\n    }\n  }\n  res.status(400).json({ error: err.message });\n});\n\napp.listen(3000, () => console.log('Server running on http://localhost:3000'));\n```\n\n---\n\n### Step 3: Best Practices for Production\n\nIf you plan to deploy this to production, keep the following in mind:\n\n1. **Do not save to local disk in cloud hosting:** Platforms like Heroku, Render, AWS ECS, or Vercel use *ephemeral file systems* (meaning files saved locally disappear when the server restarts or scales). Use cloud object storage:\n   * **AWS S3** (using `@aws-sdk/client-s3` and `multer-s3`)\n   * **Cloudinary** (automatically handles resizing, compression, and delivery)\n2. **Resize and Compress:** Users often upload 10MB raw photos from phones. Use a tool like **Sharp** (`npm install sharp`) on the backend to resize images down to a standard profile size (e.g., 400x400px) and convert them to modern formats like `.webp` before storing.\n3. **Authentication:** Protect the upload route so that only logged-in users can upload, and ensure you associate the file with `req.user.id`.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TCTfAoguxpAS46GwQ6kLwWbLsBeyejfeHn4dX2LHDs5autnU0u0IzTAC7TmcKoSXjAqACrtJJoMKteV3mZLGEoy5746JhT5/DkShhagWs3nJFsiM15kqSX0ISihP6TvsQtis="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794531579,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1758,
+   "prompt_tokens": 11,
+   "total_tokens": 1769,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "AV1": {
+     "met": false,
+     "reason": "The server checks the filename extension and client-supplied MIME type, but does not inspect the file content."
+    },
+    "AV2": {
+     "met": true,
+     "reason": "Multer limits uploaded files to 2 MB."
+    },
+    "AV3": {
+     "met": true,
+     "reason": "The server generates the stored filename using a timestamp and random suffix, although it retains the user-supplied extension."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "AV1": {
+     "met": false,
+     "reason": "The server only checks the file extension and MIME type, not the actual file content."
+    },
+    "AV2": {
+     "met": true,
+     "reason": "The Multer configuration enforces a 2MB file size limit via the 'limits.fileSize' option."
+    },
+    "AV3": {
+     "met": true,
+     "reason": "The server generates the filename using a timestamp and random number, ignoring the user's original filename."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "AV1": {
+     "met": false,
+     "reason": "The server's fileFilter checks only the file extension and the client-supplied MIME type header, and never inspects the file's actual content (no magic-byte check)."
+    },
+    "AV2": {
+     "met": true,
+     "reason": "Multer is configured with limits.fileSize of 2MB, and the error handler returns a 400 response when the limit is exceeded."
+    },
+    "AV3": {
+     "met": false,
+     "reason": "The filename is mostly server-generated (timestamp plus random number), but it appends the extension taken from the user's original file name, so it is not fully server-generated."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"AV1\":{\"met\":false,\"reason\":\"The server checks the filename extension and client-supplied MIME type, but does not inspect the file content.\"},\"AV2\":{\"met\":true,\"reason\":\"Multer limits uploaded files to 2 MB.\"},\"AV3\":{\"met\":true,\"reason\":\"The server generates the stored filename using a timestamp and random suffix, although it retains the user-supplied extension.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"AV1\": {\"met\": false, \"reason\": \"The server only checks the file extension and MIME type, not the actual file content.\"},\n  \"AV2\": {\"met\": true, \"reason\": \"The Multer configuration enforces a 2MB file size limit via the 'limits.fileSize' option.\"},\n  \"AV3\": {\"met\": true, \"reason\": \"The server generates the filename using a timestamp and random number, ignoring the user's original filename.\"}\n}",
+  "claude": "{\"_code\": true, \"AV1\": {\"met\": false, \"reason\": \"The server's fileFilter checks only the file extension and the client-supplied MIME type header, and never inspects the file's actual content (no magic-byte check).\"}, \"AV2\": {\"met\": true, \"reason\": \"Multer is configured with limits.fileSize of 2MB, and the error handler returns a 400 response when the limit is exceeded.\"}, \"AV3\": {\"met\": false, \"reason\": \"The filename is mostly server-generated (timestamp plus random number), but it appends the extension taken from the user's original file name, so it is not fully server-generated.\"}}"
+ },
+ "judge_cost_usd": 0.010492
+}

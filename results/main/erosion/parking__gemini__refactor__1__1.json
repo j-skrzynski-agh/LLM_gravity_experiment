@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:41:39+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "gemini",
+ "variant": "refactor",
+ "rep": 1,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "parking__gemini__FULL__1.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nimport math\nfrom datetime import datetime\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration_seconds = (exit - entry).total_seconds()\n\n        # Stays longer than 24 hours are charged a flat penalty of 200.00\n        if duration_seconds > 24 * 3600:\n            return 200.00\n\n        # Stays of at most 15 minutes are free\n        if duration_seconds <= 15 * 60:\n            return 0.00\n\n        # Every started hour is charged as a full hour\n        hours_charged = math.ceil(duration_seconds / 3600)\n        total_fee = hours_charged * self.hourly_rate\n\n        return round(total_fee, 2)\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the refactored module. Constants have been extracted for readability and maintainability, `timedelta` objects are used directly to handle duration comparisons and math cleanly and idiomatically, and the core calculation has been streamlined.\n\n```python\nimport math\nfrom datetime import datetime, timedelta\n\nGRACE_PERIOD = timedelta(minutes=15)\nMAX_REGULAR_DURATION = timedelta(hours=24)\nMAX_DURATION_PENALTY = 200.00\nSECONDS_PER_HOUR = 3600.0\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        if duration > MAX_REGULAR_DURATION:\n            return MAX_DURATION_PENALTY\n\n        if duration <= GRACE_PERIOD:\n            return 0.00\n\n        hours_charged = math.ceil(duration.total_seconds() / SECONDS_PER_HOUR)\n        return round(hours_charged * self.hourly_rate, 2)\n```",
+ "code": "import math\nfrom datetime import datetime, timedelta\n\nGRACE_PERIOD = timedelta(minutes=15)\nMAX_REGULAR_DURATION = timedelta(hours=24)\nMAX_DURATION_PENALTY = 200.00\nSECONDS_PER_HOUR = 3600.0\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        if duration > MAX_REGULAR_DURATION:\n            return MAX_DURATION_PENALTY\n\n        if duration <= GRACE_PERIOD:\n            return 0.00\n\n        hours_charged = math.ceil(duration.total_seconds() / SECONDS_PER_HOUR)\n        return round(hours_charged * self.hourly_rate, 2)\n",
+ "input_tokens": 323,
+ "output_tokens": 287,
+ "cost_usd": 0.0013185,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 3.11,
+ "raw_api_response": {
+  "id": "6q38at-XI4-TxN8P0LnYqAw",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the refactored module. Constants have been extracted for readability and maintainability, `timedelta` objects are used directly to handle duration comparisons and math cleanly and idiomatically, and the core calculation has been streamlined.\n\n```python\nimport math\nfrom datetime import datetime, timedelta\n\nGRACE_PERIOD = timedelta(minutes=15)\nMAX_REGULAR_DURATION = timedelta(hours=24)\nMAX_DURATION_PENALTY = 200.00\nSECONDS_PER_HOUR = 3600.0\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = float(hourly_rate)\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time.\")\n\n        duration = exit - entry\n\n        if duration > MAX_REGULAR_DURATION:\n            return MAX_DURATION_PENALTY\n\n        if duration <= GRACE_PERIOD:\n            return 0.00\n\n        hours_charged = math.ceil(duration.total_seconds() / SECONDS_PER_HOUR)\n        return round(hours_charged * self.hourly_rate, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EpIBCo8BAWkUfRNmWAuuh3dhjHf8qIoaox2Up97RrQEiyGZmLvdA99yGgmsZhnVLdIe29rvNMzpmECJs+Rzin4oWOyRlIx2C77LKa+uTHwVarJSZl+Mb1vm8CMuOJvpN0pyr4npyuq9KYv3CzsgE8A85pbMXgwdgMQSSf9HUjU7zdZMabLotSy2RkYtuGOFqq7UJ6vM="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794944493,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 287,
+   "prompt_tokens": 323,
+   "total_tokens": 610,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

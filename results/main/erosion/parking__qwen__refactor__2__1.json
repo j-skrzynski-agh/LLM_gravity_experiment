@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:45:44+00:00",
+ "app": "parking",
+ "app_hash": "ad41115af267",
+ "model": "qwen",
+ "variant": "refactor",
+ "rep": 2,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "parking__qwen__FULL__2.json",
+ "passed": {
+  "PK1": true,
+  "PK2": true,
+  "PK3": true,
+  "PK4": true,
+  "PK5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime, timedelta\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        # Calculate the duration in minutes\n        duration = exit - entry\n        total_minutes = duration.total_seconds() / 60.0\n        \n        # Check for flat penalty for stays longer than 24 hours\n        if total_minutes > 24 * 60:\n            return round(200.00, 2)\n        \n        # Free for stays of at most 15 minutes\n        if total_minutes <= 15:\n            return 0.0\n        \n        # Calculate hours needed: every started hour is charged as a full hour\n        # Convert total minutes to hours and round up to next whole hour\n        hours = (total_minutes + 59) // 60  # This effectively rounds up to nearest hour\n        \n        # Calculate fee and round to two decimal places\n        fee_amount = hours * self.hourly_rate\n        return round(fee_amount, 2)\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\nfrom math import ceil\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        duration = exit - entry\n        total_minutes = duration.total_seconds() / 60.0\n        \n        # Flat penalty for stays longer than 24 hours\n        if total_minutes > 24 * 60:\n            return 200.00\n        \n        # Free for stays of at most 15 minutes\n        if total_minutes <= 15:\n            return 0.0\n        \n        # Calculate hours needed: every started hour is charged as a full hour\n        hours = ceil(total_minutes / 60)\n        \n        # Calculate fee and round to two decimal places\n        return round(hours * self.hourly_rate, 2)\n```",
+ "code": "from datetime import datetime, timedelta\nfrom math import ceil\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        duration = exit - entry\n        total_minutes = duration.total_seconds() / 60.0\n        \n        # Flat penalty for stays longer than 24 hours\n        if total_minutes > 24 * 60:\n            return 200.00\n        \n        # Free for stays of at most 15 minutes\n        if total_minutes <= 15:\n            return 0.0\n        \n        # Calculate hours needed: every started hour is charged as a full hour\n        hours = ceil(total_minutes / 60)\n        \n        # Calculate fee and round to two decimal places\n        return round(hours * self.hourly_rate, 2)\n",
+ "input_tokens": 344,
+ "output_tokens": 224,
+ "cost_usd": 0.00040639999999999996,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 6.98,
+ "raw_api_response": {
+  "id": "gen-1794944733-cAR868I1r3djt4nVPDwR",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\nfrom math import ceil\n\n\nclass ParkingMeter:\n    def __init__(self, hourly_rate: float = 4.0) -> None:\n        self.hourly_rate = hourly_rate\n\n    def fee(self, entry: datetime, exit: datetime) -> float:\n        if exit < entry:\n            raise ValueError(\"Exit time cannot be earlier than entry time\")\n        \n        duration = exit - entry\n        total_minutes = duration.total_seconds() / 60.0\n        \n        # Flat penalty for stays longer than 24 hours\n        if total_minutes > 24 * 60:\n            return 200.00\n        \n        # Free for stays of at most 15 minutes\n        if total_minutes <= 15:\n            return 0.0\n        \n        # Calculate hours needed: every started hour is charged as a full hour\n        hours = ceil(total_minutes / 60)\n        \n        # Calculate fee and round to two decimal places\n        return round(hours * self.hourly_rate, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794944733,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 224,
+   "prompt_tokens": 344,
+   "total_tokens": 568,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00026416,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00026416,
+    "upstream_inference_prompt_cost": 8.944e-05,
+    "upstream_inference_completions_cost": 0.00017472
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

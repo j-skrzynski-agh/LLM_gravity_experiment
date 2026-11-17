@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:53:25+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "llama",
+ "condition": "ABL-UQ2",
+ "rep": 2,
+ "requirement_order": [
+  "UQ1",
+  "UQ4",
+  "UQ3",
+  "UQ5"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": false,
+  "UQ3": false,
+  "UQ4": false,
+  "UQ5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. Uploading a file of size 0 raises ValueError.\n2. Deleting a file does not give back quota in the current month.\n3. The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.\n4. Uploading again a file with the same name in the same month does not count towards the limit a second time.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    \"\"\"\n    A class that enforces a monthly upload quota for a file-sharing service.\n\n    Attributes:\n    monthly_limit_mib (float): The monthly upload limit in MiB.\n    uploaded_files (dict): A dictionary to keep track of uploaded files.\n    \"\"\"\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        \"\"\"\n        Initializes the UploadQuota object with a monthly limit.\n\n        Args:\n        monthly_limit_mib (float): The monthly upload limit in MiB.\n        \"\"\"\n        self.monthly_limit_mib = monthly_limit_mib\n        self.uploaded_files = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"\n        Uploads a file and checks if it exceeds the monthly quota.\n\n        Args:\n        name (str): The name of the file.\n        size_bytes (int): The size of the file in bytes.\n        month (str): The month of the upload (e.g., \"2026-01\").\n\n        Raises:\n        ValueError: If the file size is 0 or if the upload exceeds the monthly quota.\n        \"\"\"\n        if size_bytes == 0:\n            raise ValueError(\"File size cannot be 0\")\n\n        # Convert the monthly limit from MiB to bytes\n        monthly_limit_bytes = self.monthly_limit_mib * 1024 * 1024\n\n        # Check if the file has already been uploaded in the same month\n        if month in self.uploaded_files and name in self.uploaded_files[month]:\n            return\n\n        # Add the file to the uploaded files dictionary\n        if month not in self.uploaded_files:\n            self.uploaded_files[month] = {}\n        self.uploaded_files[month][name] = size_bytes\n\n        # Check if the upload exceeds the monthly quota\n        used_bytes = self.used_bytes(month)\n        if used_bytes + size_bytes > monthly_limit_bytes:\n            raise ValueError(\"Upload exceeds the monthly quota\")\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deletes a file.\n\n        Args:\n        name (str): The name of the file.\n        month (str): The month of the deletion (e.g., \"2026-01\").\n        \"\"\"\n        if month in self.uploaded_files and name in self.uploaded_files[month]:\n            del self.uploaded_files[month][name]\n            if not self.uploaded_files[month]:\n                del self.uploaded_files[month]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"\n        Returns the number of bytes used in the given month.\n\n        Args:\n        month (str): The month (e.g., \"2026-01\").\n\n        Returns:\n        int: The number of bytes used in the given month.\n        \"\"\"\n        if month in self.uploaded_files:\n            return sum(self.uploaded_files[month].values())\n        else:\n            return 0\n```",
+ "code": "class UploadQuota:\n    \"\"\"\n    A class that enforces a monthly upload quota for a file-sharing service.\n\n    Attributes:\n    monthly_limit_mib (float): The monthly upload limit in MiB.\n    uploaded_files (dict): A dictionary to keep track of uploaded files.\n    \"\"\"\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        \"\"\"\n        Initializes the UploadQuota object with a monthly limit.\n\n        Args:\n        monthly_limit_mib (float): The monthly upload limit in MiB.\n        \"\"\"\n        self.monthly_limit_mib = monthly_limit_mib\n        self.uploaded_files = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"\n        Uploads a file and checks if it exceeds the monthly quota.\n\n        Args:\n        name (str): The name of the file.\n        size_bytes (int): The size of the file in bytes.\n        month (str): The month of the upload (e.g., \"2026-01\").\n\n        Raises:\n        ValueError: If the file size is 0 or if the upload exceeds the monthly quota.\n        \"\"\"\n        if size_bytes == 0:\n            raise ValueError(\"File size cannot be 0\")\n\n        # Convert the monthly limit from MiB to bytes\n        monthly_limit_bytes = self.monthly_limit_mib * 1024 * 1024\n\n        # Check if the file has already been uploaded in the same month\n        if month in self.uploaded_files and name in self.uploaded_files[month]:\n            return\n\n        # Add the file to the uploaded files dictionary\n        if month not in self.uploaded_files:\n            self.uploaded_files[month] = {}\n        self.uploaded_files[month][name] = size_bytes\n\n        # Check if the upload exceeds the monthly quota\n        used_bytes = self.used_bytes(month)\n        if used_bytes + size_bytes > monthly_limit_bytes:\n            raise ValueError(\"Upload exceeds the monthly quota\")\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deletes a file.\n\n        Args:\n        name (str): The name of the file.\n        month (str): The month of the deletion (e.g., \"2026-01\").\n        \"\"\"\n        if month in self.uploaded_files and name in self.uploaded_files[month]:\n            del self.uploaded_files[month][name]\n            if not self.uploaded_files[month]:\n                del self.uploaded_files[month]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"\n        Returns the number of bytes used in the given month.\n\n        Args:\n        month (str): The month (e.g., \"2026-01\").\n\n        Returns:\n        int: The number of bytes used in the given month.\n        \"\"\"\n        if month in self.uploaded_files:\n            return sum(self.uploaded_files[month].values())\n        else:\n            return 0\n",
+ "input_tokens": 271,
+ "output_tokens": 620,
+ "cost_usd": 0.0002255,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 17.56,
+ "raw_api_response": {
+  "id": "gen-1794898380-dWCcZXfU5pwduJ39b4gS",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    \"\"\"\n    A class that enforces a monthly upload quota for a file-sharing service.\n\n    Attributes:\n    monthly_limit_mib (float): The monthly upload limit in MiB.\n    uploaded_files (dict): A dictionary to keep track of uploaded files.\n    \"\"\"\n\n    def __init__(self, monthly_limit_mib: float) -> None:\n        \"\"\"\n        Initializes the UploadQuota object with a monthly limit.\n\n        Args:\n        monthly_limit_mib (float): The monthly upload limit in MiB.\n        \"\"\"\n        self.monthly_limit_mib = monthly_limit_mib\n        self.uploaded_files = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"\n        Uploads a file and checks if it exceeds the monthly quota.\n\n        Args:\n        name (str): The name of the file.\n        size_bytes (int): The size of the file in bytes.\n        month (str): The month of the upload (e.g., \"2026-01\").\n\n        Raises:\n        ValueError: If the file size is 0 or if the upload exceeds the monthly quota.\n        \"\"\"\n        if size_bytes == 0:\n            raise ValueError(\"File size cannot be 0\")\n\n        # Convert the monthly limit from MiB to bytes\n        monthly_limit_bytes = self.monthly_limit_mib * 1024 * 1024\n\n        # Check if the file has already been uploaded in the same month\n        if month in self.uploaded_files and name in self.uploaded_files[month]:\n            return\n\n        # Add the file to the uploaded files dictionary\n        if month not in self.uploaded_files:\n            self.uploaded_files[month] = {}\n        self.uploaded_files[month][name] = size_bytes\n\n        # Check if the upload exceeds the monthly quota\n        used_bytes = self.used_bytes(month)\n        if used_bytes + size_bytes > monthly_limit_bytes:\n            raise ValueError(\"Upload exceeds the monthly quota\")\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deletes a file.\n\n        Args:\n        name (str): The name of the file.\n        month (str): The month of the deletion (e.g., \"2026-01\").\n        \"\"\"\n        if month in self.uploaded_files and name in self.uploaded_files[month]:\n            del self.uploaded_files[month][name]\n            if not self.uploaded_files[month]:\n                del self.uploaded_files[month]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"\n        Returns the number of bytes used in the given month.\n\n        Args:\n        month (str): The month (e.g., \"2026-01\").\n\n        Returns:\n        int: The number of bytes used in the given month.\n        \"\"\"\n        if month in self.uploaded_files:\n            return sum(self.uploaded_files[month].values())\n        else:\n            return 0\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794898380,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.31.0-tp2-e1f0aa81",
+  "usage": {
+   "completion_tokens": 620,
+   "prompt_tokens": 271,
+   "total_tokens": 891,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 176,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.000359,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.000359,
+    "upstream_inference_prompt_cost": 3.66e-05,
+    "upstream_inference_completions_cost": 0.0003224
+   }
+  },
+  "provider": "AkashML"
+ }
+}

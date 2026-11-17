@@ -1,0 +1,79 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:27:48+00:00",
+ "app": "cart",
+ "app_hash": "33d14211d923",
+ "model": "gemini",
+ "condition": "FULL",
+ "rep": 1,
+ "requirement_order": [
+  "CT5",
+  "CT4",
+  "CT2",
+  "CT1",
+  "CT3"
+ ],
+ "passed": {
+  "CT1": true,
+  "CT2": true,
+  "CT3": true,
+  "CT4": true,
+  "CT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA shopping cart for an online shop: items, percentage discounts, vouchers and shipping.\n\n## API (implement exactly these names and signatures)\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None: ...\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None: ...\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n```\n\n## Requirements\n1. The free shipping threshold is checked against the value of the items before discounts.\n2. Discounts and vouchers do not add up: only the single one that saves the customer the most money is applied.\n3. total() is rounded to two decimal places.\n4. Adding an item with a quantity of zero or less raises ValueError.\n5. A voucher never makes the price of the items negative; the unused part of the voucher is lost.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `Cart` class satisfying all the requirements is provided below:\n\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items: list[tuple[str, float, int]] = []\n        self.discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self.items.append((name, unit_price, quantity))\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        # Calculate subtotal before discounts\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity in self.items)\n\n        # Shipping check is against the value of items before discounts\n        # (If cart is empty, shipping is 0.0)\n        if subtotal == 0:\n            return 0.0\n\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        # Calculate potential savings from percentage discounts and vouchers\n        max_savings = 0.0\n\n        for percent in self.discounts:\n            savings = subtotal * (percent / 100.0)\n            if savings > max_savings:\n                max_savings = savings\n\n        for amount in self.vouchers:\n            # Savings cannot exceed the subtotal (unused part is lost)\n            savings = min(amount, subtotal)\n            if savings > max_savings:\n                max_savings = savings\n\n        items_total = max(0.0, subtotal - max_savings)\n\n        return round(items_total + shipping, 2)\n```",
+ "code": "class Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items: list[tuple[str, float, int]] = []\n        self.discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self.items.append((name, unit_price, quantity))\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        # Calculate subtotal before discounts\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity in self.items)\n\n        # Shipping check is against the value of items before discounts\n        # (If cart is empty, shipping is 0.0)\n        if subtotal == 0:\n            return 0.0\n\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        # Calculate potential savings from percentage discounts and vouchers\n        max_savings = 0.0\n\n        for percent in self.discounts:\n            savings = subtotal * (percent / 100.0)\n            if savings > max_savings:\n                max_savings = savings\n\n        for amount in self.vouchers:\n            # Savings cannot exceed the subtotal (unused part is lost)\n            savings = min(amount, subtotal)\n            if savings > max_savings:\n                max_savings = savings\n\n        items_total = max(0.0, subtotal - max_savings)\n\n        return round(items_total + shipping, 2)\n",
+ "input_tokens": 317,
+ "output_tokens": 559,
+ "cost_usd": 0.002334,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 4.51,
+ "raw_api_response": {
+  "id": "KjL1atuxH7qskdUPz6uF4Qs",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `Cart` class satisfying all the requirements is provided below:\n\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items: list[tuple[str, float, int]] = []\n        self.discounts: list[float] = []\n        self.vouchers: list[float] = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than zero.\")\n        self.items.append((name, unit_price, quantity))\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"Register a percentage discount on the whole cart. Can be called several times.\"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"Register a voucher worth a fixed amount. Can be called several times.\"\"\"\n        self.vouchers.append(amount)\n\n    def total(self) -> float:\n        \"\"\"Amount to pay: items after discounts plus shipping.\"\"\"\n        # Calculate subtotal before discounts\n        subtotal = sum(unit_price * quantity for _, unit_price, quantity in self.items)\n\n        # Shipping check is against the value of items before discounts\n        # (If cart is empty, shipping is 0.0)\n        if subtotal == 0:\n            return 0.0\n\n        shipping = 0.0 if subtotal >= self.free_shipping_threshold else self.shipping_cost\n\n        # Calculate potential savings from percentage discounts and vouchers\n        max_savings = 0.0\n\n        for percent in self.discounts:\n            savings = subtotal * (percent / 100.0)\n            if savings > max_savings:\n                max_savings = savings\n\n        for amount in self.vouchers:\n            # Savings cannot exceed the subtotal (unused part is lost)\n            savings = min(amount, subtotal)\n            if savings > max_savings:\n                max_savings = savings\n\n        items_total = max(0.0, subtotal - max_savings)\n\n        return round(items_total + shipping, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0T3KJ3Z/Prs/pWoexq9PuJwYHYM6Rh8rKtYxmCXkVAGPWtdqHJTOYBhPtqlxxMzv7Kat7qKJs03L90LTIC81sYRzDNgnL0kvRDMeM7nrUN+1OpBD7dQD5r4qnqnO8Pq2dxmKM="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794454063,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 559,
+   "prompt_tokens": 317,
+   "total_tokens": 876,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

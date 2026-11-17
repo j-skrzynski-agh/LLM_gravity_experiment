@@ -1,0 +1,126 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:59:09+00:00",
+ "task": "sms_reminders",
+ "task_hash": "a05853d9ca25",
+ "model": "gemini",
+ "condition": "FULL",
+ "rep": 2,
+ "requirement_order": [
+  "RM2",
+  "RM1",
+  "RM3"
+ ],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Write a script that sends our clients an SMS reminder at 9:00 the day before their appointment.\n\nRequirements:\n- Running the script again does not send the same reminder twice (sent reminders are recorded).\n- Times are handled with an explicit time zone, so 9:00 stays 9:00 local time across daylight saving changes.\n- No reminder is sent for cancelled appointments.",
+ "response": "Here is a complete, production-ready Python solution using **SQLAlchemy** (with SQLite by default, easily swapped for Postgres) to track state and appointments, **Twilio** for sending SMS, and **ZoneInfo** for daylight-saving-safe time operations.\n\n### Prerequisites\n\nInstall the required packages:\n```bash\npip install sqlalchemy twilio\n```\n\nSet your Twilio credentials in your environment variables:\n```bash\nexport TWILIO_ACCOUNT_SID=\"your_account_sid\"\nexport TWILIO_AUTH_TOKEN=\"your_auth_token\"\nexport TWILIO_PHONE_NUMBER=\"+1234567890\"\n```\n\n---\n\n### The Script (`send_reminders.py`)\n\n```python\nimport os\nimport sys\nfrom datetime import datetime, time, timedelta\nfrom zoneinfo import ZoneInfo\nfrom sqlalchemy import (\n    Boolean,\n    Column,\n    DateTime,\n    ForeignKey,\n    Integer,\n    String,\n    create_engine,\n    select,\n)\nfrom sqlalchemy.orm import declarative_base, relationship, sessionmaker\nfrom twilio.rest import Client\n\n# ==============================================================================\n# Configuration\n# ==============================================================================\n# Using IANA Time Zone names handles daylight saving transitions automatically\nLOCAL_TZ = ZoneInfo(\"America/New_York\")\nDATABASE_URL = \"sqlite:///appointments.db\"\n\n# ==============================================================================\n# Database Schema\n# ==============================================================================\nBase = declarative_base()\n\n\nclass Appointment(Base):\n    __tablename__ = \"appointments\"\n\n    id = Column(Integer, primary_key=True)\n    client_name = Column(String, nullable=False)\n    client_phone = Column(String, nullable=False)\n    # Stored as naive wall-clock datetime in LOCAL_TZ\n    appointment_time = Column(DateTime, nullable=False)\n    is_cancelled = Column(Boolean, default=False, nullable=False)\n\n    # 1-to-1 relationship with the reminder log\n    reminder_log = relationship(\n        \"ReminderLog\", back_populates=\"appointment\", uselist=False\n    )\n\n\nclass ReminderLog(Base):\n    __tablename__ = \"reminder_logs\"\n\n    id = Column(Integer, primary_key=True)\n    appointment_id = Column(\n        Integer, ForeignKey(\"appointments.id\"), unique=True, nullable=False\n    )\n    # Stored as UTC ISO timestamp of when the message was actually sent\n    sent_at_utc = Column(DateTime, default=datetime.utcnow, nullable=False)\n\n    appointment = relationship(\"Appointment\", back_populates=\"reminder_log\")\n\n\n# ==============================================================================\n# Core Notification Logic\n# ==============================================================================\ndef send_sms(to_phone: str, message_body: str) -> bool:\n    \"\"\"Sends an SMS using Twilio.\"\"\"\n    account_sid = os.getenv(\"TWILIO_ACCOUNT_SID\")\n    auth_token = os.getenv(\"TWILIO_AUTH_TOKEN\")\n    from_phone = os.getenv(\"TWILIO_PHONE_NUMBER\")\n\n    if not all([account_sid, auth_token, from_phone]):\n        raise RuntimeError(\"Missing Twilio configuration in environment variables.\")\n\n    client = Client(account_sid, auth_token)\n    try:\n        message = client.messages.create(\n            body=message_body,\n            from_=from_phone,\n            to=to_phone,\n        )\n        return bool(message.sid)\n    except Exception as e:\n        print(f\"Failed to send SMS to {to_phone}: {e}\", file=sys.stderr)\n        return False\n\n\ndef run_reminder_job():\n    engine = create_engine(DATABASE_URL)\n    Base.metadata.create_all(engine)\n    Session = sessionmaker(bind=engine)\n    session = Session()\n\n    # 1. Determine local \"Today\" and \"Tomorrow\" taking DST into account\n    now_local = datetime.now(LOCAL_TZ)\n    today_local = now_local.date()\n    tomorrow_local = today_local + timedelta(days=1)\n\n    # The day boundaries for tomorrow (00:00:00 to 23:59:59)\n    start_of_tomorrow = datetime.combine(tomorrow_local, time.min)\n    end_of_tomorrow = datetime.combine(tomorrow_local, time.max)\n\n    print(f\"Running reminder check at {now_local.strftime('%Y-%m-%d %H:%M:%S %Z')}\")\n    print(f\"Targeting appointments on: {tomorrow_local}\")\n\n    # 2. Query valid appointments:\n    #    - Scheduled for tomorrow\n    #    - Not cancelled\n    #    - Does NOT exist in ReminderLog (idempotency check)\n    stmt = (\n        select(Appointment)\n        .outerjoin(ReminderLog)\n        .where(\n            Appointment.appointment_time >= start_of_tomorrow,\n            Appointment.appointment_time <= end_of_tomorrow,\n            Appointment.is_cancelled.is_(False),\n            ReminderLog.id.is_(None),  # Only include if not already logged\n        )\n    )\n\n    appointments_to_remind = session.execute(stmt).scalars().all()\n\n    # 3. Send SMS and record it to DB\n    for appt in appointments_to_remind:\n        # Format the time nicely for the client (e.g., 02:30 PM)\n        time_str = appt.appointment_time.strftime(\"%I:%M %p\")\n        message = (\n            f\"Hello {appt.client_name}, this is a reminder for your appointment \"\n            f\"tomorrow at {time_str}.\"\n        )\n\n        print(f\"Sending reminder to {appt.client_name} ({appt.client_phone})...\")\n\n        if send_sms(appt.client_phone, message):\n            # Record the send to prevent duplicate sends on future runs\n            log = ReminderLog(appointment_id=appt.id, sent_at_utc=datetime.utcnow())\n            session.add(log)\n            session.commit()\n            print(f\"Successfully recorded reminder for Appointment #{appt.id}\")\n        else:\n            session.rollback()\n\n    session.close()\n\n\nif __name__ == \"__main__\":\n    run_reminder_job()\n```\n\n---\n\n### How Requirements Are Met\n\n1. **Idempotency (No duplicates):** \n   - A `ReminderLog` table tracks all completed SMS dispatches.\n   - The query uses an outer join (`ReminderLog.id.is_(None)`) to only select appointments that do not have an entry in `ReminderLog`. Running the script 10 times in a row will only send SMS on the first run.\n2. **Explicit Time Zone & Daylight Saving Time (DST):**\n   - The script uses Python's standard `zoneinfo.ZoneInfo(\"America/New_York\")`.\n   - Instead of subtracting a fixed offset (like `24 hours`), it fetches `now(LOCAL_TZ).date() + timedelta(days=1)`. This ensures that even on the day DST springs forward (23-hour day) or falls back (25-hour day), it strictly queries for the calendar day of \"tomorrow\".\n3. **Cancelled Appointments:**\n   - Filtered out directly at the database query level: `Appointment.is_cancelled.is_(False)`.\n\n### Scheduling\n\nTo run this at **9:00 AM every day**, schedule it via standard cron (`crontab -e`):\n\n```bash\n# Set your server timezone to your local zone, or set cron accordingly\n0 9 * * * /usr/bin/python3 /path/to/send_reminders.py >> /var/log/reminder_job.log 2>&1\n```",
+ "input_tokens": 85,
+ "output_tokens": 1777,
+ "cost_usd": 0.0067275,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 13.74,
+ "raw_api_response": {
+  "id": "zWD2atvDA9qW28oP2c_RiQk",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a complete, production-ready Python solution using **SQLAlchemy** (with SQLite by default, easily swapped for Postgres) to track state and appointments, **Twilio** for sending SMS, and **ZoneInfo** for daylight-saving-safe time operations.\n\n### Prerequisites\n\nInstall the required packages:\n```bash\npip install sqlalchemy twilio\n```\n\nSet your Twilio credentials in your environment variables:\n```bash\nexport TWILIO_ACCOUNT_SID=\"your_account_sid\"\nexport TWILIO_AUTH_TOKEN=\"your_auth_token\"\nexport TWILIO_PHONE_NUMBER=\"+1234567890\"\n```\n\n---\n\n### The Script (`send_reminders.py`)\n\n```python\nimport os\nimport sys\nfrom datetime import datetime, time, timedelta\nfrom zoneinfo import ZoneInfo\nfrom sqlalchemy import (\n    Boolean,\n    Column,\n    DateTime,\n    ForeignKey,\n    Integer,\n    String,\n    create_engine,\n    select,\n)\nfrom sqlalchemy.orm import declarative_base, relationship, sessionmaker\nfrom twilio.rest import Client\n\n# ==============================================================================\n# Configuration\n# ==============================================================================\n# Using IANA Time Zone names handles daylight saving transitions automatically\nLOCAL_TZ = ZoneInfo(\"America/New_York\")\nDATABASE_URL = \"sqlite:///appointments.db\"\n\n# ==============================================================================\n# Database Schema\n# ==============================================================================\nBase = declarative_base()\n\n\nclass Appointment(Base):\n    __tablename__ = \"appointments\"\n\n    id = Column(Integer, primary_key=True)\n    client_name = Column(String, nullable=False)\n    client_phone = Column(String, nullable=False)\n    # Stored as naive wall-clock datetime in LOCAL_TZ\n    appointment_time = Column(DateTime, nullable=False)\n    is_cancelled = Column(Boolean, default=False, nullable=False)\n\n    # 1-to-1 relationship with the reminder log\n    reminder_log = relationship(\n        \"ReminderLog\", back_populates=\"appointment\", uselist=False\n    )\n\n\nclass ReminderLog(Base):\n    __tablename__ = \"reminder_logs\"\n\n    id = Column(Integer, primary_key=True)\n    appointment_id = Column(\n        Integer, ForeignKey(\"appointments.id\"), unique=True, nullable=False\n    )\n    # Stored as UTC ISO timestamp of when the message was actually sent\n    sent_at_utc = Column(DateTime, default=datetime.utcnow, nullable=False)\n\n    appointment = relationship(\"Appointment\", back_populates=\"reminder_log\")\n\n\n# ==============================================================================\n# Core Notification Logic\n# ==============================================================================\ndef send_sms(to_phone: str, message_body: str) -> bool:\n    \"\"\"Sends an SMS using Twilio.\"\"\"\n    account_sid = os.getenv(\"TWILIO_ACCOUNT_SID\")\n    auth_token = os.getenv(\"TWILIO_AUTH_TOKEN\")\n    from_phone = os.getenv(\"TWILIO_PHONE_NUMBER\")\n\n    if not all([account_sid, auth_token, from_phone]):\n        raise RuntimeError(\"Missing Twilio configuration in environment variables.\")\n\n    client = Client(account_sid, auth_token)\n    try:\n        message = client.messages.create(\n            body=message_body,\n            from_=from_phone,\n            to=to_phone,\n        )\n        return bool(message.sid)\n    except Exception as e:\n        print(f\"Failed to send SMS to {to_phone}: {e}\", file=sys.stderr)\n        return False\n\n\ndef run_reminder_job():\n    engine = create_engine(DATABASE_URL)\n    Base.metadata.create_all(engine)\n    Session = sessionmaker(bind=engine)\n    session = Session()\n\n    # 1. Determine local \"Today\" and \"Tomorrow\" taking DST into account\n    now_local = datetime.now(LOCAL_TZ)\n    today_local = now_local.date()\n    tomorrow_local = today_local + timedelta(days=1)\n\n    # The day boundaries for tomorrow (00:00:00 to 23:59:59)\n    start_of_tomorrow = datetime.combine(tomorrow_local, time.min)\n    end_of_tomorrow = datetime.combine(tomorrow_local, time.max)\n\n    print(f\"Running reminder check at {now_local.strftime('%Y-%m-%d %H:%M:%S %Z')}\")\n    print(f\"Targeting appointments on: {tomorrow_local}\")\n\n    # 2. Query valid appointments:\n    #    - Scheduled for tomorrow\n    #    - Not cancelled\n    #    - Does NOT exist in ReminderLog (idempotency check)\n    stmt = (\n        select(Appointment)\n        .outerjoin(ReminderLog)\n        .where(\n            Appointment.appointment_time >= start_of_tomorrow,\n            Appointment.appointment_time <= end_of_tomorrow,\n            Appointment.is_cancelled.is_(False),\n            ReminderLog.id.is_(None),  # Only include if not already logged\n        )\n    )\n\n    appointments_to_remind = session.execute(stmt).scalars().all()\n\n    # 3. Send SMS and record it to DB\n    for appt in appointments_to_remind:\n        # Format the time nicely for the client (e.g., 02:30 PM)\n        time_str = appt.appointment_time.strftime(\"%I:%M %p\")\n        message = (\n            f\"Hello {appt.client_name}, this is a reminder for your appointment \"\n            f\"tomorrow at {time_str}.\"\n        )\n\n        print(f\"Sending reminder to {appt.client_name} ({appt.client_phone})...\")\n\n        if send_sms(appt.client_phone, message):\n            # Record the send to prevent duplicate sends on future runs\n            log = ReminderLog(appointment_id=appt.id, sent_at_utc=datetime.utcnow())\n            session.add(log)\n            session.commit()\n            print(f\"Successfully recorded reminder for Appointment #{appt.id}\")\n        else:\n            session.rollback()\n\n    session.close()\n\n\nif __name__ == \"__main__\":\n    run_reminder_job()\n```\n\n---\n\n### How Requirements Are Met\n\n1. **Idempotency (No duplicates):** \n   - A `ReminderLog` table tracks all completed SMS dispatches.\n   - The query uses an outer join (`ReminderLog.id.is_(None)`) to only select appointments that do not have an entry in `ReminderLog`. Running the script 10 times in a row will only send SMS on the first run.\n2. **Explicit Time Zone & Daylight Saving Time (DST):**\n   - The script uses Python's standard `zoneinfo.ZoneInfo(\"America/New_York\")`.\n   - Instead of subtracting a fixed offset (like `24 hours`), it fetches `now(LOCAL_TZ).date() + timedelta(days=1)`. This ensures that even on the day DST springs forward (23-hour day) or falls back (25-hour day), it strictly queries for the calendar day of \"tomorrow\".\n3. **Cancelled Appointments:**\n   - Filtered out directly at the database query level: `Appointment.is_cancelled.is_(False)`.\n\n### Scheduling\n\nTo run this at **9:00 AM every day**, schedule it via standard cron (`crontab -e`):\n\n```bash\n# Set your server timezone to your local zone, or set cron accordingly\n0 9 * * * /usr/bin/python3 /path/to/send_reminders.py >> /var/log/reminder_job.log 2>&1\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TMnbMYaVJJLRt9AxOHPgZ9U9fsHaPjAdDt1f2RFqW8P7d0M50pG9dCNen3S4byq8vmUjKjPIAs01yq3WArGZraKBUo2ql50oF4jehwuVToC3fG5U1XzzSMpnoZB22AOekGzs="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794531546,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1777,
+   "prompt_tokens": 85,
+   "total_tokens": 1862,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "RM1": {
+     "met": false,
+     "reason": "The script uses an explicit time zone for date selection, but the cron schedule does not specify that time zone, so 9:00 local execution is not guaranteed."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "Successful sends are recorded and excluded from subsequent sequential runs."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The appointment query excludes appointments marked as cancelled."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "RM1": {
+     "met": true,
+     "reason": "The script uses ZoneInfo('America/New_York') for local time operations and computes 'tomorrow' via date arithmetic on localized datetime objects, ensuring 9:00 AM local time remains consistent across DST transitions."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "The script queries only appointments without a corresponding entry in the ReminderLog table and inserts a log record upon successful SMS send, preventing duplicate reminders on subsequent runs."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The database query explicitly filters out appointments where is_cancelled is True using Appointment.is_cancelled.is_(False)."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "RM1": {
+     "met": false,
+     "reason": "The script uses ZoneInfo only to compute tomorrow's date; the 9:00 trigger is a plain system cron line (0 9 * * *) that depends on the server's timezone and is not tied to LOCAL_TZ in code, so 9:00 local across DST is not ensured."
+    },
+    "RM2": {
+     "met": true,
+     "reason": "A ReminderLog table with a unique appointment_id is written after each successful send, and the query excludes appointments that already have a log entry."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The query filters on Appointment.is_cancelled.is_(False), so cancelled appointments are never selected."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"RM1\":{\"met\":false,\"reason\":\"The script uses an explicit time zone for date selection, but the cron schedule does not specify that time zone, so 9:00 local execution is not guaranteed.\"},\"RM2\":{\"met\":true,\"reason\":\"Successful sends are recorded and excluded from subsequent sequential runs.\"},\"RM3\":{\"met\":true,\"reason\":\"The appointment query excludes appointments marked as cancelled.\"}}",
+  "qwen": "{\"_code\": true, \"RM1\": {\"met\": true, \"reason\": \"The script uses ZoneInfo('America/New_York') for local time operations and computes 'tomorrow' via date arithmetic on localized datetime objects, ensuring 9:00 AM local time remains consistent across DST transitions.\"}, \"RM2\": {\"met\": true, \"reason\": \"The script queries only appointments without a corresponding entry in the ReminderLog table and inserts a log record upon successful SMS send, preventing duplicate reminders on subsequent runs.\"}, \"RM3\": {\"met\": true, \"reason\": \"The database query explicitly filters out appointments where is_cancelled is True using Appointment.is_cancelled.is_(False).\"}}",
+  "claude": "{\"_code\": true, \"RM1\": {\"met\": false, \"reason\": \"The script uses ZoneInfo only to compute tomorrow's date; the 9:00 trigger is a plain system cron line (0 9 * * *) that depends on the server's timezone and is not tied to LOCAL_TZ in code, so 9:00 local across DST is not ensured.\"}, \"RM2\": {\"met\": true, \"reason\": \"A ReminderLog table with a unique appointment_id is written after each successful send, and the query excludes appointments that already have a log entry.\"}, \"RM3\": {\"met\": true, \"reason\": \"The query filters on Appointment.is_cancelled.is_(False), so cancelled appointments are never selected.\"}}"
+ },
+ "judge_cost_usd": 0.0117406
+}

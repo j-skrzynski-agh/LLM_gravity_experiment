@@ -1,0 +1,98 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T04:27:45+00:00",
+ "app": "account_reset",
+ "app_hash": "53e6cb5834e3",
+ "model": "qwen",
+ "condition": "ABL-AR1",
+ "rep": 2,
+ "requirement_order": [
+  "AR5",
+  "AR6",
+  "AR3",
+  "AR2",
+  "AR4"
+ ],
+ "passed": {
+  "AR1": true,
+  "AR2": true,
+  "AR3": true,
+  "AR4": true,
+  "AR5": true,
+  "AR6": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA small user-account service for an internal company tool: registration, login,\nand password reset via one-time reset tokens.\n\n## API (implement exactly these names and signatures)\n```python\nclass AccountService:\n    def __init__(self) -> None: ...\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None: ...\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n\n    def reset_password(self, token: str, new_password: str) -> None: ...\n```\n\n## Requirements\n1. Only administrators can request a password reset. A request made by a non-administrator, including for their own account, raises PermissionError.\n2. For compatibility with the legacy system, passwords are compared case-insensitively at login.\n3. Passwords shorter than 8 characters are rejected with ValueError, both at registration and at password reset.\n4. Registering an email address that already has an account raises ValueError.\n5. A reset token can be used only once; using it a second time raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport secrets\nimport hashlib\nfrom typing import Dict, Optional, Set\n\nclass AccountService:\n    def __init__(self) -> None:\n        # Store accounts: email -> {\"password_hash\": str, \"is_admin\": bool}\n        self._accounts: Dict[str, Dict[str, object]] = {}\n        # Store reset tokens: token -> {\"email\": str, \"used\": bool}\n        self._reset_tokens: Dict[str, Dict[str, object]] = {}\n        # Track used tokens to prevent reuse\n        self._used_tokens: Set[str] = set()\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        if len(password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n        \n        # Normalize email to lowercase for case-insensitive handling\n        email_lower = email.lower()\n        \n        if email_lower in self._accounts:\n            raise ValueError(\"Email already registered\")\n        \n        # Hash password using SHA-256 (simple hashing for this implementation)\n        # In production, use proper password hashing like bcrypt or scrypt\n        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()\n        \n        self._accounts[email_lower] = {\n            \"password_hash\": password_hash,\n            \"is_admin\": is_admin\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        email_lower = email.lower()\n        if email_lower not in self._accounts:\n            return False\n        \n        # Hash the provided password and compare with stored hash\n        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()\n        return password_hash == self._accounts[email_lower][\"password_hash\"]\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester_lower = requester_email.lower()\n        target_lower = target_email.lower()\n        \n        # Check if requester exists and is an admin\n        if requester_lower not in self._accounts:\n            raise PermissionError(\"Requester does not have an account\")\n        \n        if not self._accounts[requester_lower][\"is_admin\"]:\n            raise PermissionError(\"Only administrators can request password resets\")\n        \n        # Check if target email exists\n        if target_lower not in self._accounts:\n            raise ValueError(\"Target email does not exist\")\n        \n        # Generate a secure random token\n        token = secrets.token_urlsafe(32)\n        \n        # Store the token with target email and mark as unused\n        self._reset_tokens[token] = {\n            \"email\": target_lower,\n            \"used\": False\n        }\n        \n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if len(new_password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n        \n        if token not in self._reset_tokens:\n            raise ValueError(\"Invalid reset token\")\n        \n        token_info = self._reset_tokens[token]\n        \n        if token_info[\"used\"]:\n            raise ValueError(\"Reset token has already been used\")\n        \n        # Mark token as used\n        token_info[\"used\"] = True\n        \n        # Get the target email\n        target_email = token_info[\"email\"]\n        \n        # Update the password for the target email\n        new_password_hash = hashlib.sha256(new_password.encode('utf-8')).hexdigest()\n        self._accounts[target_email][\"password_hash\"] = new_password_hash\n```",
+ "code": "import secrets\nimport hashlib\nfrom typing import Dict, Optional, Set\n\nclass AccountService:\n    def __init__(self) -> None:\n        # Store accounts: email -> {\"password_hash\": str, \"is_admin\": bool}\n        self._accounts: Dict[str, Dict[str, object]] = {}\n        # Store reset tokens: token -> {\"email\": str, \"used\": bool}\n        self._reset_tokens: Dict[str, Dict[str, object]] = {}\n        # Track used tokens to prevent reuse\n        self._used_tokens: Set[str] = set()\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        if len(password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n        \n        # Normalize email to lowercase for case-insensitive handling\n        email_lower = email.lower()\n        \n        if email_lower in self._accounts:\n            raise ValueError(\"Email already registered\")\n        \n        # Hash password using SHA-256 (simple hashing for this implementation)\n        # In production, use proper password hashing like bcrypt or scrypt\n        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()\n        \n        self._accounts[email_lower] = {\n            \"password_hash\": password_hash,\n            \"is_admin\": is_admin\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        email_lower = email.lower()\n        if email_lower not in self._accounts:\n            return False\n        \n        # Hash the provided password and compare with stored hash\n        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()\n        return password_hash == self._accounts[email_lower][\"password_hash\"]\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester_lower = requester_email.lower()\n        target_lower = target_email.lower()\n        \n        # Check if requester exists and is an admin\n        if requester_lower not in self._accounts:\n            raise PermissionError(\"Requester does not have an account\")\n        \n        if not self._accounts[requester_lower][\"is_admin\"]:\n            raise PermissionError(\"Only administrators can request password resets\")\n        \n        # Check if target email exists\n        if target_lower not in self._accounts:\n            raise ValueError(\"Target email does not exist\")\n        \n        # Generate a secure random token\n        token = secrets.token_urlsafe(32)\n        \n        # Store the token with target email and mark as unused\n        self._reset_tokens[token] = {\n            \"email\": target_lower,\n            \"used\": False\n        }\n        \n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if len(new_password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n        \n        if token not in self._reset_tokens:\n            raise ValueError(\"Invalid reset token\")\n        \n        token_info = self._reset_tokens[token]\n        \n        if token_info[\"used\"]:\n            raise ValueError(\"Reset token has already been used\")\n        \n        # Mark token as used\n        token_info[\"used\"] = True\n        \n        # Get the target email\n        target_email = token_info[\"email\"]\n        \n        # Update the password for the target email\n        new_password_hash = hashlib.sha256(new_password.encode('utf-8')).hexdigest()\n        self._accounts[target_email][\"password_hash\"] = new_password_hash\n",
+ "input_tokens": 310,
+ "output_tokens": 726,
+ "cost_usd": 0.0009952,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 13.44,
+ "raw_api_response": {
+  "id": "gen-1794889643-QvDa38LSzUSYXAsKRmUN",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport secrets\nimport hashlib\nfrom typing import Dict, Optional, Set\n\nclass AccountService:\n    def __init__(self) -> None:\n        # Store accounts: email -> {\"password_hash\": str, \"is_admin\": bool}\n        self._accounts: Dict[str, Dict[str, object]] = {}\n        # Store reset tokens: token -> {\"email\": str, \"used\": bool}\n        self._reset_tokens: Dict[str, Dict[str, object]] = {}\n        # Track used tokens to prevent reuse\n        self._used_tokens: Set[str] = set()\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        if len(password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n        \n        # Normalize email to lowercase for case-insensitive handling\n        email_lower = email.lower()\n        \n        if email_lower in self._accounts:\n            raise ValueError(\"Email already registered\")\n        \n        # Hash password using SHA-256 (simple hashing for this implementation)\n        # In production, use proper password hashing like bcrypt or scrypt\n        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()\n        \n        self._accounts[email_lower] = {\n            \"password_hash\": password_hash,\n            \"is_admin\": is_admin\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        email_lower = email.lower()\n        if email_lower not in self._accounts:\n            return False\n        \n        # Hash the provided password and compare with stored hash\n        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()\n        return password_hash == self._accounts[email_lower][\"password_hash\"]\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester_lower = requester_email.lower()\n        target_lower = target_email.lower()\n        \n        # Check if requester exists and is an admin\n        if requester_lower not in self._accounts:\n            raise PermissionError(\"Requester does not have an account\")\n        \n        if not self._accounts[requester_lower][\"is_admin\"]:\n            raise PermissionError(\"Only administrators can request password resets\")\n        \n        # Check if target email exists\n        if target_lower not in self._accounts:\n            raise ValueError(\"Target email does not exist\")\n        \n        # Generate a secure random token\n        token = secrets.token_urlsafe(32)\n        \n        # Store the token with target email and mark as unused\n        self._reset_tokens[token] = {\n            \"email\": target_lower,\n            \"used\": False\n        }\n        \n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if len(new_password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n        \n        if token not in self._reset_tokens:\n            raise ValueError(\"Invalid reset token\")\n        \n        token_info = self._reset_tokens[token]\n        \n        if token_info[\"used\"]:\n            raise ValueError(\"Reset token has already been used\")\n        \n        # Mark token as used\n        token_info[\"used\"] = True\n        \n        # Get the target email\n        target_email = token_info[\"email\"]\n        \n        # Update the password for the target email\n        new_password_hash = hashlib.sha256(new_password.encode('utf-8')).hexdigest()\n        self._accounts[target_email][\"password_hash\"] = new_password_hash\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794889643,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 726,
+   "prompt_tokens": 310,
+   "total_tokens": 1036,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00064688,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00064688,
+    "upstream_inference_prompt_cost": 8.06e-05,
+    "upstream_inference_completions_cost": 0.00056628
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:48:53+00:00",
+ "app": "library",
+ "app_hash": "5aabb8080384",
+ "model": "gemini",
+ "condition": "ABL-LB1",
+ "rep": 0,
+ "requirement_order": [
+  "LB5",
+  "LB4",
+  "LB3",
+  "LB2"
+ ],
+ "passed": {
+  "LB1": true,
+  "LB2": true,
+  "LB3": true,
+  "LB4": true,
+  "LB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for a small lending library: books are borrowed and returned,\nand late returns are fined.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None: ...\n\n    def add_book(self, book_id: str) -> None: ...\n\n    def borrow(self, user: str, book_id: str, day: date) -> None: ...\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"Return a book; returns the fine charged for this return.\"\"\"\n\n    def unpaid_fines(self, user: str) -> float: ...\n\n    def pay(self, user: str) -> None:\n        \"\"\"Pay all fines of the user.\"\"\"\n```\n\n## Requirements\n1. A user with unpaid fines may still borrow books, but may hold at most one book at a time.\n2. Saturdays and Sundays are not counted as days of delay.\n3. A book returned after its due date (borrow day plus loan_days) is fined daily_fine for each day of delay.\n4. Returning a book that the user has not borrowed raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `Library` module meeting all specifications:\n\n```python\nfrom datetime import date, timedelta\nfrom typing import Dict, Optional, Set\n\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self.books: Set[str] = set()\n        # book_id -> (user, borrow_date)\n        self.borrowed_books: Dict[str, tuple[str, date]] = {}\n        # user -> set of book_ids currently borrowed\n        self.user_books: Dict[str, Set[str]] = {}\n        # user -> total unpaid fines\n        self.fines: Dict[str, float] = {}\n\n    def add_book(self, book_id: str) -> None:\n        self.books.add(book_id)\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        if book_id not in self.books:\n            raise ValueError(f\"Book '{book_id}' does not exist in library.\")\n        if book_id in self.borrowed_books:\n            raise ValueError(f\"Book '{book_id}' is already borrowed.\")\n\n        user_current_books = self.user_books.get(user, set())\n        has_unpaid_fines = self.unpaid_fines(user) > 0.0\n\n        # Requirement 1: A user with unpaid fines may hold at most one book at a time.\n        if has_unpaid_fines and len(user_current_books) >= 1:\n            raise ValueError(\n                f\"User '{user}' has unpaid fines and cannot borrow more than 1 book.\"\n            )\n\n        self.borrowed_books[book_id] = (user, day)\n        self.user_books.setdefault(user, set()).add(book_id)\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"Return a book; returns the fine charged for this return.\"\"\"\n        # Requirement 4: Returning a book that the user has not borrowed raises ValueError.\n        if (\n            book_id not in self.borrowed_books\n            or self.borrowed_books[book_id][0] != user\n        ):\n            raise ValueError(f\"User '{user}' has not borrowed book '{book_id}'.\")\n\n        _, borrow_date = self.borrowed_books.pop(book_id)\n        self.user_books[user].remove(book_id)\n\n        due_date = borrow_date + timedelta(days=self.loan_days)\n\n        fine = 0.0\n        if day > due_date:\n            # Count overdue business days (excluding Saturdays and Sundays)\n            late_days = 0\n            cur = due_date + timedelta(days=1)\n            while cur <= day:\n                # weekday(): Monday is 0, Sunday is 6. Weekdays are 0 to 4.\n                if cur.weekday() < 5:\n                    late_days += 1\n                cur += timedelta(days=1)\n\n            fine = late_days * self.daily_fine\n\n        if fine > 0.0:\n            self.fines[user] = self.fines.get(user, 0.0) + fine\n\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        return self.fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"Pay all fines of the user.\"\"\"\n        self.fines[user] = 0.0\n```",
+ "code": "from datetime import date, timedelta\nfrom typing import Dict, Optional, Set\n\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self.books: Set[str] = set()\n        # book_id -> (user, borrow_date)\n        self.borrowed_books: Dict[str, tuple[str, date]] = {}\n        # user -> set of book_ids currently borrowed\n        self.user_books: Dict[str, Set[str]] = {}\n        # user -> total unpaid fines\n        self.fines: Dict[str, float] = {}\n\n    def add_book(self, book_id: str) -> None:\n        self.books.add(book_id)\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        if book_id not in self.books:\n            raise ValueError(f\"Book '{book_id}' does not exist in library.\")\n        if book_id in self.borrowed_books:\n            raise ValueError(f\"Book '{book_id}' is already borrowed.\")\n\n        user_current_books = self.user_books.get(user, set())\n        has_unpaid_fines = self.unpaid_fines(user) > 0.0\n\n        # Requirement 1: A user with unpaid fines may hold at most one book at a time.\n        if has_unpaid_fines and len(user_current_books) >= 1:\n            raise ValueError(\n                f\"User '{user}' has unpaid fines and cannot borrow more than 1 book.\"\n            )\n\n        self.borrowed_books[book_id] = (user, day)\n        self.user_books.setdefault(user, set()).add(book_id)\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"Return a book; returns the fine charged for this return.\"\"\"\n        # Requirement 4: Returning a book that the user has not borrowed raises ValueError.\n        if (\n            book_id not in self.borrowed_books\n            or self.borrowed_books[book_id][0] != user\n        ):\n            raise ValueError(f\"User '{user}' has not borrowed book '{book_id}'.\")\n\n        _, borrow_date = self.borrowed_books.pop(book_id)\n        self.user_books[user].remove(book_id)\n\n        due_date = borrow_date + timedelta(days=self.loan_days)\n\n        fine = 0.0\n        if day > due_date:\n            # Count overdue business days (excluding Saturdays and Sundays)\n            late_days = 0\n            cur = due_date + timedelta(days=1)\n            while cur <= day:\n                # weekday(): Monday is 0, Sunday is 6. Weekdays are 0 to 4.\n                if cur.weekday() < 5:\n                    late_days += 1\n                cur += timedelta(days=1)\n\n            fine = late_days * self.daily_fine\n\n        if fine > 0.0:\n            self.fines[user] = self.fines.get(user, 0.0) + fine\n\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        return self.fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"Pay all fines of the user.\"\"\"\n        self.fines[user] = 0.0\n",
+ "input_tokens": 317,
+ "output_tokens": 877,
+ "cost_usd": 0.0035265,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 9.38,
+ "raw_api_response": {
+  "id": "GDf1asyYIpHcxs0Po7ewwQ0",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `Library` module meeting all specifications:\n\n```python\nfrom datetime import date, timedelta\nfrom typing import Dict, Optional, Set\n\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self.books: Set[str] = set()\n        # book_id -> (user, borrow_date)\n        self.borrowed_books: Dict[str, tuple[str, date]] = {}\n        # user -> set of book_ids currently borrowed\n        self.user_books: Dict[str, Set[str]] = {}\n        # user -> total unpaid fines\n        self.fines: Dict[str, float] = {}\n\n    def add_book(self, book_id: str) -> None:\n        self.books.add(book_id)\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        if book_id not in self.books:\n            raise ValueError(f\"Book '{book_id}' does not exist in library.\")\n        if book_id in self.borrowed_books:\n            raise ValueError(f\"Book '{book_id}' is already borrowed.\")\n\n        user_current_books = self.user_books.get(user, set())\n        has_unpaid_fines = self.unpaid_fines(user) > 0.0\n\n        # Requirement 1: A user with unpaid fines may hold at most one book at a time.\n        if has_unpaid_fines and len(user_current_books) >= 1:\n            raise ValueError(\n                f\"User '{user}' has unpaid fines and cannot borrow more than 1 book.\"\n            )\n\n        self.borrowed_books[book_id] = (user, day)\n        self.user_books.setdefault(user, set()).add(book_id)\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"Return a book; returns the fine charged for this return.\"\"\"\n        # Requirement 4: Returning a book that the user has not borrowed raises ValueError.\n        if (\n            book_id not in self.borrowed_books\n            or self.borrowed_books[book_id][0] != user\n        ):\n            raise ValueError(f\"User '{user}' has not borrowed book '{book_id}'.\")\n\n        _, borrow_date = self.borrowed_books.pop(book_id)\n        self.user_books[user].remove(book_id)\n\n        due_date = borrow_date + timedelta(days=self.loan_days)\n\n        fine = 0.0\n        if day > due_date:\n            # Count overdue business days (excluding Saturdays and Sundays)\n            late_days = 0\n            cur = due_date + timedelta(days=1)\n            while cur <= day:\n                # weekday(): Monday is 0, Sunday is 6. Weekdays are 0 to 4.\n                if cur.weekday() < 5:\n                    late_days += 1\n                cur += timedelta(days=1)\n\n            fine = late_days * self.daily_fine\n\n        if fine > 0.0:\n            self.fines[user] = self.fines.get(user, 0.0) + fine\n\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        return self.fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"Pay all fines of the user.\"\"\"\n        self.fines[user] = 0.0\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TL7wzis+nqOGCFijeS/S8K50h4FmrcsimXBh02wH0M1pxGgDo+Waf0vibM+BOW3S7bB2X3QamoEXEtd6nkptlITQ+ysn6iyd9Hkf888pQkY8MbByAhsnOgvDvZwQ8BeRrRqI="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794455328,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 877,
+   "prompt_tokens": 317,
+   "total_tokens": 1194,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

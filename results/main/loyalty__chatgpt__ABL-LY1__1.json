@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:50:56+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "chatgpt",
+ "condition": "ABL-LY1",
+ "rep": 1,
+ "requirement_order": [
+  "LY4",
+  "LY3",
+  "LY5",
+  "LY2"
+ ],
+ "passed": {
+  "LY1": false,
+  "LY2": true,
+  "LY3": true,
+  "LY4": true,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA customer loyalty program: customers earn points for purchases and redeem them later.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None: ...\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n\n    def redeem(self, customer: str, points: int, day: date) -> None: ...\n```\n\n## Requirements\n1. Points from a purchase become available only 14 days after the purchase.\n2. Customers earn 1 point for every full 10.00 spent (for example, 59.99 gives 5 points).\n3. Points can be redeemed only in multiples of 100; other amounts raise ValueError.\n4. Redeeming more points than the available balance raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date\nfrom decimal import Decimal\nfrom math import floor\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self._purchases: dict[str, list[tuple[date, int]]] = {}\n        self._redemptions: dict[str, list[tuple[date, int]]] = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        earned = floor(Decimal(str(amount)) / 10)\n        self._purchases.setdefault(customer, []).append((day, earned))\n        return earned\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        earned = sum(\n            points\n            for purchase_day, points in self._purchases.get(customer, [])\n            if (day - purchase_day).days >= 14\n        )\n        redeemed = sum(\n            points\n            for redemption_day, points in self._redemptions.get(customer, [])\n            if redemption_day <= day\n        )\n        return earned - redeemed\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points < 0 or points % 100 != 0:\n            raise ValueError(\"Points must be a nonnegative multiple of 100\")\n        if points > self.balance(customer, day):\n            raise ValueError(\"Insufficient available points\")\n        self._redemptions.setdefault(customer, []).append((day, points))\n```",
+ "code": "from datetime import date\nfrom decimal import Decimal\nfrom math import floor\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self._purchases: dict[str, list[tuple[date, int]]] = {}\n        self._redemptions: dict[str, list[tuple[date, int]]] = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        earned = floor(Decimal(str(amount)) / 10)\n        self._purchases.setdefault(customer, []).append((day, earned))\n        return earned\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        earned = sum(\n            points\n            for purchase_day, points in self._purchases.get(customer, [])\n            if (day - purchase_day).days >= 14\n        )\n        redeemed = sum(\n            points\n            for redemption_day, points in self._redemptions.get(customer, [])\n            if redemption_day <= day\n        )\n        return earned - redeemed\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points < 0 or points % 100 != 0:\n            raise ValueError(\"Points must be a nonnegative multiple of 100\")\n        if points > self.balance(customer, day):\n            raise ValueError(\"Insufficient available points\")\n        self._redemptions.setdefault(customer, []).append((day, points))\n",
+ "input_tokens": 240,
+ "output_tokens": 627,
+ "cost_usd": 0.003375,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 8.72,
+ "raw_api_response": {
+  "id": "chatcmpl-EjH3iSTiNspdhDJN4MYNb9uSVNXu5",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date\nfrom decimal import Decimal\nfrom math import floor\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self._purchases: dict[str, list[tuple[date, int]]] = {}\n        self._redemptions: dict[str, list[tuple[date, int]]] = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        earned = floor(Decimal(str(amount)) / 10)\n        self._purchases.setdefault(customer, []).append((day, earned))\n        return earned\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        earned = sum(\n            points\n            for purchase_day, points in self._purchases.get(customer, [])\n            if (day - purchase_day).days >= 14\n        )\n        redeemed = sum(\n            points\n            for redemption_day, points in self._redemptions.get(customer, [])\n            if redemption_day <= day\n        )\n        return earned - redeemed\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points < 0 or points % 100 != 0:\n            raise ValueError(\"Points must be a nonnegative multiple of 100\")\n        if points > self.balance(customer, day):\n            raise ValueError(\"Insufficient available points\")\n        self._redemptions.setdefault(customer, []).append((day, points))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794459042,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 627,
+   "prompt_tokens": 240,
+   "total_tokens": 867,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 290,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

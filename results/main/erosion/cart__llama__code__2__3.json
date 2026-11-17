@@ -1,0 +1,93 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-162524-afc6",
+ "timestamp": "2026-11-17T17:44:28+00:00",
+ "app": "cart",
+ "app_hash": "33d14211d923",
+ "model": "llama",
+ "variant": "code",
+ "rep": 2,
+ "step": 3,
+ "change": "Add a method `remove(self, name: str) -> None` that removes an item from the cart.",
+ "start_file": "cart__llama__FULL__2.json",
+ "passed": {
+  "CT1": true,
+  "CT2": true,
+  "CT3": true,
+  "CT4": true,
+  "CT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        \"\"\"\n        Initialize the shopping cart.\n\n        Args:\n        free_shipping_threshold (float): The minimum amount required for free shipping. Defaults to 100.0.\n        shipping_cost (float): The cost of shipping. Defaults to 15.0.\n        \"\"\"\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items = []\n        self.discounts = []\n        self.vouchers = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        \"\"\"\n        Add an item to the cart.\n\n        Args:\n        name (str): The name of the item.\n        unit_price (float): The price of the item.\n        quantity (int): The quantity of the item. Defaults to 1.\n\n        Raises:\n        ValueError: If the quantity is less than or equal to 0.\n        \"\"\"\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than 0\")\n        self.items.append({\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity})\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"\n        Register a percentage discount on the whole cart.\n\n        Args:\n        percent (float): The percentage discount.\n        \"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"\n        Register a voucher worth a fixed amount.\n\n        Args:\n        amount (float): The amount of the voucher.\n        \"\"\"\n        self.vouchers.append(amount)\n\n    def get_items(self) -> list[dict]:\n        \"\"\"\n        Return the items in the cart.\n\n        Returns:\n        list[dict]: A list of dictionaries containing the item details.\n        \"\"\"\n        return self.items\n\n    def item_count(self) -> int:\n        \"\"\"\n        Return the total quantity of all items in the cart.\n\n        Returns:\n        int: The total quantity of all items.\n        \"\"\"\n        return sum(item[\"quantity\"] for item in self.items)\n\n    def total(self) -> float:\n        \"\"\"\n        Calculate the total amount to pay, including discounts and shipping.\n\n        Returns:\n        float: The total amount to pay, rounded to two decimal places.\n        \"\"\"\n        # Calculate the total price of items before discounts\n        total_price = sum(item[\"unit_price\"] * item[\"quantity\"] for item in self.items)\n\n        # Check if the free shipping threshold is met\n        shipping = self.shipping_cost if total_price < self.free_shipping_threshold else 0\n\n        # Apply the best discount\n        best_discount = max(self.discounts, default=0)\n        total_price *= (1 - best_discount / 100)\n\n        # Apply vouchers\n        for voucher in self.vouchers:\n            total_price = max(0, total_price - voucher)\n\n        # Calculate the total amount to pay\n        total_amount = total_price + shipping\n\n        # Round the total amount to two decimal places\n        return round(total_amount, 2)\n```\n\n## Change request\nAdd a method `remove(self, name: str) -> None` that removes an item from the cart.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        \"\"\"\n        Initialize the shopping cart.\n\n        Args:\n        free_shipping_threshold (float): The minimum amount required for free shipping. Defaults to 100.0.\n        shipping_cost (float): The cost of shipping. Defaults to 15.0.\n        \"\"\"\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items = []\n        self.discounts = []\n        self.vouchers = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        \"\"\"\n        Add an item to the cart.\n\n        Args:\n        name (str): The name of the item.\n        unit_price (float): The price of the item.\n        quantity (int): The quantity of the item. Defaults to 1.\n\n        Raises:\n        ValueError: If the quantity is less than or equal to 0.\n        \"\"\"\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than 0\")\n        self.items.append({\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity})\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"\n        Register a percentage discount on the whole cart.\n\n        Args:\n        percent (float): The percentage discount.\n        \"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"\n        Register a voucher worth a fixed amount.\n\n        Args:\n        amount (float): The amount of the voucher.\n        \"\"\"\n        self.vouchers.append(amount)\n\n    def get_items(self) -> list[dict]:\n        \"\"\"\n        Return the items in the cart.\n\n        Returns:\n        list[dict]: A list of dictionaries containing the item details.\n        \"\"\"\n        return self.items\n\n    def item_count(self) -> int:\n        \"\"\"\n        Return the total quantity of all items in the cart.\n\n        Returns:\n        int: The total quantity of all items.\n        \"\"\"\n        return sum(item[\"quantity\"] for item in self.items)\n\n    def remove(self, name: str) -> None:\n        \"\"\"\n        Remove an item from the cart.\n\n        Args:\n        name (str): The name of the item to remove.\n\n        Raises:\n        ValueError: If the item is not found in the cart.\n        \"\"\"\n        for item in self.items:\n            if item[\"name\"] == name:\n                self.items.remove(item)\n                return\n        raise ValueError(\"Item not found in the cart\")\n\n    def total(self) -> float:\n        \"\"\"\n        Calculate the total amount to pay, including discounts and shipping.\n\n        Returns:\n        float: The total amount to pay, rounded to two decimal places.\n        \"\"\"\n        # Calculate the total price of items before discounts\n        total_price = sum(item[\"unit_price\"] * item[\"quantity\"] for item in self.items)\n\n        # Check if the free shipping threshold is met\n        shipping = self.shipping_cost if total_price < self.free_shipping_threshold else 0\n\n        # Apply the best discount\n        best_discount = max(self.discounts, default=0)\n        total_price *= (1 - best_discount / 100)\n\n        # Apply vouchers\n        for voucher in self.vouchers:\n            total_price = max(0, total_price - voucher)\n\n        # Calculate the total amount to pay\n        total_amount = total_price + shipping\n\n        # Round the total amount to two decimal places\n        return round(total_amount, 2)\n```",
+ "code": "class Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        \"\"\"\n        Initialize the shopping cart.\n\n        Args:\n        free_shipping_threshold (float): The minimum amount required for free shipping. Defaults to 100.0.\n        shipping_cost (float): The cost of shipping. Defaults to 15.0.\n        \"\"\"\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items = []\n        self.discounts = []\n        self.vouchers = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        \"\"\"\n        Add an item to the cart.\n\n        Args:\n        name (str): The name of the item.\n        unit_price (float): The price of the item.\n        quantity (int): The quantity of the item. Defaults to 1.\n\n        Raises:\n        ValueError: If the quantity is less than or equal to 0.\n        \"\"\"\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than 0\")\n        self.items.append({\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity})\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"\n        Register a percentage discount on the whole cart.\n\n        Args:\n        percent (float): The percentage discount.\n        \"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"\n        Register a voucher worth a fixed amount.\n\n        Args:\n        amount (float): The amount of the voucher.\n        \"\"\"\n        self.vouchers.append(amount)\n\n    def get_items(self) -> list[dict]:\n        \"\"\"\n        Return the items in the cart.\n\n        Returns:\n        list[dict]: A list of dictionaries containing the item details.\n        \"\"\"\n        return self.items\n\n    def item_count(self) -> int:\n        \"\"\"\n        Return the total quantity of all items in the cart.\n\n        Returns:\n        int: The total quantity of all items.\n        \"\"\"\n        return sum(item[\"quantity\"] for item in self.items)\n\n    def remove(self, name: str) -> None:\n        \"\"\"\n        Remove an item from the cart.\n\n        Args:\n        name (str): The name of the item to remove.\n\n        Raises:\n        ValueError: If the item is not found in the cart.\n        \"\"\"\n        for item in self.items:\n            if item[\"name\"] == name:\n                self.items.remove(item)\n                return\n        raise ValueError(\"Item not found in the cart\")\n\n    def total(self) -> float:\n        \"\"\"\n        Calculate the total amount to pay, including discounts and shipping.\n\n        Returns:\n        float: The total amount to pay, rounded to two decimal places.\n        \"\"\"\n        # Calculate the total price of items before discounts\n        total_price = sum(item[\"unit_price\"] * item[\"quantity\"] for item in self.items)\n\n        # Check if the free shipping threshold is met\n        shipping = self.shipping_cost if total_price < self.free_shipping_threshold else 0\n\n        # Apply the best discount\n        best_discount = max(self.discounts, default=0)\n        total_price *= (1 - best_discount / 100)\n\n        # Apply vouchers\n        for voucher in self.vouchers:\n            total_price = max(0, total_price - voucher)\n\n        # Calculate the total amount to pay\n        total_amount = total_price + shipping\n\n        # Round the total amount to two decimal places\n        return round(total_amount, 2)\n",
+ "input_tokens": 722,
+ "output_tokens": 748,
+ "cost_usd": 0.00031156,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.59,
+ "raw_api_response": {
+  "id": "gen-1794937456-HMZfl1G2wRRmlGlxmV3n",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Cart:\n    def __init__(self, free_shipping_threshold: float = 100.0, shipping_cost: float = 15.0) -> None:\n        \"\"\"\n        Initialize the shopping cart.\n\n        Args:\n        free_shipping_threshold (float): The minimum amount required for free shipping. Defaults to 100.0.\n        shipping_cost (float): The cost of shipping. Defaults to 15.0.\n        \"\"\"\n        self.free_shipping_threshold = free_shipping_threshold\n        self.shipping_cost = shipping_cost\n        self.items = []\n        self.discounts = []\n        self.vouchers = []\n\n    def add(self, name: str, unit_price: float, quantity: int = 1) -> None:\n        \"\"\"\n        Add an item to the cart.\n\n        Args:\n        name (str): The name of the item.\n        unit_price (float): The price of the item.\n        quantity (int): The quantity of the item. Defaults to 1.\n\n        Raises:\n        ValueError: If the quantity is less than or equal to 0.\n        \"\"\"\n        if quantity <= 0:\n            raise ValueError(\"Quantity must be greater than 0\")\n        self.items.append({\"name\": name, \"unit_price\": unit_price, \"quantity\": quantity})\n\n    def apply_discount(self, percent: float) -> None:\n        \"\"\"\n        Register a percentage discount on the whole cart.\n\n        Args:\n        percent (float): The percentage discount.\n        \"\"\"\n        self.discounts.append(percent)\n\n    def apply_voucher(self, amount: float) -> None:\n        \"\"\"\n        Register a voucher worth a fixed amount.\n\n        Args:\n        amount (float): The amount of the voucher.\n        \"\"\"\n        self.vouchers.append(amount)\n\n    def get_items(self) -> list[dict]:\n        \"\"\"\n        Return the items in the cart.\n\n        Returns:\n        list[dict]: A list of dictionaries containing the item details.\n        \"\"\"\n        return self.items\n\n    def item_count(self) -> int:\n        \"\"\"\n        Return the total quantity of all items in the cart.\n\n        Returns:\n        int: The total quantity of all items.\n        \"\"\"\n        return sum(item[\"quantity\"] for item in self.items)\n\n    def remove(self, name: str) -> None:\n        \"\"\"\n        Remove an item from the cart.\n\n        Args:\n        name (str): The name of the item to remove.\n\n        Raises:\n        ValueError: If the item is not found in the cart.\n        \"\"\"\n        for item in self.items:\n            if item[\"name\"] == name:\n                self.items.remove(item)\n                return\n        raise ValueError(\"Item not found in the cart\")\n\n    def total(self) -> float:\n        \"\"\"\n        Calculate the total amount to pay, including discounts and shipping.\n\n        Returns:\n        float: The total amount to pay, rounded to two decimal places.\n        \"\"\"\n        # Calculate the total price of items before discounts\n        total_price = sum(item[\"unit_price\"] * item[\"quantity\"] for item in self.items)\n\n        # Check if the free shipping threshold is met\n        shipping = self.shipping_cost if total_price < self.free_shipping_threshold else 0\n\n        # Apply the best discount\n        best_discount = max(self.discounts, default=0)\n        total_price *= (1 - best_discount / 100)\n\n        # Apply vouchers\n        for voucher in self.vouchers:\n            total_price = max(0, total_price - voucher)\n\n        # Calculate the total amount to pay\n        total_amount = total_price + shipping\n\n        # Round the total amount to two decimal places\n        return round(total_amount, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794937456,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 748,
+   "prompt_tokens": 722,
+   "total_tokens": 1470,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 352,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.0010437,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.0010437,
+    "upstream_inference_prompt_cost": 0.00051262,
+    "upstream_inference_completions_cost": 0.00053108
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

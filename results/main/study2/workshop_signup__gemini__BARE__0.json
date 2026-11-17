@@ -1,0 +1,122 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:50:31+00:00",
+ "task": "workshop_signup",
+ "task_hash": "0c55ad8ae293",
+ "model": "gemini",
+ "condition": "BARE",
+ "rep": 0,
+ "requirement_order": [],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Make a small web app for signing up for our workshop. There are 20 seats; people enter their name and email and get a seat.",
+ "response": "Here is a complete, single-file web app (HTML + CSS + JavaScript) ready to run in any browser. \n\nIt handles signups, tracks the remaining seats out of 20, validates inputs, prevents duplicate emails, and uses browser `localStorage` so registrations persist even if you refresh the page.\n\n### How to use:\n1. Save the code below into a file named `index.html`.\n2. Double-click the file to open it in your browser.\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Workshop Registration</title>\n  <style>\n    :root {\n      --primary: #4F46E5;\n      --primary-hover: #4338CA;\n      --bg: #F3F4F6;\n      --card: #FFFFFF;\n      --text: #1F2937;\n      --text-muted: #6B7280;\n      --border: #E5E7EB;\n      --danger: #EF4444;\n      --success: #10B981;\n    }\n\n    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }\n    body { background-color: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 2rem 1rem; min-height: 100vh; }\n    \n    .container { width: 100%; max-width: 480px; }\n    .card { background: var(--card); border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); }\n    \n    header { text-align: center; margin-bottom: 1.5rem; }\n    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }\n    p { color: var(--text-muted); font-size: 0.95rem; }\n\n    /* Counter badge */\n    .seat-badge {\n      display: inline-block;\n      margin-top: 1rem;\n      padding: 0.5rem 1rem;\n      border-radius: 9999px;\n      font-weight: 600;\n      font-size: 0.875rem;\n      background: #EEF2FF;\n      color: var(--primary);\n    }\n    .seat-badge.sold-out { background: #FEE2E2; color: var(--danger); }\n\n    /* Form Styles */\n    form { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; }\n    .field { display: flex; flex-direction: column; gap: 0.25rem; text-align: left; }\n    label { font-size: 0.85rem; font-weight: 500; }\n    input {\n      padding: 0.75rem;\n      border: 1px solid var(--border);\n      border-radius: 6px;\n      font-size: 1rem;\n      outline: none;\n      transition: border-color 0.2s;\n    }\n    input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }\n\n    button {\n      padding: 0.75rem;\n      border: none;\n      border-radius: 6px;\n      background: var(--primary);\n      color: white;\n      font-size: 1rem;\n      font-weight: 600;\n      cursor: pointer;\n      transition: background 0.2s;\n    }\n    button:hover:not(:disabled) { background: var(--primary-hover); }\n    button:disabled { opacity: 0.6; cursor: not-allowed; }\n\n    /* Messages */\n    .alert { padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 1rem; display: none; }\n    .alert.error { background: #FEE2E2; color: var(--danger); display: block; }\n    .alert.success { background: #D1FAE5; color: #065F46; display: block; }\n\n    /* Attendee List */\n    .attendees-section { margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }\n    .attendees-section h2 { font-size: 1.1rem; margin-bottom: 0.75rem; }\n    .attendee-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; max-height: 200px; overflow-y: auto; }\n    .attendee-item { font-size: 0.9rem; display: flex; justify-content: space-between; padding: 0.5rem; background: var(--bg); border-radius: 4px; }\n  </style>\n</head>\n<body>\n\n  <div class=\"container\">\n    <div class=\"card\">\n      <header>\n        <h1>Exclusive Workshop</h1>\n        <p>Join us for an intensive learning session.</p>\n        <div id=\"seatBadge\" class=\"seat-badge\">Loading seats...</div>\n      </header>\n\n      <div id=\"alertBox\" class=\"alert\"></div>\n\n      <form id=\"signupForm\">\n        <div class=\"field\">\n          <label for=\"name\">Full Name</label>\n          <input type=\"text\" id=\"name\" required placeholder=\"Jane Doe\" autocomplete=\"name\">\n        </div>\n        <div class=\"field\">\n          <label for=\"email\">Email Address</label>\n          <input type=\"email\" id=\"email\" required placeholder=\"jane@example.com\" autocomplete=\"email\">\n        </div>\n        <button type=\"submit\" id=\"submitBtn\">Claim Seat</button>\n      </form>\n\n      <section class=\"attendees-section\">\n        <h2>Registered Guests (<span id=\"count\">0</span>/20)</h2>\n        <ul id=\"attendeeList\" class=\"attendee-list\"></ul>\n      </section>\n    </div>\n  </div>\n\n  <script>\n    const TOTAL_SEATS = 20;\n    \n    // Load existing attendees from localStorage, or start empty\n    let attendees = JSON.parse(localStorage.getItem('workshop_attendees')) || [];\n\n    // DOM Elements\n    const form = document.getElementById('signupForm');\n    const nameInput = document.getElementById('name');\n    const emailInput = document.getElementById('email');\n    const submitBtn = document.getElementById('submitBtn');\n    const badge = document.getElementById('seatBadge');\n    const alertBox = document.getElementById('alertBox');\n    const list = document.getElementById('attendeeList');\n    const countSpan = document.getElementById('count');\n\n    function showAlert(message, type) {\n      alertBox.textContent = message;\n      alertBox.className = `alert ${type}`;\n    }\n\n    function hideAlert() {\n      alertBox.className = 'alert';\n      alertBox.textContent = '';\n    }\n\n    function updateUI() {\n      const remaining = TOTAL_SEATS - attendees.length;\n      countSpan.textContent = attendees.length;\n\n      // Update badge status\n      if (remaining <= 0) {\n        badge.textContent = \"Sold Out!\";\n        badge.classList.add('sold-out');\n        submitBtn.disabled = true;\n        nameInput.disabled = true;\n        emailInput.disabled = true;\n      } else {\n        badge.textContent = `${remaining} seat${remaining === 1 ? '' : 's'} remaining`;\n        badge.classList.remove('sold-out');\n        submitBtn.disabled = false;\n        nameInput.disabled = false;\n        emailInput.disabled = false;\n      }\n\n      // Update attendees list preview\n      list.innerHTML = '';\n      attendees.forEach((att) => {\n        const li = document.createElement('li');\n        li.className = 'attendee-item';\n        li.innerHTML = `<span>${att.name}</span> <span style=\"color:var(--text-muted)\">${att.email}</span>`;\n        list.appendChild(li);\n      });\n    }\n\n    form.addEventListener('submit', (e) => {\n      e.preventDefault();\n      hideAlert();\n\n      const name = nameInput.value.trim();\n      const email = emailInput.value.trim().toLowerCase();\n\n      // Check capacity\n      if (attendees.length >= TOTAL_SEATS) {\n        showAlert(\"Sorry, all 20 seats are filled!\", \"error\");\n        return;\n      }\n\n      // Check duplicates\n      const emailExists = attendees.some(attendee => attendee.email.toLowerCase() === email);\n      if (emailExists) {\n        showAlert(\"This email address is already registered.\", \"error\");\n        return;\n      }\n\n      // Save attendee\n      attendees.push({ name, email });\n      localStorage.setItem('workshop_attendees', JSON.stringify(attendees));\n\n      // Reset and acknowledge\n      nameInput.value = '';\n      emailInput.value = '';\n      showAlert(`Success! Seat reserved for ${name}.`, \"success\");\n      \n      updateUI();\n    });\n\n    // Initial render on load\n    updateUI();\n  </script>\n</body>\n</html>\n```\n\n### Features included:\n* **Seat Availability Tracking:** Dynamically counts down from 20 to 0.\n* **Duplicate Detection:** Prevents users from registering multiple times with the same email.\n* **Local Persistence:** Data is stored in `localStorage`, meaning registrations remain saved if you refresh or close the tab.\n* **Sold Out State:** Disables the form fields and buttons automatically when the 20-seat limit is reached.",
+ "input_tokens": 31,
+ "output_tokens": 2387,
+ "cost_usd": 0.0089745,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 14.05,
+ "raw_api_response": {
+  "id": "yF72arLVCr2DkdUPjI_TkAY",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a complete, single-file web app (HTML + CSS + JavaScript) ready to run in any browser. \n\nIt handles signups, tracks the remaining seats out of 20, validates inputs, prevents duplicate emails, and uses browser `localStorage` so registrations persist even if you refresh the page.\n\n### How to use:\n1. Save the code below into a file named `index.html`.\n2. Double-click the file to open it in your browser.\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Workshop Registration</title>\n  <style>\n    :root {\n      --primary: #4F46E5;\n      --primary-hover: #4338CA;\n      --bg: #F3F4F6;\n      --card: #FFFFFF;\n      --text: #1F2937;\n      --text-muted: #6B7280;\n      --border: #E5E7EB;\n      --danger: #EF4444;\n      --success: #10B981;\n    }\n\n    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }\n    body { background-color: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 2rem 1rem; min-height: 100vh; }\n    \n    .container { width: 100%; max-width: 480px; }\n    .card { background: var(--card); border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); }\n    \n    header { text-align: center; margin-bottom: 1.5rem; }\n    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }\n    p { color: var(--text-muted); font-size: 0.95rem; }\n\n    /* Counter badge */\n    .seat-badge {\n      display: inline-block;\n      margin-top: 1rem;\n      padding: 0.5rem 1rem;\n      border-radius: 9999px;\n      font-weight: 600;\n      font-size: 0.875rem;\n      background: #EEF2FF;\n      color: var(--primary);\n    }\n    .seat-badge.sold-out { background: #FEE2E2; color: var(--danger); }\n\n    /* Form Styles */\n    form { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; }\n    .field { display: flex; flex-direction: column; gap: 0.25rem; text-align: left; }\n    label { font-size: 0.85rem; font-weight: 500; }\n    input {\n      padding: 0.75rem;\n      border: 1px solid var(--border);\n      border-radius: 6px;\n      font-size: 1rem;\n      outline: none;\n      transition: border-color 0.2s;\n    }\n    input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }\n\n    button {\n      padding: 0.75rem;\n      border: none;\n      border-radius: 6px;\n      background: var(--primary);\n      color: white;\n      font-size: 1rem;\n      font-weight: 600;\n      cursor: pointer;\n      transition: background 0.2s;\n    }\n    button:hover:not(:disabled) { background: var(--primary-hover); }\n    button:disabled { opacity: 0.6; cursor: not-allowed; }\n\n    /* Messages */\n    .alert { padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 1rem; display: none; }\n    .alert.error { background: #FEE2E2; color: var(--danger); display: block; }\n    .alert.success { background: #D1FAE5; color: #065F46; display: block; }\n\n    /* Attendee List */\n    .attendees-section { margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }\n    .attendees-section h2 { font-size: 1.1rem; margin-bottom: 0.75rem; }\n    .attendee-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; max-height: 200px; overflow-y: auto; }\n    .attendee-item { font-size: 0.9rem; display: flex; justify-content: space-between; padding: 0.5rem; background: var(--bg); border-radius: 4px; }\n  </style>\n</head>\n<body>\n\n  <div class=\"container\">\n    <div class=\"card\">\n      <header>\n        <h1>Exclusive Workshop</h1>\n        <p>Join us for an intensive learning session.</p>\n        <div id=\"seatBadge\" class=\"seat-badge\">Loading seats...</div>\n      </header>\n\n      <div id=\"alertBox\" class=\"alert\"></div>\n\n      <form id=\"signupForm\">\n        <div class=\"field\">\n          <label for=\"name\">Full Name</label>\n          <input type=\"text\" id=\"name\" required placeholder=\"Jane Doe\" autocomplete=\"name\">\n        </div>\n        <div class=\"field\">\n          <label for=\"email\">Email Address</label>\n          <input type=\"email\" id=\"email\" required placeholder=\"jane@example.com\" autocomplete=\"email\">\n        </div>\n        <button type=\"submit\" id=\"submitBtn\">Claim Seat</button>\n      </form>\n\n      <section class=\"attendees-section\">\n        <h2>Registered Guests (<span id=\"count\">0</span>/20)</h2>\n        <ul id=\"attendeeList\" class=\"attendee-list\"></ul>\n      </section>\n    </div>\n  </div>\n\n  <script>\n    const TOTAL_SEATS = 20;\n    \n    // Load existing attendees from localStorage, or start empty\n    let attendees = JSON.parse(localStorage.getItem('workshop_attendees')) || [];\n\n    // DOM Elements\n    const form = document.getElementById('signupForm');\n    const nameInput = document.getElementById('name');\n    const emailInput = document.getElementById('email');\n    const submitBtn = document.getElementById('submitBtn');\n    const badge = document.getElementById('seatBadge');\n    const alertBox = document.getElementById('alertBox');\n    const list = document.getElementById('attendeeList');\n    const countSpan = document.getElementById('count');\n\n    function showAlert(message, type) {\n      alertBox.textContent = message;\n      alertBox.className = `alert ${type}`;\n    }\n\n    function hideAlert() {\n      alertBox.className = 'alert';\n      alertBox.textContent = '';\n    }\n\n    function updateUI() {\n      const remaining = TOTAL_SEATS - attendees.length;\n      countSpan.textContent = attendees.length;\n\n      // Update badge status\n      if (remaining <= 0) {\n        badge.textContent = \"Sold Out!\";\n        badge.classList.add('sold-out');\n        submitBtn.disabled = true;\n        nameInput.disabled = true;\n        emailInput.disabled = true;\n      } else {\n        badge.textContent = `${remaining} seat${remaining === 1 ? '' : 's'} remaining`;\n        badge.classList.remove('sold-out');\n        submitBtn.disabled = false;\n        nameInput.disabled = false;\n        emailInput.disabled = false;\n      }\n\n      // Update attendees list preview\n      list.innerHTML = '';\n      attendees.forEach((att) => {\n        const li = document.createElement('li');\n        li.className = 'attendee-item';\n        li.innerHTML = `<span>${att.name}</span> <span style=\"color:var(--text-muted)\">${att.email}</span>`;\n        list.appendChild(li);\n      });\n    }\n\n    form.addEventListener('submit', (e) => {\n      e.preventDefault();\n      hideAlert();\n\n      const name = nameInput.value.trim();\n      const email = emailInput.value.trim().toLowerCase();\n\n      // Check capacity\n      if (attendees.length >= TOTAL_SEATS) {\n        showAlert(\"Sorry, all 20 seats are filled!\", \"error\");\n        return;\n      }\n\n      // Check duplicates\n      const emailExists = attendees.some(attendee => attendee.email.toLowerCase() === email);\n      if (emailExists) {\n        showAlert(\"This email address is already registered.\", \"error\");\n        return;\n      }\n\n      // Save attendee\n      attendees.push({ name, email });\n      localStorage.setItem('workshop_attendees', JSON.stringify(attendees));\n\n      // Reset and acknowledge\n      nameInput.value = '';\n      emailInput.value = '';\n      showAlert(`Success! Seat reserved for ${name}.`, \"success\");\n      \n      updateUI();\n    });\n\n    // Initial render on load\n    updateUI();\n  </script>\n</body>\n</html>\n```\n\n### Features included:\n* **Seat Availability Tracking:** Dynamically counts down from 20 to 0.\n* **Duplicate Detection:** Prevents users from registering multiple times with the same email.\n* **Local Persistence:** Data is stored in `localStorage`, meaning registrations remain saved if you refresh or close the tab.\n* **Sold Out State:** Disables the form fields and buttons automatically when the 20-seat limit is reached.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TYE0ryKX6DizNu6R7GXx1CxJa5MUcSu1e9VjSMzR592wqGq4eK0LD4PfyOwHhfP5RT8l5wv6V33uI1ZiQ/zr6MsKUZ/zl30LLJd2cHo5iXRucKQkU+0bZ58ROGyqRVuhhBSA="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794531030,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 2387,
+   "prompt_tokens": 31,
+   "total_tokens": 2418,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "WS1": {
+     "met": false,
+     "reason": "Bookings are stored separately in each browser and the seat check and write are not atomic."
+    },
+    "WS2": {
+     "met": false,
+     "reason": "Duplicate detection only checks the current browser's stored registrations, so the same email can register elsewhere."
+    },
+    "WS3": {
+     "met": false,
+     "reason": "The app renders registered participants' names and email addresses in the attendee list visible to anyone using that browser."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "WS1": {
+     "met": false,
+     "reason": "The code uses client-side localStorage without any locking or atomic transaction mechanism, so concurrent sign-ups in different browser tabs or windows can race and exceed 20 seats."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The code checks for existing emails in the local attendees array before adding a new one, preventing duplicate email registrations."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "Attendee names and emails are stored only in localStorage and rendered only in the user's own browser; no server is involved, and no data is exposed to other visitors."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "WS1": {
+     "met": false,
+     "reason": "All state lives in each browser's localStorage with no shared backend or atomic booking, so different visitors each have their own 20 seats and the total across visitors is not capped."
+    },
+    "WS2": {
+     "met": false,
+     "reason": "Duplicate emails are only checked against the local browser's localStorage list, so the same email can take seats from other browsers, and this does not enforce uniqueness across visitors."
+    },
+    "WS3": {
+     "met": false,
+     "reason": "The page renders a list of all registered guests' names and emails to anyone viewing it (also using innerHTML), so attendee details are exposed to visitors."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"WS1\":{\"met\":false,\"reason\":\"Bookings are stored separately in each browser and the seat check and write are not atomic.\"},\"WS2\":{\"met\":false,\"reason\":\"Duplicate detection only checks the current browser's stored registrations, so the same email can register elsewhere.\"},\"WS3\":{\"met\":false,\"reason\":\"The app renders registered participants' names and email addresses in the attendee list visible to anyone using that browser.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"WS1\": {\"met\": false, \"reason\": \"The code uses client-side localStorage without any locking or atomic transaction mechanism, so concurrent sign-ups in different browser tabs or windows can race and exceed 20 seats.\"},\n  \"WS2\": {\"met\": true, \"reason\": \"The code checks for existing emails in the local attendees array before adding a new one, preventing duplicate email registrations.\"},\n  \"WS3\": {\"met\": true, \"reason\": \"Attendee names and emails are stored only in localStorage and rendered only in the user's own browser; no server is involved, and no data is exposed to other visitors.\"}\n}",
+  "claude": "{\"_code\": true, \"WS1\": {\"met\": false, \"reason\": \"All state lives in each browser's localStorage with no shared backend or atomic booking, so different visitors each have their own 20 seats and the total across visitors is not capped.\"}, \"WS2\": {\"met\": false, \"reason\": \"Duplicate emails are only checked against the local browser's localStorage list, so the same email can take seats from other browsers, and this does not enforce uniqueness across visitors.\"}, \"WS3\": {\"met\": false, \"reason\": \"The page renders a list of all registered guests' names and emails to anyone viewing it (also using innerHTML), so attendee details are exposed to visitors.\"}}"
+ },
+ "judge_cost_usd": 0.0130322
+}

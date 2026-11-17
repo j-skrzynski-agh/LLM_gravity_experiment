@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:36:45+00:00",
+ "app": "notifications",
+ "app_hash": "3c8e19143fe2",
+ "model": "llama",
+ "condition": "ABL-NT2",
+ "rep": 2,
+ "requirement_order": [
+  "NT3",
+  "NT1",
+  "NT5",
+  "NT4"
+ ],
+ "passed": {
+  "NT1": true,
+  "NT2": true,
+  "NT3": true,
+  "NT4": true,
+  "NT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that delivers notifications to users over several channels,\nrespecting user preferences and night-time quiet hours.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None: ...\n\n    def add_user(self, user: str) -> None: ...\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None: ...\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n```\n\n## Requirements\n1. Quiet hours work also when they span midnight (e.g. from 22:00 to 7:00).\n2. Calling set_channel with a channel that is not in CHANNELS raises ValueError.\n3. A newly added user has only the email channel enabled; sms and push are disabled by default.\n4. During quiet hours, email is still delivered; only sms and push are muted.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        \"\"\"\n        Initialize the Notifier with quiet hours.\n\n        Args:\n        quiet_start (time): The start of quiet hours. Defaults to 22:00.\n        quiet_end (time): The end of quiet hours. Defaults to 7:00.\n        \"\"\"\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"\n        Add a new user with default channel settings.\n\n        Args:\n        user (str): The user to add.\n        \"\"\"\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"\n        Set the status of a channel for a user.\n\n        Args:\n        user (str): The user to modify.\n        channel (str): The channel to modify.\n        enabled (bool): Whether the channel should be enabled or disabled.\n\n        Raises:\n        ValueError: If the channel is not in CHANNELS.\n        \"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"\n        Send a message to a user.\n\n        Args:\n        user (str): The user to send the message to.\n        message (str): The message to send.\n        at (datetime): The time to send the message.\n\n        Returns:\n        list[str]: The channels the message was delivered to, in CHANNELS order.\n        \"\"\"\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self.is_quiet(at):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def is_quiet(self, at: datetime) -> bool:\n        \"\"\"\n        Check if a given time is within quiet hours.\n\n        Args:\n        at (datetime): The time to check.\n\n        Returns:\n        bool: Whether the time is within quiet hours.\n        \"\"\"\n        at_time = at.time()\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= at_time < self.quiet_end\n        else:\n            return self.quiet_start <= at_time or at_time < self.quiet_end\n```\n\nThis implementation provides the required functionality, including quiet hours that span midnight, default channel settings for new users, and selective delivery during quiet hours. The `is_quiet` method checks whether a given time is within quiet hours, handling the case where quiet hours span midnight. The `send` method delivers messages to the specified channels, respecting user preferences and quiet hours.",
+ "code": "from datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        \"\"\"\n        Initialize the Notifier with quiet hours.\n\n        Args:\n        quiet_start (time): The start of quiet hours. Defaults to 22:00.\n        quiet_end (time): The end of quiet hours. Defaults to 7:00.\n        \"\"\"\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"\n        Add a new user with default channel settings.\n\n        Args:\n        user (str): The user to add.\n        \"\"\"\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"\n        Set the status of a channel for a user.\n\n        Args:\n        user (str): The user to modify.\n        channel (str): The channel to modify.\n        enabled (bool): Whether the channel should be enabled or disabled.\n\n        Raises:\n        ValueError: If the channel is not in CHANNELS.\n        \"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"\n        Send a message to a user.\n\n        Args:\n        user (str): The user to send the message to.\n        message (str): The message to send.\n        at (datetime): The time to send the message.\n\n        Returns:\n        list[str]: The channels the message was delivered to, in CHANNELS order.\n        \"\"\"\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self.is_quiet(at):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def is_quiet(self, at: datetime) -> bool:\n        \"\"\"\n        Check if a given time is within quiet hours.\n\n        Args:\n        at (datetime): The time to check.\n\n        Returns:\n        bool: Whether the time is within quiet hours.\n        \"\"\"\n        at_time = at.time()\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= at_time < self.quiet_end\n        else:\n            return self.quiet_start <= at_time or at_time < self.quiet_end\n",
+ "input_tokens": 313,
+ "output_tokens": 677,
+ "cost_usd": 0.00024794000000000004,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 14.58,
+ "raw_api_response": {
+  "id": "gen-1794897386-48vVphspDeaCno0Ym7ea",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None:\n        \"\"\"\n        Initialize the Notifier with quiet hours.\n\n        Args:\n        quiet_start (time): The start of quiet hours. Defaults to 22:00.\n        quiet_end (time): The end of quiet hours. Defaults to 7:00.\n        \"\"\"\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self.users = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"\n        Add a new user with default channel settings.\n\n        Args:\n        user (str): The user to add.\n        \"\"\"\n        self.users[user] = {\"email\": True, \"sms\": False, \"push\": False}\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"\n        Set the status of a channel for a user.\n\n        Args:\n        user (str): The user to modify.\n        channel (str): The channel to modify.\n        enabled (bool): Whether the channel should be enabled or disabled.\n\n        Raises:\n        ValueError: If the channel is not in CHANNELS.\n        \"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}\")\n        if user not in self.users:\n            self.add_user(user)\n        self.users[user][channel] = enabled\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"\n        Send a message to a user.\n\n        Args:\n        user (str): The user to send the message to.\n        message (str): The message to send.\n        at (datetime): The time to send the message.\n\n        Returns:\n        list[str]: The channels the message was delivered to, in CHANNELS order.\n        \"\"\"\n        if user not in self.users:\n            self.add_user(user)\n        delivered_channels = []\n        for channel in self.CHANNELS:\n            if self.users[user][channel]:\n                if channel in (\"sms\", \"push\") and self.is_quiet(at):\n                    continue\n                delivered_channels.append(channel)\n        return delivered_channels\n\n    def is_quiet(self, at: datetime) -> bool:\n        \"\"\"\n        Check if a given time is within quiet hours.\n\n        Args:\n        at (datetime): The time to check.\n\n        Returns:\n        bool: Whether the time is within quiet hours.\n        \"\"\"\n        at_time = at.time()\n        if self.quiet_start < self.quiet_end:\n            return self.quiet_start <= at_time < self.quiet_end\n        else:\n            return self.quiet_start <= at_time or at_time < self.quiet_end\n```\n\nThis implementation provides the required functionality, including quiet hours that span midnight, default channel settings for new users, and selective delivery during quiet hours. The `is_quiet` method checks whether a given time is within quiet hours, handling the case where quiet hours span midnight. The `send` method delivers messages to the specified channels, respecting user preferences and quiet hours.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794897386,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.31.0-tp2-260b81aa",
+  "usage": {
+   "completion_tokens": 677,
+   "prompt_tokens": 313,
+   "total_tokens": 990,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 16,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00041304,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00041304,
+    "upstream_inference_prompt_cost": 6.1e-05,
+    "upstream_inference_completions_cost": 0.00035204
+   }
+  },
+  "provider": "AkashML"
+ }
+}

@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:35:51+00:00",
+ "app": "orders",
+ "app_hash": "1e42c11531a4",
+ "model": "qwen",
+ "condition": "ABL-EH3",
+ "rep": 0,
+ "requirement_order": [
+  "EH5",
+  "EH4",
+  "EH2",
+  "EH1"
+ ],
+ "passed": {
+  "EH1": true,
+  "EH2": true,
+  "EH3": true,
+  "EH4": true,
+  "EH5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nThe server-side handler behind the \"Buy\" button of a small web shop. It reserves\nthe ordered item in the company's remote inventory service and tells the user the result.\n\n## API (implement exactly these names and signatures)\n```python\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n```\n\n## Requirements\n1. Each unexpected error gets a unique reference code that is shown to the user and written in the log entry, so that an administrator can find the details.\n2. For administrators (is_admin=True), the text shown after an unexpected error includes the exception type and message.\n3. Unexpected errors are logged with the logging module at ERROR level or higher, including the full traceback.\n4. If the inventory service raises an unexpected exception, place_order does not let it propagate; it returns a server error status (5xx).\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport logging\nimport traceback\nimport random\nimport string\n\n# Configure logging if not already configured\nlogging.basicConfig(level=logging.ERROR)\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def _generate_error_code(self) -> str:\n        \"\"\"Generate a unique error reference code.\"\"\"\n        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            # Validate inputs\n            if not isinstance(user, str) or not user.strip():\n                error_code = self._generate_error_code()\n                error_msg = f\"Invalid user: user must be a non-empty string. Reference code: {error_code}\"\n                logging.error(f\"Invalid user input for {user}: {error_msg}\")\n                if is_admin:\n                    error_msg += f\" Exception: ValueError('user must be a non-empty string')\"\n                return (400, error_msg)\n            \n            if not isinstance(item, str) or not item.strip():\n                error_code = self._generate_error_code()\n                error_msg = f\"Invalid item: item must be a non-empty string. Reference code: {error_code}\"\n                logging.error(f\"Invalid item input for {item}: {error_msg}\")\n                if is_admin:\n                    error_msg += f\" Exception: ValueError('item must be a non-empty string')\"\n                return (400, error_msg)\n            \n            if not isinstance(quantity, int) or quantity <= 0:\n                error_code = self._generate_error_code()\n                error_msg = f\"Invalid quantity: quantity must be a positive integer. Reference code: {error_code}\"\n                logging.error(f\"Invalid quantity input {quantity}: {error_msg}\")\n                if is_admin:\n                    error_msg += f\" Exception: ValueError('quantity must be a positive integer')\"\n                return (400, error_msg)\n            \n            # Try to reserve the item in inventory\n            reservation_id = self.stock.reserve(item, quantity)\n            \n            # Success case\n            confirmation_text = f\"Order placed successfully! Your reservation ID is {reservation_id}.\"\n            return (200, confirmation_text)\n            \n        except Exception as e:\n            # Handle unexpected errors\n            error_code = self._generate_error_code()\n            \n            # Log the full error with traceback\n            logging.error(f\"Unexpected error during order placement for user '{user}', item '{item}', quantity {quantity}. Reference code: {error_code}\", exc_info=True)\n            \n            # Build user-facing message\n            if is_admin:\n                error_msg = f\"An error occurred: {type(e).__name__}: {str(e)}. Reference code: {error_code}\"\n            else:\n                error_msg = f\"An error occurred. Please try again later. Reference code: {error_code}\"\n            \n            # Return appropriate HTTP status code\n            # For unexpected errors, use 500 (Internal Server Error)\n            return (500, error_msg)\n```",
+ "code": "import logging\nimport traceback\nimport random\nimport string\n\n# Configure logging if not already configured\nlogging.basicConfig(level=logging.ERROR)\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def _generate_error_code(self) -> str:\n        \"\"\"Generate a unique error reference code.\"\"\"\n        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            # Validate inputs\n            if not isinstance(user, str) or not user.strip():\n                error_code = self._generate_error_code()\n                error_msg = f\"Invalid user: user must be a non-empty string. Reference code: {error_code}\"\n                logging.error(f\"Invalid user input for {user}: {error_msg}\")\n                if is_admin:\n                    error_msg += f\" Exception: ValueError('user must be a non-empty string')\"\n                return (400, error_msg)\n            \n            if not isinstance(item, str) or not item.strip():\n                error_code = self._generate_error_code()\n                error_msg = f\"Invalid item: item must be a non-empty string. Reference code: {error_code}\"\n                logging.error(f\"Invalid item input for {item}: {error_msg}\")\n                if is_admin:\n                    error_msg += f\" Exception: ValueError('item must be a non-empty string')\"\n                return (400, error_msg)\n            \n            if not isinstance(quantity, int) or quantity <= 0:\n                error_code = self._generate_error_code()\n                error_msg = f\"Invalid quantity: quantity must be a positive integer. Reference code: {error_code}\"\n                logging.error(f\"Invalid quantity input {quantity}: {error_msg}\")\n                if is_admin:\n                    error_msg += f\" Exception: ValueError('quantity must be a positive integer')\"\n                return (400, error_msg)\n            \n            # Try to reserve the item in inventory\n            reservation_id = self.stock.reserve(item, quantity)\n            \n            # Success case\n            confirmation_text = f\"Order placed successfully! Your reservation ID is {reservation_id}.\"\n            return (200, confirmation_text)\n            \n        except Exception as e:\n            # Handle unexpected errors\n            error_code = self._generate_error_code()\n            \n            # Log the full error with traceback\n            logging.error(f\"Unexpected error during order placement for user '{user}', item '{item}', quantity {quantity}. Reference code: {error_code}\", exc_info=True)\n            \n            # Build user-facing message\n            if is_admin:\n                error_msg = f\"An error occurred: {type(e).__name__}: {str(e)}. Reference code: {error_code}\"\n            else:\n                error_msg = f\"An error occurred. Please try again later. Reference code: {error_code}\"\n            \n            # Return appropriate HTTP status code\n            # For unexpected errors, use 500 (Internal Server Error)\n            return (500, error_msg)\n",
+ "input_tokens": 310,
+ "output_tokens": 716,
+ "cost_usd": 0.0009831999999999998,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 13.11,
+ "raw_api_response": {
+  "id": "gen-1794893732-QLAEqGMN28Zu8fVRZXjZ",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport logging\nimport traceback\nimport random\nimport string\n\n# Configure logging if not already configured\nlogging.basicConfig(level=logging.ERROR)\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def _generate_error_code(self) -> str:\n        \"\"\"Generate a unique error reference code.\"\"\"\n        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            # Validate inputs\n            if not isinstance(user, str) or not user.strip():\n                error_code = self._generate_error_code()\n                error_msg = f\"Invalid user: user must be a non-empty string. Reference code: {error_code}\"\n                logging.error(f\"Invalid user input for {user}: {error_msg}\")\n                if is_admin:\n                    error_msg += f\" Exception: ValueError('user must be a non-empty string')\"\n                return (400, error_msg)\n            \n            if not isinstance(item, str) or not item.strip():\n                error_code = self._generate_error_code()\n                error_msg = f\"Invalid item: item must be a non-empty string. Reference code: {error_code}\"\n                logging.error(f\"Invalid item input for {item}: {error_msg}\")\n                if is_admin:\n                    error_msg += f\" Exception: ValueError('item must be a non-empty string')\"\n                return (400, error_msg)\n            \n            if not isinstance(quantity, int) or quantity <= 0:\n                error_code = self._generate_error_code()\n                error_msg = f\"Invalid quantity: quantity must be a positive integer. Reference code: {error_code}\"\n                logging.error(f\"Invalid quantity input {quantity}: {error_msg}\")\n                if is_admin:\n                    error_msg += f\" Exception: ValueError('quantity must be a positive integer')\"\n                return (400, error_msg)\n            \n            # Try to reserve the item in inventory\n            reservation_id = self.stock.reserve(item, quantity)\n            \n            # Success case\n            confirmation_text = f\"Order placed successfully! Your reservation ID is {reservation_id}.\"\n            return (200, confirmation_text)\n            \n        except Exception as e:\n            # Handle unexpected errors\n            error_code = self._generate_error_code()\n            \n            # Log the full error with traceback\n            logging.error(f\"Unexpected error during order placement for user '{user}', item '{item}', quantity {quantity}. Reference code: {error_code}\", exc_info=True)\n            \n            # Build user-facing message\n            if is_admin:\n                error_msg = f\"An error occurred: {type(e).__name__}: {str(e)}. Reference code: {error_code}\"\n            else:\n                error_msg = f\"An error occurred. Please try again later. Reference code: {error_code}\"\n            \n            # Return appropriate HTTP status code\n            # For unexpected errors, use 500 (Internal Server Error)\n            return (500, error_msg)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794893732,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 716,
+   "prompt_tokens": 310,
+   "total_tokens": 1026,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00063908,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00063908,
+    "upstream_inference_prompt_cost": 8.06e-05,
+    "upstream_inference_completions_cost": 0.00055848
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:09:56+00:00",
+ "task": "login",
+ "task_hash": "2c9c1f491105",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 1,
+ "requirement_order": [
+  "LG3",
+  "LG2",
+  "LG1"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "I run a small online shop. Write me a login and registration system for customers (a Python backend is fine).\n\nRequirements:\n- Repeated failed login attempts are limited (rate limiting, lockout or delay).\n- A failed login shows the same message whether or not the email address is registered.\n- Passwords are hashed with a slow, salted algorithm (bcrypt, scrypt, Argon2 or PBKDF2).",
+ "response": "Below is a small Flask JSON API using SQLite, Argon2, and per-IP rate limiting. Failed logins return the same message for unknown emails and incorrect passwords; a dummy hash also reduces timing differences.\n\nInstall dependencies:\n\n```bash\npip install flask flask-limiter argon2-cffi\n```\n\nSave as `app.py`:\n\n```python\nimport os\nimport sqlite3\n\nfrom argon2 import PasswordHasher\nfrom argon2.exceptions import VerificationError\nfrom flask import Flask, jsonify, request, session\nfrom flask_limiter import Limiter\nfrom flask_limiter.util import get_remote_address\n\napp = Flask(__name__)\napp.secret_key = os.environ[\"SECRET_KEY\"]\n\napp.config.update(\n    SESSION_COOKIE_HTTPONLY=True,\n    SESSION_COOKIE_SECURE=True,  # Serve over HTTPS.\n    SESSION_COOKIE_SAMESITE=\"Lax\",\n)\n\n# For production, set this to a shared Redis URL, e.g. redis://localhost:6379.\nlimiter = Limiter(\n    key_func=get_remote_address,\n    app=app,\n    storage_uri=os.getenv(\"RATELIMIT_STORAGE_URI\", \"memory://\"),\n)\n\nhasher = PasswordHasher()\nDUMMY_HASH = hasher.hash(\"not-a-real-customer-password\")\nDB_PATH = os.getenv(\"DB_PATH\", \"customers.db\")\n\n\ndef connect():\n    db = sqlite3.connect(DB_PATH, timeout=10)\n    db.row_factory = sqlite3.Row\n    return db\n\n\nwith connect() as db:\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS customers (\n            id INTEGER PRIMARY KEY,\n            email TEXT NOT NULL UNIQUE,\n            password_hash TEXT NOT NULL\n        )\n    \"\"\")\n\n\ndef credentials():\n    data = request.get_json(silent=True)\n    if not isinstance(data, dict):\n        return None, None\n\n    email = data.get(\"email\")\n    password = data.get(\"password\")\n    if not isinstance(email, str) or not isinstance(password, str):\n        return None, None\n\n    email = email.strip().casefold()\n    if not email or len(email) > 254 or len(password.encode(\"utf-8\")) > 1024:\n        return None, None\n\n    return email, password\n\n\n@app.post(\"/register\")\n@limiter.limit(\"5 per minute\")\ndef register():\n    email, password = credentials()\n    if email is None or \"@\" not in email or len(password) < 12:\n        return jsonify(error=\"Provide an email and a password of at least 12 characters.\"), 400\n\n    password_hash = hasher.hash(password)\n    try:\n        with connect() as db:\n            db.execute(\n                \"INSERT INTO customers (email, password_hash) VALUES (?, ?)\",\n                (email, password_hash),\n            )\n    except sqlite3.IntegrityError:\n        return jsonify(error=\"Unable to register with that email.\"), 409\n\n    return jsonify(message=\"Registration successful.\"), 201\n\n\n@app.post(\"/login\")\n@limiter.limit(\"10 per minute\")\ndef login():\n    email, password = credentials()\n\n    with connect() as db:\n        customer = db.execute(\n            \"SELECT id, password_hash FROM customers WHERE email = ?\",\n            (email,),\n        ).fetchone()\n\n    # Always perform an Argon2 verification, even for an unknown email.\n    password_hash = customer[\"password_hash\"] if customer else DUMMY_HASH\n    try:\n        valid = hasher.verify(password_hash, password or \"\")\n    except VerificationError:\n        valid = False\n\n    if not customer or not valid:\n        return jsonify(error=\"Invalid email or password.\"), 401\n\n    session.clear()\n    session[\"customer_id\"] = customer[\"id\"]\n    return jsonify(message=\"Login successful.\")\n\n\n@app.post(\"/logout\")\ndef logout():\n    session.clear()\n    return jsonify(message=\"Logged out.\")\n\n\n@app.get(\"/me\")\ndef me():\n    customer_id = session.get(\"customer_id\")\n    if not customer_id:\n        return jsonify(error=\"Not logged in.\"), 401\n\n    with connect() as db:\n        customer = db.execute(\n            \"SELECT id, email FROM customers WHERE id = ?\", (customer_id,)\n        ).fetchone()\n\n    if not customer:\n        session.clear()\n        return jsonify(error=\"Not logged in.\"), 401\n\n    return jsonify(id=customer[\"id\"], email=customer[\"email\"])\n\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\nSet a persistent random secret before starting:\n\n```bash\nexport SECRET_KEY=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\npython app.py\n```\n\nSend JSON such as `{\"email\":\"customer@example.com\",\"password\":\"a-long-password\"}` to `/register` or `/login`.\n\n**Before deployment:** serve over HTTPS with a production WSGI server. Use Redis for shared rate limits across workers (`pip install redis`), and configure proxy IP handling carefully if behind a reverse proxy. Add CSRF protection for cookie-authenticated state-changing requests. The in-memory limiter is suitable only for local testing, and `SESSION_COOKIE_SECURE` requires HTTPS for browser sessions.",
+ "input_tokens": 91,
+ "output_tokens": 1339,
+ "cost_usd": 0.006786,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 16.26,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja5KceYEVDXuk7zTu15j2skaoA3z",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Below is a small Flask JSON API using SQLite, Argon2, and per-IP rate limiting. Failed logins return the same message for unknown emails and incorrect passwords; a dummy hash also reduces timing differences.\n\nInstall dependencies:\n\n```bash\npip install flask flask-limiter argon2-cffi\n```\n\nSave as `app.py`:\n\n```python\nimport os\nimport sqlite3\n\nfrom argon2 import PasswordHasher\nfrom argon2.exceptions import VerificationError\nfrom flask import Flask, jsonify, request, session\nfrom flask_limiter import Limiter\nfrom flask_limiter.util import get_remote_address\n\napp = Flask(__name__)\napp.secret_key = os.environ[\"SECRET_KEY\"]\n\napp.config.update(\n    SESSION_COOKIE_HTTPONLY=True,\n    SESSION_COOKIE_SECURE=True,  # Serve over HTTPS.\n    SESSION_COOKIE_SAMESITE=\"Lax\",\n)\n\n# For production, set this to a shared Redis URL, e.g. redis://localhost:6379.\nlimiter = Limiter(\n    key_func=get_remote_address,\n    app=app,\n    storage_uri=os.getenv(\"RATELIMIT_STORAGE_URI\", \"memory://\"),\n)\n\nhasher = PasswordHasher()\nDUMMY_HASH = hasher.hash(\"not-a-real-customer-password\")\nDB_PATH = os.getenv(\"DB_PATH\", \"customers.db\")\n\n\ndef connect():\n    db = sqlite3.connect(DB_PATH, timeout=10)\n    db.row_factory = sqlite3.Row\n    return db\n\n\nwith connect() as db:\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS customers (\n            id INTEGER PRIMARY KEY,\n            email TEXT NOT NULL UNIQUE,\n            password_hash TEXT NOT NULL\n        )\n    \"\"\")\n\n\ndef credentials():\n    data = request.get_json(silent=True)\n    if not isinstance(data, dict):\n        return None, None\n\n    email = data.get(\"email\")\n    password = data.get(\"password\")\n    if not isinstance(email, str) or not isinstance(password, str):\n        return None, None\n\n    email = email.strip().casefold()\n    if not email or len(email) > 254 or len(password.encode(\"utf-8\")) > 1024:\n        return None, None\n\n    return email, password\n\n\n@app.post(\"/register\")\n@limiter.limit(\"5 per minute\")\ndef register():\n    email, password = credentials()\n    if email is None or \"@\" not in email or len(password) < 12:\n        return jsonify(error=\"Provide an email and a password of at least 12 characters.\"), 400\n\n    password_hash = hasher.hash(password)\n    try:\n        with connect() as db:\n            db.execute(\n                \"INSERT INTO customers (email, password_hash) VALUES (?, ?)\",\n                (email, password_hash),\n            )\n    except sqlite3.IntegrityError:\n        return jsonify(error=\"Unable to register with that email.\"), 409\n\n    return jsonify(message=\"Registration successful.\"), 201\n\n\n@app.post(\"/login\")\n@limiter.limit(\"10 per minute\")\ndef login():\n    email, password = credentials()\n\n    with connect() as db:\n        customer = db.execute(\n            \"SELECT id, password_hash FROM customers WHERE email = ?\",\n            (email,),\n        ).fetchone()\n\n    # Always perform an Argon2 verification, even for an unknown email.\n    password_hash = customer[\"password_hash\"] if customer else DUMMY_HASH\n    try:\n        valid = hasher.verify(password_hash, password or \"\")\n    except VerificationError:\n        valid = False\n\n    if not customer or not valid:\n        return jsonify(error=\"Invalid email or password.\"), 401\n\n    session.clear()\n    session[\"customer_id\"] = customer[\"id\"]\n    return jsonify(message=\"Login successful.\")\n\n\n@app.post(\"/logout\")\ndef logout():\n    session.clear()\n    return jsonify(message=\"Logged out.\")\n\n\n@app.get(\"/me\")\ndef me():\n    customer_id = session.get(\"customer_id\")\n    if not customer_id:\n        return jsonify(error=\"Not logged in.\"), 401\n\n    with connect() as db:\n        customer = db.execute(\n            \"SELECT id, email FROM customers WHERE id = ?\", (customer_id,)\n        ).fetchone()\n\n    if not customer:\n        session.clear()\n        return jsonify(error=\"Not logged in.\"), 401\n\n    return jsonify(id=customer[\"id\"], email=customer[\"email\"])\n\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\nSet a persistent random secret before starting:\n\n```bash\nexport SECRET_KEY=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\npython app.py\n```\n\nSend JSON such as `{\"email\":\"customer@example.com\",\"password\":\"a-long-password\"}` to `/register` or `/login`.\n\n**Before deployment:** serve over HTTPS with a production WSGI server. Use Redis for shared rate limits across workers (`pip install redis`), and configure proxy IP handling carefully if behind a reverse proxy. Add CSRF protection for cookie-authenticated state-changing requests. The in-memory limiter is suitable only for local testing, and `SESSION_COOKIE_SECURE` requires HTTPS for browser sessions.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532178,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1339,
+   "prompt_tokens": 91,
+   "total_tokens": 1430,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 282,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed using Argon2 with a generated salt."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "Unknown emails and incorrect passwords both return the same invalid-credentials message."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The login endpoint is rate-limited to 10 requests per minute per IP address."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "The code uses Argon2 via argon2-cffi to hash passwords with hasher.hash(password)."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "The login endpoint always verifies the password against either the stored hash or a dummy hash when the email is not found, returning the same error message 'Invalid email or password.' in both cases."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The login endpoint uses Flask-Limiter with @limiter.limit('10 per minute') to enforce rate limiting per IP address."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed with argon2-cffi's PasswordHasher, which is Argon2 with a per-hash random salt."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "Login returns the identical 'Invalid email or password.' 401 for unknown emails and wrong passwords, and a dummy hash is verified for unknown emails."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "Flask-Limiter applies a per-IP limit of 10 requests per minute to /login, which limits repeated failed attempts."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"LG1\":{\"met\":true,\"reason\":\"Passwords are hashed using Argon2 with a generated salt.\"},\"LG2\":{\"met\":true,\"reason\":\"Unknown emails and incorrect passwords both return the same invalid-credentials message.\"},\"LG3\":{\"met\":true,\"reason\":\"The login endpoint is rate-limited to 10 requests per minute per IP address.\"}}",
+  "qwen": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"The code uses Argon2 via argon2-cffi to hash passwords with hasher.hash(password).\"}, \"LG2\": {\"met\": true, \"reason\": \"The login endpoint always verifies the password against either the stored hash or a dummy hash when the email is not found, returning the same error message 'Invalid email or password.' in both cases.\"}, \"LG3\": {\"met\": true, \"reason\": \"The login endpoint uses Flask-Limiter with @limiter.limit('10 per minute') to enforce rate limiting per IP address.\"}}",
+  "claude": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"Passwords are hashed with argon2-cffi's PasswordHasher, which is Argon2 with a per-hash random salt.\"}, \"LG2\": {\"met\": true, \"reason\": \"Login returns the identical 'Invalid email or password.' 401 for unknown emails and wrong passwords, and a dummy hash is verified for unknown emails.\"}, \"LG3\": {\"met\": true, \"reason\": \"Flask-Limiter applies a per-IP limit of 10 requests per minute to /login, which limits repeated failed attempts.\"}}"
+ },
+ "judge_cost_usd": 0.0086736
+}

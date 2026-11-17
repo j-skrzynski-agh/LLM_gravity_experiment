@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:38:23+00:00",
+ "app": "gradebook",
+ "app_hash": "035dbe6707fb",
+ "model": "gemini",
+ "condition": "ABL-GB3",
+ "rep": 2,
+ "requirement_order": [
+  "GB4",
+  "GB1",
+  "GB5",
+  "GB2"
+ ],
+ "passed": {
+  "GB1": true,
+  "GB2": true,
+  "GB3": true,
+  "GB4": true,
+  "GB5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA gradebook for a university course: assignments with weights, grades on the\nPolish 2.0-5.0 scale, and a final average per student.\n\n## API (implement exactly these names and signatures)\n```python\nclass Gradebook:\n    def __init__(self) -> None: ...\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n\n    def record(self, student: str, assignment: str, grade: float) -> None: ...\n\n    def average(self, student: str) -> float: ...\n```\n\n## Requirements\n1. If a student has more than one quiz, their lowest quiz grade is dropped when computing the average.\n2. Recording a grade outside the scale 2.0 to 5.0 raises ValueError.\n3. An assignment without a recorded grade counts as 2.0 in the average instead of being skipped.\n4. average() is rounded to two decimal places.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `Gradebook` class meeting all requirements is provided below:\n\n```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # Stores assignment metadata: name -> {\"weight\": float, \"kind\": str}\n        self.assignments: dict[str, dict] = {}\n        # Stores recorded grades: student -> {assignment_name: grade}\n        self.grades: dict[str, dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self.assignments[name] = {\"weight\": float(weight), \"kind\": kind}\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        grade = float(grade)\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the valid scale of 2.0 to 5.0.\")\n\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        if not self.assignments:\n            return 0.0\n\n        student_grades = self.grades.get(student, {})\n\n        # Collect all assignments with their effective grades\n        effective_items = []\n        for name, info in self.assignments.items():\n            # If an assignment has no recorded grade, it defaults to 2.0\n            grade = student_grades.get(name, 2.0)\n            effective_items.append({\n                \"name\": name,\n                \"grade\": grade,\n                \"weight\": info[\"weight\"],\n                \"kind\": info[\"kind\"],\n            })\n\n        # Check quiz drop rule: if more than one quiz, drop the lowest quiz grade\n        quiz_items = [item for item in effective_items if item[\"kind\"] == \"quiz\"]\n        dropped_item = None\n        if len(quiz_items) > 1:\n            dropped_item = min(quiz_items, key=lambda x: x[\"grade\"])\n\n        # Compute weighted average\n        total_weighted_score = 0.0\n        total_weight = 0.0\n\n        for item in effective_items:\n            if item is dropped_item:\n                continue\n            total_weighted_score += item[\"grade\"] * item[\"weight\"]\n            total_weight += item[\"weight\"]\n\n        if total_weight == 0.0:\n            return 0.0\n\n        return round(total_weighted_score / total_weight, 2)\n```",
+ "code": "class Gradebook:\n    def __init__(self) -> None:\n        # Stores assignment metadata: name -> {\"weight\": float, \"kind\": str}\n        self.assignments: dict[str, dict] = {}\n        # Stores recorded grades: student -> {assignment_name: grade}\n        self.grades: dict[str, dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self.assignments[name] = {\"weight\": float(weight), \"kind\": kind}\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        grade = float(grade)\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the valid scale of 2.0 to 5.0.\")\n\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        if not self.assignments:\n            return 0.0\n\n        student_grades = self.grades.get(student, {})\n\n        # Collect all assignments with their effective grades\n        effective_items = []\n        for name, info in self.assignments.items():\n            # If an assignment has no recorded grade, it defaults to 2.0\n            grade = student_grades.get(name, 2.0)\n            effective_items.append({\n                \"name\": name,\n                \"grade\": grade,\n                \"weight\": info[\"weight\"],\n                \"kind\": info[\"kind\"],\n            })\n\n        # Check quiz drop rule: if more than one quiz, drop the lowest quiz grade\n        quiz_items = [item for item in effective_items if item[\"kind\"] == \"quiz\"]\n        dropped_item = None\n        if len(quiz_items) > 1:\n            dropped_item = min(quiz_items, key=lambda x: x[\"grade\"])\n\n        # Compute weighted average\n        total_weighted_score = 0.0\n        total_weight = 0.0\n\n        for item in effective_items:\n            if item is dropped_item:\n                continue\n            total_weighted_score += item[\"grade\"] * item[\"weight\"]\n            total_weight += item[\"weight\"]\n\n        if total_weight == 0.0:\n            return 0.0\n\n        return round(total_weighted_score / total_weight, 2)\n",
+ "input_tokens": 253,
+ "output_tokens": 618,
+ "cost_usd": 0.00250725,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.03,
+ "raw_api_response": {
+  "id": "pDT1aqyFM5XgkdUP1NnJ4A4",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `Gradebook` class meeting all requirements is provided below:\n\n```python\nclass Gradebook:\n    def __init__(self) -> None:\n        # Stores assignment metadata: name -> {\"weight\": float, \"kind\": str}\n        self.assignments: dict[str, dict] = {}\n        # Stores recorded grades: student -> {assignment_name: grade}\n        self.grades: dict[str, dict[str, float]] = {}\n\n    def add_assignment(self, name: str, weight: float, kind: str = \"homework\") -> None:\n        \"\"\"kind is \"homework\" or \"quiz\".\"\"\"\n        self.assignments[name] = {\"weight\": float(weight), \"kind\": kind}\n\n    def record(self, student: str, assignment: str, grade: float) -> None:\n        grade = float(grade)\n        if not (2.0 <= grade <= 5.0):\n            raise ValueError(f\"Grade {grade} is outside the valid scale of 2.0 to 5.0.\")\n\n        if student not in self.grades:\n            self.grades[student] = {}\n        self.grades[student][assignment] = grade\n\n    def average(self, student: str) -> float:\n        if not self.assignments:\n            return 0.0\n\n        student_grades = self.grades.get(student, {})\n\n        # Collect all assignments with their effective grades\n        effective_items = []\n        for name, info in self.assignments.items():\n            # If an assignment has no recorded grade, it defaults to 2.0\n            grade = student_grades.get(name, 2.0)\n            effective_items.append({\n                \"name\": name,\n                \"grade\": grade,\n                \"weight\": info[\"weight\"],\n                \"kind\": info[\"kind\"],\n            })\n\n        # Check quiz drop rule: if more than one quiz, drop the lowest quiz grade\n        quiz_items = [item for item in effective_items if item[\"kind\"] == \"quiz\"]\n        dropped_item = None\n        if len(quiz_items) > 1:\n            dropped_item = min(quiz_items, key=lambda x: x[\"grade\"])\n\n        # Compute weighted average\n        total_weighted_score = 0.0\n        total_weight = 0.0\n\n        for item in effective_items:\n            if item is dropped_item:\n                continue\n            total_weighted_score += item[\"grade\"] * item[\"weight\"]\n            total_weight += item[\"weight\"]\n\n        if total_weight == 0.0:\n            return 0.0\n\n        return round(total_weighted_score / total_weight, 2)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TrVapWsO8GtjvMXd1oZFlsHLnx/ExPm1AthI8GfiN0UCyPCyTaGjfXEdAk/f2C5dhZSUPy6Rl3N7YDRpR3EL+2QBkD9iWX7poX3Or6utqi5LzPJOuF0R/pTyHoDINS/1J/xQ="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794454697,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 618,
+   "prompt_tokens": 253,
+   "total_tokens": 871,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

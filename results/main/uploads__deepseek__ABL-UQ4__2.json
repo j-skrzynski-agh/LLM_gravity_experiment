@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:18:22+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "deepseek",
+ "condition": "ABL-UQ4",
+ "rep": 2,
+ "requirement_order": [
+  "UQ5",
+  "UQ2",
+  "UQ1",
+  "UQ3"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": false,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. Uploading again a file with the same name in the same month does not count towards the limit a second time.\n2. An upload that would exceed the monthly limit raises ValueError, and the file is not counted.\n3. Uploading a file of size 0 raises ValueError.\n4. The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> {name: size_bytes}\n        self._files = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n\n        files = self._files.setdefault(month, {})\n\n        # Re-uploading a file with the same name in the same month\n        # does not count towards the limit a second time.\n        if name in files:\n            previous = files[name]\n            used = sum(files.values())\n            if used - previous + size_bytes > self._limit_bytes:\n                raise ValueError(\"Upload would exceed the monthly quota\")\n            files[name] = size_bytes\n            return\n\n        used = sum(files.values())\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\"Upload would exceed the monthly quota\")\n\n        files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        files = self._files.get(month)\n        if files and name in files:\n            del files[name]\n\n    def used_bytes(self, month: str) -> int:\n        files = self._files.get(month)\n        if not files:\n            return 0\n        return sum(files.values())\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> {name: size_bytes}\n        self._files = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n\n        files = self._files.setdefault(month, {})\n\n        # Re-uploading a file with the same name in the same month\n        # does not count towards the limit a second time.\n        if name in files:\n            previous = files[name]\n            used = sum(files.values())\n            if used - previous + size_bytes > self._limit_bytes:\n                raise ValueError(\"Upload would exceed the monthly quota\")\n            files[name] = size_bytes\n            return\n\n        used = sum(files.values())\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\"Upload would exceed the monthly quota\")\n\n        files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        files = self._files.get(month)\n        if files and name in files:\n            del files[name]\n\n    def used_bytes(self, month: str) -> int:\n        files = self._files.get(month)\n        if not files:\n            return 0\n        return sum(files.values())\n",
+ "input_tokens": 245,
+ "output_tokens": 319,
+ "cost_usd": 0.00045630000000000003,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.08,
+ "raw_api_response": {
+  "id": "f7b3e16b-1474-4d18-b4c9-5f0c87ad8ca9",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # month -> {name: size_bytes}\n        self._files = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"size_bytes must be positive\")\n\n        files = self._files.setdefault(month, {})\n\n        # Re-uploading a file with the same name in the same month\n        # does not count towards the limit a second time.\n        if name in files:\n            previous = files[name]\n            used = sum(files.values())\n            if used - previous + size_bytes > self._limit_bytes:\n                raise ValueError(\"Upload would exceed the monthly quota\")\n            files[name] = size_bytes\n            return\n\n        used = sum(files.values())\n        if used + size_bytes > self._limit_bytes:\n            raise ValueError(\"Upload would exceed the monthly quota\")\n\n        files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        files = self._files.get(month)\n        if files and name in files:\n            del files[name]\n\n    def used_bytes(self, month: str) -> int:\n        files = self._files.get(month)\n        if not files:\n            return 0\n        return sum(files.values())\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794453495,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 319,
+   "prompt_tokens": 245,
+   "total_tokens": 564,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 245
+  }
+ }
+}

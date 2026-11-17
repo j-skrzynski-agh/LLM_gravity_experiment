@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:10:54+00:00",
+ "task": "cart_total",
+ "task_hash": "fd677849fb3b",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "CR1",
+  "CR3",
+  "CR2"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write the code that calculates the final price of a shopping cart: products with prices and quantities, and customers can enter a discount code.\n\nRequirements:\n- Money is not computed with binary floating point; Decimal or integer cents are used.\n- The same discount code cannot be applied more than once to the same cart.\n- The final price can never be negative.",
+ "response": "Here is a Python implementation using integer cents. Discount codes represent fixed amounts and can each be applied once per cart.\n\n```python\nfrom dataclasses import dataclass, field\n\n\n@dataclass\nclass Cart:\n    # Map discount codes to their values in cents.\n    discount_codes: dict[str, int]\n    items: list[tuple[int, int]] = field(default_factory=list)\n    applied_codes: set[str] = field(default_factory=set)\n\n    def __post_init__(self) -> None:\n        # Copy the mapping so external changes don't alter the cart's discounts.\n        self.discount_codes = dict(self.discount_codes)\n        for code, amount in self.discount_codes.items():\n            if not code or type(amount) is not int or amount < 0:\n                raise ValueError(\"Discount codes need nonnegative integer amounts\")\n\n    def add_item(self, price_cents: int, quantity: int) -> None:\n        if type(price_cents) is not int or price_cents < 0:\n            raise ValueError(\"Price must be a nonnegative integer number of cents\")\n        if type(quantity) is not int or quantity <= 0:\n            raise ValueError(\"Quantity must be a positive integer\")\n        self.items.append((price_cents, quantity))\n\n    def apply_discount(self, code: str) -> None:\n        if code not in self.discount_codes:\n            raise ValueError(\"Unknown discount code\")\n        if code in self.applied_codes:\n            raise ValueError(\"Discount code has already been applied\")\n        self.applied_codes.add(code)\n\n    def final_price_cents(self) -> int:\n        subtotal = sum(price * quantity for price, quantity in self.items)\n        discount = sum(self.discount_codes[code] for code in self.applied_codes)\n        return max(0, subtotal - discount)\n\n\ncart = Cart(discount_codes={\"SAVE5\": 500, \"SAVE10\": 1000})\ncart.add_item(price_cents=1299, quantity=2)\ncart.apply_discount(\"SAVE5\")\n\ncents = cart.final_price_cents()\nprint(f\"${cents // 100}.{cents % 100:02d}\")  # $20.98\n```",
+ "input_tokens": 77,
+ "output_tokens": 557,
+ "cost_usd": 0.002862,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 7.06,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja6PWAt8M5CKfYgGgNb14DP9bAIx",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a Python implementation using integer cents. Discount codes represent fixed amounts and can each be applied once per cart.\n\n```python\nfrom dataclasses import dataclass, field\n\n\n@dataclass\nclass Cart:\n    # Map discount codes to their values in cents.\n    discount_codes: dict[str, int]\n    items: list[tuple[int, int]] = field(default_factory=list)\n    applied_codes: set[str] = field(default_factory=set)\n\n    def __post_init__(self) -> None:\n        # Copy the mapping so external changes don't alter the cart's discounts.\n        self.discount_codes = dict(self.discount_codes)\n        for code, amount in self.discount_codes.items():\n            if not code or type(amount) is not int or amount < 0:\n                raise ValueError(\"Discount codes need nonnegative integer amounts\")\n\n    def add_item(self, price_cents: int, quantity: int) -> None:\n        if type(price_cents) is not int or price_cents < 0:\n            raise ValueError(\"Price must be a nonnegative integer number of cents\")\n        if type(quantity) is not int or quantity <= 0:\n            raise ValueError(\"Quantity must be a positive integer\")\n        self.items.append((price_cents, quantity))\n\n    def apply_discount(self, code: str) -> None:\n        if code not in self.discount_codes:\n            raise ValueError(\"Unknown discount code\")\n        if code in self.applied_codes:\n            raise ValueError(\"Discount code has already been applied\")\n        self.applied_codes.add(code)\n\n    def final_price_cents(self) -> int:\n        subtotal = sum(price * quantity for price, quantity in self.items)\n        discount = sum(self.discount_codes[code] for code in self.applied_codes)\n        return max(0, subtotal - discount)\n\n\ncart = Cart(discount_codes={\"SAVE5\": 500, \"SAVE10\": 1000})\ncart.add_item(price_cents=1299, quantity=2)\ncart.apply_discount(\"SAVE5\")\n\ncents = cart.final_price_cents()\nprint(f\"${cents // 100}.{cents % 100:02d}\")  # $20.98\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532245,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 557,
+   "prompt_tokens": 77,
+   "total_tokens": 634,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 100,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "Prices and discounts are calculated using integer cents."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The final price is clamped to zero using max."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "Applied codes are stored in a set and applying the same code again raises an error."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "The code uses integer cents for all monetary calculations, as shown in the Cart class and example usage."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The final_price_cents method uses max(0, subtotal - discount), ensuring the result is never negative."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "The apply_discount method checks if the code is already in self.applied_codes and raises an error if so, preventing duplicate application."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "All prices, quantities, discounts and totals are integer cents, validated with type(...) is int, and no floats are used."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "final_price_cents returns max(0, subtotal - discount), so the result is never negative."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "apply_discount raises ValueError if the code is already in applied_codes, and applied_codes is a set, so a code counts at most once."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"CR1\":{\"met\":true,\"reason\":\"Prices and discounts are calculated using integer cents.\"},\"CR2\":{\"met\":true,\"reason\":\"The final price is clamped to zero using max.\"},\"CR3\":{\"met\":true,\"reason\":\"Applied codes are stored in a set and applying the same code again raises an error.\"}}",
+  "qwen": "{\"_code\": true, \"CR1\": {\"met\": true, \"reason\": \"The code uses integer cents for all monetary calculations, as shown in the Cart class and example usage.\"}, \"CR2\": {\"met\": true, \"reason\": \"The final_price_cents method uses max(0, subtotal - discount), ensuring the result is never negative.\"}, \"CR3\": {\"met\": true, \"reason\": \"The apply_discount method checks if the code is already in self.applied_codes and raises an error if so, preventing duplicate application.\"}}",
+  "claude": "{\"_code\": true, \"CR1\": {\"met\": true, \"reason\": \"All prices, quantities, discounts and totals are integer cents, validated with type(...) is int, and no floats are used.\"}, \"CR2\": {\"met\": true, \"reason\": \"final_price_cents returns max(0, subtotal - discount), so the result is never negative.\"}, \"CR3\": {\"met\": true, \"reason\": \"apply_discount raises ValueError if the code is already in applied_codes, and applied_codes is a set, so a code counts at most once.\"}}"
+ },
+ "judge_cost_usd": 0.0052866
+}

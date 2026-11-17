@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:10:20+00:00",
+ "task": "login",
+ "task_hash": "2c9c1f491105",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 2,
+ "requirement_order": [
+  "LG3",
+  "LG2",
+  "LG1"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "I run a small online shop. Write me a login and registration system for customers (a Python backend is fine).\n\nRequirements:\n- Repeated failed login attempts are limited (rate limiting, lockout or delay).\n- A failed login shows the same message whether or not the email address is registered.\n- Passwords are hashed with a slow, salted algorithm (bcrypt, scrypt, Argon2 or PBKDF2).",
+ "response": "Below is a small Flask API using SQLite, Argon2 password hashing, and opaque bearer tokens. It limits login attempts by both IP address and email, and returns the same error for an unknown email or incorrect password.\n\nInstall dependencies:\n\n```bash\npip install flask argon2-cffi\n```\n\nSave as `app.py`:\n\n```python\nimport hashlib\nimport secrets\nimport sqlite3\nimport threading\nimport time\nfrom collections import defaultdict, deque\n\nfrom argon2 import PasswordHasher\nfrom argon2.exceptions import InvalidHashError, VerificationError\nfrom flask import Flask, g, jsonify, request\n\napp = Flask(__name__)\napp.config[\"MAX_CONTENT_LENGTH\"] = 16 * 1024\n\nDB_PATH = \"customers.db\"\nph = PasswordHasher()\n# Used to perform a password verification even for unknown emails.\nDUMMY_HASH = ph.hash(secrets.token_urlsafe(32))\n\n# Demonstration-only, process-local rate limiter.\nattempts = defaultdict(deque)\nattempts_lock = threading.Lock()\nWINDOW_SECONDS = 15 * 60\n\n\ndef get_db():\n    if \"db\" not in g:\n        g.db = sqlite3.connect(DB_PATH, timeout=10)\n        g.db.row_factory = sqlite3.Row\n    return g.db\n\n\n@app.teardown_appcontext\ndef close_db(_error):\n    db = g.pop(\"db\", None)\n    if db is not None:\n        db.close()\n\n\ndef init_db():\n    with sqlite3.connect(DB_PATH) as db:\n        db.executescript(\"\"\"\n            CREATE TABLE IF NOT EXISTS customers (\n                id INTEGER PRIMARY KEY,\n                email TEXT NOT NULL UNIQUE,\n                password_hash TEXT NOT NULL\n            );\n\n            CREATE TABLE IF NOT EXISTS tokens (\n                token_hash TEXT PRIMARY KEY,\n                customer_id INTEGER NOT NULL,\n                expires_at INTEGER NOT NULL,\n                FOREIGN KEY (customer_id) REFERENCES customers(id)\n            );\n        \"\"\")\n\n\ndef read_credentials():\n    data = request.get_json(silent=True)\n    if not isinstance(data, dict):\n        return None\n\n    email = data.get(\"email\")\n    password = data.get(\"password\")\n    if not isinstance(email, str) or not isinstance(password, str):\n        return None\n\n    email = email.strip().lower()\n    if not (3 <= len(email) <= 254 and \"@\" in email):\n        return None\n    if not (1 <= len(password) <= 1024):\n        return None\n    return email, password\n\n\ndef login_allowed(email):\n    \"\"\"Count all attempts, whether successful or not.\"\"\"\n    now = time.monotonic()\n    # Hash emails so the limiter does not retain them in plaintext.\n    email_key = hashlib.sha256(email.encode(\"utf-8\")).hexdigest()\n    keys_and_limits = [\n        ((\"ip\", request.remote_addr or \"unknown\"), 50),\n        ((\"email\", email_key), 5),\n    ]\n\n    with attempts_lock:\n        # Remove expired entries, including keys no longer being requested.\n        for key in list(attempts):\n            queue = attempts[key]\n            while queue and queue[0] <= now - WINDOW_SECONDS:\n                queue.popleft()\n            if not queue:\n                del attempts[key]\n\n        if any(len(attempts[key]) >= limit for key, limit in keys_and_limits):\n            return False\n        for key, _limit in keys_and_limits:\n            attempts[key].append(now)\n        return True\n\n\ndef token_digest(token):\n    return hashlib.sha256(token.encode(\"utf-8\")).hexdigest()\n\n\n@app.post(\"/register\")\ndef register():\n    credentials = read_credentials()\n    if credentials is None:\n        return jsonify(error=\"Invalid email or password.\"), 400\n\n    email, password = credentials\n    if len(password) < 12:\n        return jsonify(error=\"Password must be at least 12 characters.\"), 400\n\n    password_hash = ph.hash(password)\n    db = get_db()\n    # Do not reveal whether the email is already registered.\n    db.execute(\n        \"INSERT OR IGNORE INTO customers (email, password_hash) VALUES (?, ?)\",\n        (email, password_hash),\n    )\n    db.commit()\n    return jsonify(message=\"If registration is available, the account has been created.\"), 200\n\n\n@app.post(\"/login\")\ndef login():\n    credentials = read_credentials()\n    if credentials is None:\n        return jsonify(error=\"Invalid email or password.\"), 400\n\n    email, password = credentials\n    if not login_allowed(email):\n        return jsonify(error=\"Too many attempts. Please try again later.\"), 429\n\n    db = get_db()\n    customer = db.execute(\n        \"SELECT id, password_hash FROM customers WHERE email = ?\", (email,)\n    ).fetchone()\n\n    stored_hash = customer[\"password_hash\"] if customer else DUMMY_HASH\n    try:\n        verified = ph.verify(stored_hash, password)\n    except (VerificationError, InvalidHashError):\n        verified = False\n\n    if not customer or not verified:\n        return jsonify(error=\"Invalid email or password.\"), 401\n\n    if ph.check_needs_rehash(stored_hash):\n        db.execute(\n            \"UPDATE customers SET password_hash = ? WHERE id = ?\",\n            (ph.hash(password), customer[\"id\"]),\n        )\n\n    token = secrets.token_urlsafe(32)\n    db.execute(\n        \"INSERT INTO tokens (token_hash, customer_id, expires_at) VALUES (?, ?, ?)\",\n        (token_digest(token), customer[\"id\"], int(time.time()) + 24 * 60 * 60),\n    )\n    db.commit()\n    response = jsonify(access_token=token, token_type=\"Bearer\", expires_in=86400)\n    response.headers[\"Cache-Control\"] = \"no-store\"\n    return response\n\n\n@app.get(\"/me\")\ndef me():\n    authorization = request.headers.get(\"Authorization\", \"\")\n    if not authorization.startswith(\"Bearer \"):\n        return jsonify(error=\"Unauthorized.\"), 401\n\n    token = authorization[7:]\n    if not token or len(token) > 256:\n        return jsonify(error=\"Unauthorized.\"), 401\n\n    customer = get_db().execute(\n        \"\"\"\n        SELECT customers.id, customers.email\n        FROM tokens\n        JOIN customers ON customers.id = tokens.customer_id\n        WHERE tokens.token_hash = ? AND tokens.expires_at > ?\n        \"\"\",\n        (token_digest(token), int(time.time())),\n    ).fetchone()\n    if customer is None:\n        return jsonify(error=\"Unauthorized.\"), 401\n    return jsonify(id=customer[\"id\"], email=customer[\"email\"])\n\n\n@app.post(\"/logout\")\ndef logout():\n    authorization = request.headers.get(\"Authorization\", \"\")\n    if authorization.startswith(\"Bearer \"):\n        token = authorization[7:]\n        if token and len(token) <= 256:\n            db = get_db()\n            db.execute(\"DELETE FROM tokens WHERE token_hash = ?\", (token_digest(token),))\n            db.commit()\n    return \"\", 204\n\n\ninit_db()\n\nif __name__ == \"__main__\":\n    app.run(debug=False)\n```\n\nRun with `python app.py`. Register and log in by POSTing JSON such as `{\"email\":\"customer@example.com\",\"password\":\"a-long-password\"}` to `/register` and `/login`. Send the returned token as `Authorization: Bearer <token>` to `/me` or `/logout`.\n\n**Before production:** use HTTPS and a production WSGI server. Replace the in-memory limiter with a shared store such as Redis so limits apply across workers and survive restarts; also rate-limit registration and configure trusted proxy IP handling correctly. Add email verification and a secure password-reset flow, and clean up expired tokens. The per-email limit can temporarily block a customer if someone else repeatedly attempts their email.",
+ "input_tokens": 91,
+ "output_tokens": 1930,
+ "cost_usd": 0.009741,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 22.49,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja5dbu03SRHDPjw8EtHGfSBdi1JZ",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Below is a small Flask API using SQLite, Argon2 password hashing, and opaque bearer tokens. It limits login attempts by both IP address and email, and returns the same error for an unknown email or incorrect password.\n\nInstall dependencies:\n\n```bash\npip install flask argon2-cffi\n```\n\nSave as `app.py`:\n\n```python\nimport hashlib\nimport secrets\nimport sqlite3\nimport threading\nimport time\nfrom collections import defaultdict, deque\n\nfrom argon2 import PasswordHasher\nfrom argon2.exceptions import InvalidHashError, VerificationError\nfrom flask import Flask, g, jsonify, request\n\napp = Flask(__name__)\napp.config[\"MAX_CONTENT_LENGTH\"] = 16 * 1024\n\nDB_PATH = \"customers.db\"\nph = PasswordHasher()\n# Used to perform a password verification even for unknown emails.\nDUMMY_HASH = ph.hash(secrets.token_urlsafe(32))\n\n# Demonstration-only, process-local rate limiter.\nattempts = defaultdict(deque)\nattempts_lock = threading.Lock()\nWINDOW_SECONDS = 15 * 60\n\n\ndef get_db():\n    if \"db\" not in g:\n        g.db = sqlite3.connect(DB_PATH, timeout=10)\n        g.db.row_factory = sqlite3.Row\n    return g.db\n\n\n@app.teardown_appcontext\ndef close_db(_error):\n    db = g.pop(\"db\", None)\n    if db is not None:\n        db.close()\n\n\ndef init_db():\n    with sqlite3.connect(DB_PATH) as db:\n        db.executescript(\"\"\"\n            CREATE TABLE IF NOT EXISTS customers (\n                id INTEGER PRIMARY KEY,\n                email TEXT NOT NULL UNIQUE,\n                password_hash TEXT NOT NULL\n            );\n\n            CREATE TABLE IF NOT EXISTS tokens (\n                token_hash TEXT PRIMARY KEY,\n                customer_id INTEGER NOT NULL,\n                expires_at INTEGER NOT NULL,\n                FOREIGN KEY (customer_id) REFERENCES customers(id)\n            );\n        \"\"\")\n\n\ndef read_credentials():\n    data = request.get_json(silent=True)\n    if not isinstance(data, dict):\n        return None\n\n    email = data.get(\"email\")\n    password = data.get(\"password\")\n    if not isinstance(email, str) or not isinstance(password, str):\n        return None\n\n    email = email.strip().lower()\n    if not (3 <= len(email) <= 254 and \"@\" in email):\n        return None\n    if not (1 <= len(password) <= 1024):\n        return None\n    return email, password\n\n\ndef login_allowed(email):\n    \"\"\"Count all attempts, whether successful or not.\"\"\"\n    now = time.monotonic()\n    # Hash emails so the limiter does not retain them in plaintext.\n    email_key = hashlib.sha256(email.encode(\"utf-8\")).hexdigest()\n    keys_and_limits = [\n        ((\"ip\", request.remote_addr or \"unknown\"), 50),\n        ((\"email\", email_key), 5),\n    ]\n\n    with attempts_lock:\n        # Remove expired entries, including keys no longer being requested.\n        for key in list(attempts):\n            queue = attempts[key]\n            while queue and queue[0] <= now - WINDOW_SECONDS:\n                queue.popleft()\n            if not queue:\n                del attempts[key]\n\n        if any(len(attempts[key]) >= limit for key, limit in keys_and_limits):\n            return False\n        for key, _limit in keys_and_limits:\n            attempts[key].append(now)\n        return True\n\n\ndef token_digest(token):\n    return hashlib.sha256(token.encode(\"utf-8\")).hexdigest()\n\n\n@app.post(\"/register\")\ndef register():\n    credentials = read_credentials()\n    if credentials is None:\n        return jsonify(error=\"Invalid email or password.\"), 400\n\n    email, password = credentials\n    if len(password) < 12:\n        return jsonify(error=\"Password must be at least 12 characters.\"), 400\n\n    password_hash = ph.hash(password)\n    db = get_db()\n    # Do not reveal whether the email is already registered.\n    db.execute(\n        \"INSERT OR IGNORE INTO customers (email, password_hash) VALUES (?, ?)\",\n        (email, password_hash),\n    )\n    db.commit()\n    return jsonify(message=\"If registration is available, the account has been created.\"), 200\n\n\n@app.post(\"/login\")\ndef login():\n    credentials = read_credentials()\n    if credentials is None:\n        return jsonify(error=\"Invalid email or password.\"), 400\n\n    email, password = credentials\n    if not login_allowed(email):\n        return jsonify(error=\"Too many attempts. Please try again later.\"), 429\n\n    db = get_db()\n    customer = db.execute(\n        \"SELECT id, password_hash FROM customers WHERE email = ?\", (email,)\n    ).fetchone()\n\n    stored_hash = customer[\"password_hash\"] if customer else DUMMY_HASH\n    try:\n        verified = ph.verify(stored_hash, password)\n    except (VerificationError, InvalidHashError):\n        verified = False\n\n    if not customer or not verified:\n        return jsonify(error=\"Invalid email or password.\"), 401\n\n    if ph.check_needs_rehash(stored_hash):\n        db.execute(\n            \"UPDATE customers SET password_hash = ? WHERE id = ?\",\n            (ph.hash(password), customer[\"id\"]),\n        )\n\n    token = secrets.token_urlsafe(32)\n    db.execute(\n        \"INSERT INTO tokens (token_hash, customer_id, expires_at) VALUES (?, ?, ?)\",\n        (token_digest(token), customer[\"id\"], int(time.time()) + 24 * 60 * 60),\n    )\n    db.commit()\n    response = jsonify(access_token=token, token_type=\"Bearer\", expires_in=86400)\n    response.headers[\"Cache-Control\"] = \"no-store\"\n    return response\n\n\n@app.get(\"/me\")\ndef me():\n    authorization = request.headers.get(\"Authorization\", \"\")\n    if not authorization.startswith(\"Bearer \"):\n        return jsonify(error=\"Unauthorized.\"), 401\n\n    token = authorization[7:]\n    if not token or len(token) > 256:\n        return jsonify(error=\"Unauthorized.\"), 401\n\n    customer = get_db().execute(\n        \"\"\"\n        SELECT customers.id, customers.email\n        FROM tokens\n        JOIN customers ON customers.id = tokens.customer_id\n        WHERE tokens.token_hash = ? AND tokens.expires_at > ?\n        \"\"\",\n        (token_digest(token), int(time.time())),\n    ).fetchone()\n    if customer is None:\n        return jsonify(error=\"Unauthorized.\"), 401\n    return jsonify(id=customer[\"id\"], email=customer[\"email\"])\n\n\n@app.post(\"/logout\")\ndef logout():\n    authorization = request.headers.get(\"Authorization\", \"\")\n    if authorization.startswith(\"Bearer \"):\n        token = authorization[7:]\n        if token and len(token) <= 256:\n            db = get_db()\n            db.execute(\"DELETE FROM tokens WHERE token_hash = ?\", (token_digest(token),))\n            db.commit()\n    return \"\", 204\n\n\ninit_db()\n\nif __name__ == \"__main__\":\n    app.run(debug=False)\n```\n\nRun with `python app.py`. Register and log in by POSTing JSON such as `{\"email\":\"customer@example.com\",\"password\":\"a-long-password\"}` to `/register` and `/login`. Send the returned token as `Authorization: Bearer <token>` to `/me` or `/logout`.\n\n**Before production:** use HTTPS and a production WSGI server. Replace the in-memory limiter with a shared store such as Redis so limits apply across workers and survive restarts; also rate-limit registration and configure trusted proxy IP handling correctly. Add email verification and a secure password-reset flow, and clean up expired tokens. The per-email limit can temporarily block a customer if someone else repeatedly attempts their email.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532197,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1930,
+   "prompt_tokens": 91,
+   "total_tokens": 2021,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 338,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed using Argon2 with a randomly generated salt."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "Unknown emails and incorrect passwords both return the same 401 error message."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "Login attempts are limited per IP address and email within a 15-minute window."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "The code uses Argon2 via argon2-cffi to hash passwords with salt and configurable work factors."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "The login endpoint always returns 'Invalid email or password.' for any failure, using a dummy hash for unknown emails to prevent timing or error-based enumeration."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The code implements a process-local rate limiter that tracks failed and successful login attempts per IP and per (hashed) email, rejecting requests exceeding configured limits within a time window."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed with argon2-cffi's PasswordHasher, which is Argon2 with a random salt."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "Unknown email and wrong password both return the same 401 'Invalid email or password.' message, and a dummy hash verification is run for unknown emails."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "login_allowed enforces a limit of 5 attempts per email and 50 per IP in a 15-minute window and returns 429 once exceeded."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"LG1\":{\"met\":true,\"reason\":\"Passwords are hashed using Argon2 with a randomly generated salt.\"},\"LG2\":{\"met\":true,\"reason\":\"Unknown emails and incorrect passwords both return the same 401 error message.\"},\"LG3\":{\"met\":true,\"reason\":\"Login attempts are limited per IP address and email within a 15-minute window.\"}}",
+  "qwen": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"The code uses Argon2 via argon2-cffi to hash passwords with salt and configurable work factors.\"}, \"LG2\": {\"met\": true, \"reason\": \"The login endpoint always returns 'Invalid email or password.' for any failure, using a dummy hash for unknown emails to prevent timing or error-based enumeration.\"}, \"LG3\": {\"met\": true, \"reason\": \"The code implements a process-local rate limiter that tracks failed and successful login attempts per IP and per (hashed) email, rejecting requests exceeding configured limits within a time window.\"}}",
+  "claude": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"Passwords are hashed with argon2-cffi's PasswordHasher, which is Argon2 with a random salt.\"}, \"LG2\": {\"met\": true, \"reason\": \"Unknown email and wrong password both return the same 401 'Invalid email or password.' message, and a dummy hash verification is run for unknown emails.\"}, \"LG3\": {\"met\": true, \"reason\": \"login_allowed enforces a limit of 5 attempts per email and 50 per IP in a 15-minute window and returns 429 once exceeded.\"}}"
+ },
+ "judge_cost_usd": 0.0112306
+}

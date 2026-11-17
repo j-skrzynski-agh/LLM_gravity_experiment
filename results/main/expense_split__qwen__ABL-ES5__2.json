@@ -1,0 +1,98 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T04:55:32+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "qwen",
+ "condition": "ABL-ES5",
+ "rep": 2,
+ "requirement_order": [
+  "ES3",
+  "ES1",
+  "ES4",
+  "ES2",
+  "ES6"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": true,
+  "ES4": true,
+  "ES5": false,
+  "ES6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. Adding an expense with an amount that is zero or negative raises ValueError.\n2. Adding an expense whose payer or any participant is not a group member raises ValueError.\n3. settle_up() proposes at most (number of members - 1) payments.\n4. If participants are not given, the expense is split equally among all group members.\n5. settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off and not included in the proposed payments.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = members.copy()\n        # Track total amount each member has paid\n        self.total_paid = {member: 0.0 for member in self.members}\n        # Track total amount each member should pay (for expenses they participated in)\n        self.total_owed = {member: 0.0 for member in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive\")\n        \n        if payer not in self.members:\n            raise ValueError(f\"Payer '{payer}' is not a group member\")\n        \n        if participants is None:\n            participants = self.members\n        else:\n            for participant in participants:\n                if participant not in self.members:\n                    raise ValueError(f\"Participant '{participant}' is not a group member\")\n        \n        if not participants:\n            raise ValueError(\"At least one participant is required\")\n        \n        # Add to payer's total paid\n        self.total_paid[payer] += amount\n        \n        # Split the expense equally among participants\n        share = amount / len(participants)\n        for participant in participants:\n            self.total_owed[participant] += share\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n        balances = {}\n        for member in self.members:\n            # Balance = total_paid - total_owed\n            # If positive: member paid more than their share, so they are owed money\n            # If negative: member paid less than their share, so they owe money\n            balances[member] = self.total_paid[member] - self.total_owed[member]\n        return balances\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n        balances = self.balances()\n        \n        # Separate debtors (negative balance) and creditors (positive balance)\n        debtors = []  # (member, amount_owed)\n        creditors = []  # (member, amount_owed)\n        \n        for member, balance in balances.items():\n            if balance < 0:\n                debtors.append((member, -balance))  # store as positive amount owed\n            elif balance > 0:\n                creditors.append((member, balance))\n        \n        # Sort debtors by amount owed (largest first) and creditors by amount owed (largest first)\n        # This helps minimize number of payments\n        debtors.sort(key=lambda x: x[1], reverse=True)\n        creditors.sort(key=lambda x: x[1], reverse=True)\n        \n        payments = []\n        \n        # Process payments until all debts are settled\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            debtor, debtor_amount = debtors[i]\n            creditor, creditor_amount = creditors[j]\n            \n            # Determine payment amount (minimum of what debtor owes and what creditor is owed)\n            payment_amount = min(debtor_amount, creditor_amount)\n            \n            # Only include payments >= 1.00\n            if payment_amount >= 1.00:\n                payments.append((debtor, creditor, round(payment_amount, 2)))\n            \n            # Update remaining amounts\n            debtors[i] = (debtor, debtor_amount - payment_amount)\n            creditors[j] = (creditor, creditor_amount - payment_amount)\n            \n            # Move to next debtor if fully settled\n            if debtors[i][1] < 1e-9:  # Handle floating point precision\n                i += 1\n            # Move to next creditor if fully settled\n            if creditors[j][1] < 1e-9:\n                j += 1\n        \n        return payments\n```",
+ "code": "class Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = members.copy()\n        # Track total amount each member has paid\n        self.total_paid = {member: 0.0 for member in self.members}\n        # Track total amount each member should pay (for expenses they participated in)\n        self.total_owed = {member: 0.0 for member in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive\")\n        \n        if payer not in self.members:\n            raise ValueError(f\"Payer '{payer}' is not a group member\")\n        \n        if participants is None:\n            participants = self.members\n        else:\n            for participant in participants:\n                if participant not in self.members:\n                    raise ValueError(f\"Participant '{participant}' is not a group member\")\n        \n        if not participants:\n            raise ValueError(\"At least one participant is required\")\n        \n        # Add to payer's total paid\n        self.total_paid[payer] += amount\n        \n        # Split the expense equally among participants\n        share = amount / len(participants)\n        for participant in participants:\n            self.total_owed[participant] += share\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n        balances = {}\n        for member in self.members:\n            # Balance = total_paid - total_owed\n            # If positive: member paid more than their share, so they are owed money\n            # If negative: member paid less than their share, so they owe money\n            balances[member] = self.total_paid[member] - self.total_owed[member]\n        return balances\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n        balances = self.balances()\n        \n        # Separate debtors (negative balance) and creditors (positive balance)\n        debtors = []  # (member, amount_owed)\n        creditors = []  # (member, amount_owed)\n        \n        for member, balance in balances.items():\n            if balance < 0:\n                debtors.append((member, -balance))  # store as positive amount owed\n            elif balance > 0:\n                creditors.append((member, balance))\n        \n        # Sort debtors by amount owed (largest first) and creditors by amount owed (largest first)\n        # This helps minimize number of payments\n        debtors.sort(key=lambda x: x[1], reverse=True)\n        creditors.sort(key=lambda x: x[1], reverse=True)\n        \n        payments = []\n        \n        # Process payments until all debts are settled\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            debtor, debtor_amount = debtors[i]\n            creditor, creditor_amount = creditors[j]\n            \n            # Determine payment amount (minimum of what debtor owes and what creditor is owed)\n            payment_amount = min(debtor_amount, creditor_amount)\n            \n            # Only include payments >= 1.00\n            if payment_amount >= 1.00:\n                payments.append((debtor, creditor, round(payment_amount, 2)))\n            \n            # Update remaining amounts\n            debtors[i] = (debtor, debtor_amount - payment_amount)\n            creditors[j] = (creditor, creditor_amount - payment_amount)\n            \n            # Move to next debtor if fully settled\n            if debtors[i][1] < 1e-9:  # Handle floating point precision\n                i += 1\n            # Move to next creditor if fully settled\n            if creditors[j][1] < 1e-9:\n                j += 1\n        \n        return payments\n",
+ "input_tokens": 327,
+ "output_tokens": 833,
+ "cost_usd": 0.0011304,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 15.43,
+ "raw_api_response": {
+  "id": "gen-1794891308-nHJopIwrEuUaKqpvOxM5",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        self.members = members.copy()\n        # Track total amount each member has paid\n        self.total_paid = {member: 0.0 for member in self.members}\n        # Track total amount each member should pay (for expenses they participated in)\n        self.total_owed = {member: 0.0 for member in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive\")\n        \n        if payer not in self.members:\n            raise ValueError(f\"Payer '{payer}' is not a group member\")\n        \n        if participants is None:\n            participants = self.members\n        else:\n            for participant in participants:\n                if participant not in self.members:\n                    raise ValueError(f\"Participant '{participant}' is not a group member\")\n        \n        if not participants:\n            raise ValueError(\"At least one participant is required\")\n        \n        # Add to payer's total paid\n        self.total_paid[payer] += amount\n        \n        # Split the expense equally among participants\n        share = amount / len(participants)\n        for participant in participants:\n            self.total_owed[participant] += share\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n        balances = {}\n        for member in self.members:\n            # Balance = total_paid - total_owed\n            # If positive: member paid more than their share, so they are owed money\n            # If negative: member paid less than their share, so they owe money\n            balances[member] = self.total_paid[member] - self.total_owed[member]\n        return balances\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n        balances = self.balances()\n        \n        # Separate debtors (negative balance) and creditors (positive balance)\n        debtors = []  # (member, amount_owed)\n        creditors = []  # (member, amount_owed)\n        \n        for member, balance in balances.items():\n            if balance < 0:\n                debtors.append((member, -balance))  # store as positive amount owed\n            elif balance > 0:\n                creditors.append((member, balance))\n        \n        # Sort debtors by amount owed (largest first) and creditors by amount owed (largest first)\n        # This helps minimize number of payments\n        debtors.sort(key=lambda x: x[1], reverse=True)\n        creditors.sort(key=lambda x: x[1], reverse=True)\n        \n        payments = []\n        \n        # Process payments until all debts are settled\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            debtor, debtor_amount = debtors[i]\n            creditor, creditor_amount = creditors[j]\n            \n            # Determine payment amount (minimum of what debtor owes and what creditor is owed)\n            payment_amount = min(debtor_amount, creditor_amount)\n            \n            # Only include payments >= 1.00\n            if payment_amount >= 1.00:\n                payments.append((debtor, creditor, round(payment_amount, 2)))\n            \n            # Update remaining amounts\n            debtors[i] = (debtor, debtor_amount - payment_amount)\n            creditors[j] = (creditor, creditor_amount - payment_amount)\n            \n            # Move to next debtor if fully settled\n            if debtors[i][1] < 1e-9:  # Handle floating point precision\n                i += 1\n            # Move to next creditor if fully settled\n            if creditors[j][1] < 1e-9:\n                j += 1\n        \n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794891308,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 833,
+   "prompt_tokens": 327,
+   "total_tokens": 1160,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00073476,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00073476,
+    "upstream_inference_prompt_cost": 8.502e-05,
+    "upstream_inference_completions_cost": 0.00064974
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

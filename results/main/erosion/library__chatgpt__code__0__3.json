@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T00:58:44+00:00",
+ "app": "library",
+ "app_hash": "5aabb8080384",
+ "model": "chatgpt",
+ "variant": "code",
+ "rep": 0,
+ "step": 3,
+ "change": "Add an optional keyword parameter `title: str = \"\"` at the end of the parameters of add_book, and a method `title(self, book_id: str) -> str` that returns it.",
+ "start_file": "library__chatgpt__FULL__0.json",
+ "passed": {
+  "LB1": true,
+  "LB2": true,
+  "LB3": true,
+  "LB4": true,
+  "LB5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import date, timedelta\n\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self._books = set()\n        self._loans = {}  # book_id -> (user, due_date)\n        self._user_loans = {}  # user -> book_id\n        self._fines = {}\n        self._history = {}  # user -> list of book_ids\n\n    def add_book(self, book_id: str) -> None:\n        self._books.add(book_id)\n\n    def available(self) -> list[str]:\n        return sorted(self._books - self._loans.keys())\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        if book_id not in self._books:\n            raise ValueError(\"Book is not in the library\")\n        if book_id in self._loans:\n            raise ValueError(\"Book is already borrowed\")\n        if user in self._user_loans:\n            raise ValueError(\"User already has a borrowed book\")\n\n        due_date = day + timedelta(days=self.loan_days)\n        self._loans[book_id] = (user, due_date)\n        self._user_loans[user] = book_id\n        self._history.setdefault(user, []).append(book_id)\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"Return a book; returns the fine charged for this return.\"\"\"\n        loan = self._loans.get(book_id)\n        if loan is None or loan[0] != user:\n            raise ValueError(\"User has not borrowed this book\")\n\n        due_date = loan[1]\n        delay = max(0, (day - due_date).days)\n        weeks, remaining_days = divmod(delay, 7)\n        weekdays = weeks * 5\n        weekdays += sum(\n            1\n            for offset in range(1, remaining_days + 1)\n            if (due_date.weekday() + offset) % 7 < 5\n        )\n        fine = weekdays * self.daily_fine\n\n        del self._loans[book_id]\n        del self._user_loans[user]\n        self._fines[user] = self._fines.get(user, 0.0) + fine\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        return self._fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"Pay all fines of the user.\"\"\"\n        self._fines.pop(user, None)\n\n    def history(self, user: str) -> list[str]:\n        \"\"\"Return book IDs borrowed by the user, in borrowing order.\"\"\"\n        return list(self._history.get(user, []))\n```\n\n## Change request\nAdd an optional keyword parameter `title: str = \"\"` at the end of the parameters of add_book, and a method `title(self, book_id: str) -> str` that returns it.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self._books = set()\n        self._titles = {}  # book_id -> title\n        self._loans = {}  # book_id -> (user, due_date)\n        self._user_loans = {}  # user -> book_id\n        self._fines = {}\n        self._history = {}  # user -> list of book_ids\n\n    def add_book(self, book_id: str, title: str = \"\") -> None:\n        self._books.add(book_id)\n        self._titles[book_id] = title\n\n    def title(self, book_id: str) -> str:\n        return self._titles[book_id]\n\n    def available(self) -> list[str]:\n        return sorted(self._books - self._loans.keys())\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        if book_id not in self._books:\n            raise ValueError(\"Book is not in the library\")\n        if book_id in self._loans:\n            raise ValueError(\"Book is already borrowed\")\n        if user in self._user_loans:\n            raise ValueError(\"User already has a borrowed book\")\n\n        due_date = day + timedelta(days=self.loan_days)\n        self._loans[book_id] = (user, due_date)\n        self._user_loans[user] = book_id\n        self._history.setdefault(user, []).append(book_id)\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"Return a book; returns the fine charged for this return.\"\"\"\n        loan = self._loans.get(book_id)\n        if loan is None or loan[0] != user:\n            raise ValueError(\"User has not borrowed this book\")\n\n        due_date = loan[1]\n        delay = max(0, (day - due_date).days)\n        weeks, remaining_days = divmod(delay, 7)\n        weekdays = weeks * 5\n        weekdays += sum(\n            1\n            for offset in range(1, remaining_days + 1)\n            if (due_date.weekday() + offset) % 7 < 5\n        )\n        fine = weekdays * self.daily_fine\n\n        del self._loans[book_id]\n        del self._user_loans[user]\n        self._fines[user] = self._fines.get(user, 0.0) + fine\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        return self._fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"Pay all fines of the user.\"\"\"\n        self._fines.pop(user, None)\n\n    def history(self, user: str) -> list[str]:\n        \"\"\"Return book IDs borrowed by the user, in borrowing order.\"\"\"\n        return list(self._history.get(user, []))\n```",
+ "code": "from datetime import date, timedelta\n\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self._books = set()\n        self._titles = {}  # book_id -> title\n        self._loans = {}  # book_id -> (user, due_date)\n        self._user_loans = {}  # user -> book_id\n        self._fines = {}\n        self._history = {}  # user -> list of book_ids\n\n    def add_book(self, book_id: str, title: str = \"\") -> None:\n        self._books.add(book_id)\n        self._titles[book_id] = title\n\n    def title(self, book_id: str) -> str:\n        return self._titles[book_id]\n\n    def available(self) -> list[str]:\n        return sorted(self._books - self._loans.keys())\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        if book_id not in self._books:\n            raise ValueError(\"Book is not in the library\")\n        if book_id in self._loans:\n            raise ValueError(\"Book is already borrowed\")\n        if user in self._user_loans:\n            raise ValueError(\"User already has a borrowed book\")\n\n        due_date = day + timedelta(days=self.loan_days)\n        self._loans[book_id] = (user, due_date)\n        self._user_loans[user] = book_id\n        self._history.setdefault(user, []).append(book_id)\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"Return a book; returns the fine charged for this return.\"\"\"\n        loan = self._loans.get(book_id)\n        if loan is None or loan[0] != user:\n            raise ValueError(\"User has not borrowed this book\")\n\n        due_date = loan[1]\n        delay = max(0, (day - due_date).days)\n        weeks, remaining_days = divmod(delay, 7)\n        weekdays = weeks * 5\n        weekdays += sum(\n            1\n            for offset in range(1, remaining_days + 1)\n            if (due_date.weekday() + offset) % 7 < 5\n        )\n        fine = weekdays * self.daily_fine\n\n        del self._loans[book_id]\n        del self._user_loans[user]\n        self._fines[user] = self._fines.get(user, 0.0) + fine\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        return self._fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"Pay all fines of the user.\"\"\"\n        self._fines.pop(user, None)\n\n    def history(self, user: str) -> list[str]:\n        \"\"\"Return book IDs borrowed by the user, in borrowing order.\"\"\"\n        return list(self._history.get(user, []))\n",
+ "input_tokens": 698,
+ "output_tokens": 670,
+ "cost_usd": 0.004048,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 8.66,
+ "raw_api_response": {
+  "id": "chatcmpl-EjZuXl81JNPPFU5N985LOzxEx29c7",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self._books = set()\n        self._titles = {}  # book_id -> title\n        self._loans = {}  # book_id -> (user, due_date)\n        self._user_loans = {}  # user -> book_id\n        self._fines = {}\n        self._history = {}  # user -> list of book_ids\n\n    def add_book(self, book_id: str, title: str = \"\") -> None:\n        self._books.add(book_id)\n        self._titles[book_id] = title\n\n    def title(self, book_id: str) -> str:\n        return self._titles[book_id]\n\n    def available(self) -> list[str]:\n        return sorted(self._books - self._loans.keys())\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        if book_id not in self._books:\n            raise ValueError(\"Book is not in the library\")\n        if book_id in self._loans:\n            raise ValueError(\"Book is already borrowed\")\n        if user in self._user_loans:\n            raise ValueError(\"User already has a borrowed book\")\n\n        due_date = day + timedelta(days=self.loan_days)\n        self._loans[book_id] = (user, due_date)\n        self._user_loans[user] = book_id\n        self._history.setdefault(user, []).append(book_id)\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"Return a book; returns the fine charged for this return.\"\"\"\n        loan = self._loans.get(book_id)\n        if loan is None or loan[0] != user:\n            raise ValueError(\"User has not borrowed this book\")\n\n        due_date = loan[1]\n        delay = max(0, (day - due_date).days)\n        weeks, remaining_days = divmod(delay, 7)\n        weekdays = weeks * 5\n        weekdays += sum(\n            1\n            for offset in range(1, remaining_days + 1)\n            if (due_date.weekday() + offset) % 7 < 5\n        )\n        fine = weekdays * self.daily_fine\n\n        del self._loans[book_id]\n        del self._user_loans[user]\n        self._fines[user] = self._fines.get(user, 0.0) + fine\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        return self._fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"Pay all fines of the user.\"\"\"\n        self._fines.pop(user, None)\n\n    def history(self, user: str) -> list[str]:\n        \"\"\"Return book IDs borrowed by the user, in borrowing order.\"\"\"\n        return list(self._history.get(user, []))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794531509,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 670,
+   "prompt_tokens": 698,
+   "total_tokens": 1368,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

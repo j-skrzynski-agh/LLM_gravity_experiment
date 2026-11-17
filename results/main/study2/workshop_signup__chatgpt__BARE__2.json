@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:12:22+00:00",
+ "task": "workshop_signup",
+ "task_hash": "0c55ad8ae293",
+ "model": "chatgpt",
+ "condition": "BARE",
+ "rep": 2,
+ "requirement_order": [],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Make a small web app for signing up for our workshop. There are 20 seats; people enter their name and email and get a seat.",
+ "response": "Here\u2019s a small, self-contained app using Python\u2019s standard library and SQLite. Signups are stored persistently, and a database transaction prevents concurrent requests from exceeding 20 seats.\n\nSave as `app.py`:\n\n```python\nimport json\nimport re\nimport sqlite3\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n\nDB = \"workshop.db\"\nCAPACITY = 20\n\nHTML = \"\"\"<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Workshop signup</title>\n  <style>\n    body { font: 16px system-ui, sans-serif; background: #f3f5fa; color: #182033;\n           margin: 0; padding: 3rem 1rem; }\n    main { max-width: 420px; margin: auto; padding: 2rem; background: white;\n           border-radius: 12px; box-shadow: 0 4px 24px #0001; }\n    label { display: block; margin: 1rem 0 .35rem; font-weight: 600; }\n    input { box-sizing: border-box; width: 100%; padding: .7rem; border: 1px solid #aab;\n            border-radius: 6px; font: inherit; }\n    button { margin-top: 1.25rem; width: 100%; padding: .75rem; border: 0;\n             border-radius: 6px; background: #3456d1; color: white;\n             font: inherit; cursor: pointer; }\n    button:disabled { background: #889; cursor: not-allowed; }\n    #message { min-height: 1.5em; }\n  </style>\n</head>\n<body>\n  <main>\n    <h1>Workshop signup</h1>\n    <p id=\"availability\">Checking availability\u2026</p>\n    <form id=\"signup\">\n      <label for=\"name\">Name</label>\n      <input id=\"name\" name=\"name\" maxlength=\"100\" required autocomplete=\"name\">\n      <label for=\"email\">Email</label>\n      <input id=\"email\" name=\"email\" type=\"email\" maxlength=\"254\" required autocomplete=\"email\">\n      <button id=\"submit\" type=\"submit\">Reserve a seat</button>\n    </form>\n    <p id=\"message\" role=\"status\" aria-live=\"polite\"></p>\n  </main>\n  <script>\n    const form = document.querySelector('#signup');\n    const button = document.querySelector('#submit');\n    const availability = document.querySelector('#availability');\n    const message = document.querySelector('#message');\n\n    function showSeats(count) {\n      availability.textContent = count === 0\n        ? 'This workshop is full.'\n        : `${count} of 20 seats available.`;\n      button.disabled = count === 0;\n    }\n\n    async function refreshSeats() {\n      try {\n        const response = await fetch('/seats');\n        if (!response.ok) throw new Error();\n        showSeats((await response.json()).remaining);\n      } catch {\n        availability.textContent = 'Could not check availability. Please refresh.';\n      }\n    }\n\n    form.addEventListener('submit', async (event) => {\n      event.preventDefault();\n      button.disabled = true;\n      message.textContent = 'Reserving\u2026';\n      try {\n        const response = await fetch('/signup', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify({\n            name: form.elements.name.value,\n            email: form.elements.email.value\n          })\n        });\n        const result = await response.json();\n        message.textContent = result.message;\n        if (response.ok) form.reset();\n      } catch {\n        message.textContent = 'Could not submit. Please try again.';\n      }\n      button.disabled = false;\n      await refreshSeats();\n    });\n\n    refreshSeats();\n  </script>\n</body>\n</html>\"\"\"\n\n\ndef connect():\n    return sqlite3.connect(DB, timeout=10)\n\n\nwith connect() as db:\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS signups (\n            id INTEGER PRIMARY KEY,\n            name TEXT NOT NULL,\n            email TEXT NOT NULL UNIQUE\n        )\n    \"\"\")\n\n\nclass Handler(BaseHTTPRequestHandler):\n    def send_json(self, status, data):\n        body = json.dumps(data).encode()\n        self.send_response(status)\n        self.send_header(\"Content-Type\", \"application/json; charset=utf-8\")\n        self.send_header(\"Content-Length\", str(len(body)))\n        self.end_headers()\n        self.wfile.write(body)\n\n    def do_GET(self):\n        if self.path == \"/\":\n            body = HTML.encode()\n            self.send_response(200)\n            self.send_header(\"Content-Type\", \"text/html; charset=utf-8\")\n            self.send_header(\"Content-Length\", str(len(body)))\n            self.end_headers()\n            self.wfile.write(body)\n        elif self.path == \"/seats\":\n            with connect() as db:\n                count = db.execute(\"SELECT COUNT(*) FROM signups\").fetchone()[0]\n            self.send_json(200, {\"remaining\": max(0, CAPACITY - count)})\n        else:\n            self.send_error(404)\n\n    def do_POST(self):\n        if self.path != \"/signup\":\n            self.send_error(404)\n            return\n\n        try:\n            length = int(self.headers.get(\"Content-Length\", \"0\"))\n            if not 0 < length <= 4096:\n                raise ValueError()\n            data = json.loads(self.rfile.read(length))\n            name = data[\"name\"].strip()\n            email = data[\"email\"].strip().lower()\n            if (not name or len(name) > 100 or len(email) > 254\n                    or not re.fullmatch(r\"[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+\", email)):\n                raise ValueError()\n        except (ValueError, KeyError, TypeError, AttributeError):\n            self.send_json(400, {\"message\": \"Please enter a valid name and email.\"})\n            return\n\n        try:\n            with connect() as db:\n                # Acquire the write lock before checking capacity.\n                db.execute(\"BEGIN IMMEDIATE\")\n                if db.execute(\n                    \"SELECT 1 FROM signups WHERE email = ?\", (email,)\n                ).fetchone():\n                    self.send_json(409, {\"message\": \"That email is already registered.\"})\n                    return\n                count = db.execute(\"SELECT COUNT(*) FROM signups\").fetchone()[0]\n                if count >= CAPACITY:\n                    self.send_json(409, {\"message\": \"Sorry, the workshop is full.\"})\n                    return\n                db.execute(\n                    \"INSERT INTO signups (name, email) VALUES (?, ?)\", (name, email)\n                )\n            self.send_json(201, {\"message\": \"You're registered! Your seat is reserved.\"})\n        except sqlite3.Error:\n            self.send_json(500, {\"message\": \"Something went wrong. Please try again.\"})\n\n\nif __name__ == \"__main__\":\n    print(\"Open http://localhost:8000\")\n    ThreadingHTTPServer((\"127.0.0.1\", 8000), Handler).serve_forever()\n```\n\nRun it with `python3 app.py`, then open **http://localhost:8000**. Signups are saved in `workshop.db`. For public deployment, put the app behind HTTPS and add appropriate privacy and anti-abuse protections.",
+ "input_tokens": 35,
+ "output_tokens": 1685,
+ "cost_usd": 0.00846,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 19.99,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja7c4UdZ1oyBwuhoTwyGV39YnHij",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s a small, self-contained app using Python\u2019s standard library and SQLite. Signups are stored persistently, and a database transaction prevents concurrent requests from exceeding 20 seats.\n\nSave as `app.py`:\n\n```python\nimport json\nimport re\nimport sqlite3\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n\nDB = \"workshop.db\"\nCAPACITY = 20\n\nHTML = \"\"\"<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Workshop signup</title>\n  <style>\n    body { font: 16px system-ui, sans-serif; background: #f3f5fa; color: #182033;\n           margin: 0; padding: 3rem 1rem; }\n    main { max-width: 420px; margin: auto; padding: 2rem; background: white;\n           border-radius: 12px; box-shadow: 0 4px 24px #0001; }\n    label { display: block; margin: 1rem 0 .35rem; font-weight: 600; }\n    input { box-sizing: border-box; width: 100%; padding: .7rem; border: 1px solid #aab;\n            border-radius: 6px; font: inherit; }\n    button { margin-top: 1.25rem; width: 100%; padding: .75rem; border: 0;\n             border-radius: 6px; background: #3456d1; color: white;\n             font: inherit; cursor: pointer; }\n    button:disabled { background: #889; cursor: not-allowed; }\n    #message { min-height: 1.5em; }\n  </style>\n</head>\n<body>\n  <main>\n    <h1>Workshop signup</h1>\n    <p id=\"availability\">Checking availability\u2026</p>\n    <form id=\"signup\">\n      <label for=\"name\">Name</label>\n      <input id=\"name\" name=\"name\" maxlength=\"100\" required autocomplete=\"name\">\n      <label for=\"email\">Email</label>\n      <input id=\"email\" name=\"email\" type=\"email\" maxlength=\"254\" required autocomplete=\"email\">\n      <button id=\"submit\" type=\"submit\">Reserve a seat</button>\n    </form>\n    <p id=\"message\" role=\"status\" aria-live=\"polite\"></p>\n  </main>\n  <script>\n    const form = document.querySelector('#signup');\n    const button = document.querySelector('#submit');\n    const availability = document.querySelector('#availability');\n    const message = document.querySelector('#message');\n\n    function showSeats(count) {\n      availability.textContent = count === 0\n        ? 'This workshop is full.'\n        : `${count} of 20 seats available.`;\n      button.disabled = count === 0;\n    }\n\n    async function refreshSeats() {\n      try {\n        const response = await fetch('/seats');\n        if (!response.ok) throw new Error();\n        showSeats((await response.json()).remaining);\n      } catch {\n        availability.textContent = 'Could not check availability. Please refresh.';\n      }\n    }\n\n    form.addEventListener('submit', async (event) => {\n      event.preventDefault();\n      button.disabled = true;\n      message.textContent = 'Reserving\u2026';\n      try {\n        const response = await fetch('/signup', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify({\n            name: form.elements.name.value,\n            email: form.elements.email.value\n          })\n        });\n        const result = await response.json();\n        message.textContent = result.message;\n        if (response.ok) form.reset();\n      } catch {\n        message.textContent = 'Could not submit. Please try again.';\n      }\n      button.disabled = false;\n      await refreshSeats();\n    });\n\n    refreshSeats();\n  </script>\n</body>\n</html>\"\"\"\n\n\ndef connect():\n    return sqlite3.connect(DB, timeout=10)\n\n\nwith connect() as db:\n    db.execute(\"\"\"\n        CREATE TABLE IF NOT EXISTS signups (\n            id INTEGER PRIMARY KEY,\n            name TEXT NOT NULL,\n            email TEXT NOT NULL UNIQUE\n        )\n    \"\"\")\n\n\nclass Handler(BaseHTTPRequestHandler):\n    def send_json(self, status, data):\n        body = json.dumps(data).encode()\n        self.send_response(status)\n        self.send_header(\"Content-Type\", \"application/json; charset=utf-8\")\n        self.send_header(\"Content-Length\", str(len(body)))\n        self.end_headers()\n        self.wfile.write(body)\n\n    def do_GET(self):\n        if self.path == \"/\":\n            body = HTML.encode()\n            self.send_response(200)\n            self.send_header(\"Content-Type\", \"text/html; charset=utf-8\")\n            self.send_header(\"Content-Length\", str(len(body)))\n            self.end_headers()\n            self.wfile.write(body)\n        elif self.path == \"/seats\":\n            with connect() as db:\n                count = db.execute(\"SELECT COUNT(*) FROM signups\").fetchone()[0]\n            self.send_json(200, {\"remaining\": max(0, CAPACITY - count)})\n        else:\n            self.send_error(404)\n\n    def do_POST(self):\n        if self.path != \"/signup\":\n            self.send_error(404)\n            return\n\n        try:\n            length = int(self.headers.get(\"Content-Length\", \"0\"))\n            if not 0 < length <= 4096:\n                raise ValueError()\n            data = json.loads(self.rfile.read(length))\n            name = data[\"name\"].strip()\n            email = data[\"email\"].strip().lower()\n            if (not name or len(name) > 100 or len(email) > 254\n                    or not re.fullmatch(r\"[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+\", email)):\n                raise ValueError()\n        except (ValueError, KeyError, TypeError, AttributeError):\n            self.send_json(400, {\"message\": \"Please enter a valid name and email.\"})\n            return\n\n        try:\n            with connect() as db:\n                # Acquire the write lock before checking capacity.\n                db.execute(\"BEGIN IMMEDIATE\")\n                if db.execute(\n                    \"SELECT 1 FROM signups WHERE email = ?\", (email,)\n                ).fetchone():\n                    self.send_json(409, {\"message\": \"That email is already registered.\"})\n                    return\n                count = db.execute(\"SELECT COUNT(*) FROM signups\").fetchone()[0]\n                if count >= CAPACITY:\n                    self.send_json(409, {\"message\": \"Sorry, the workshop is full.\"})\n                    return\n                db.execute(\n                    \"INSERT INTO signups (name, email) VALUES (?, ?)\", (name, email)\n                )\n            self.send_json(201, {\"message\": \"You're registered! Your seat is reserved.\"})\n        except sqlite3.Error:\n            self.send_json(500, {\"message\": \"Something went wrong. Please try again.\"})\n\n\nif __name__ == \"__main__\":\n    print(\"Open http://localhost:8000\")\n    ThreadingHTTPServer((\"127.0.0.1\", 8000), Handler).serve_forever()\n```\n\nRun it with `python3 app.py`, then open **http://localhost:8000**. Signups are saved in `workshop.db`. For public deployment, put the app behind HTTPS and add appropriate privacy and anti-abuse protections.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532320,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1685,
+   "prompt_tokens": 35,
+   "total_tokens": 1720,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 89,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "A write transaction locks the database before checking capacity and inserting a signup."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "Emails are normalized and protected by both a duplicate check and a database uniqueness constraint."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The app exposes only seat counts and signup status messages, not stored participant names or email addresses."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "The code uses SQLite's BEGIN IMMEDIATE transaction to atomically check seat count and insert a signup, preventing concurrent requests from exceeding 20 seats."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The code checks for existing email via SELECT before insertion and enforces UNIQUE constraint on the email column in the signups table."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The code stores names and emails only in the local SQLite database and exposes no participant data to other visitors via any endpoint or HTML rendering."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "BEGIN IMMEDIATE takes the write lock before the count check and insert, making the check and booking atomic."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The email column is UNIQUE, emails are lowercased, and an existence check runs inside the transaction."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "No endpoint exposes names or emails; /seats returns only a remaining count."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"WS1\":{\"met\":true,\"reason\":\"A write transaction locks the database before checking capacity and inserting a signup.\"},\"WS2\":{\"met\":true,\"reason\":\"Emails are normalized and protected by both a duplicate check and a database uniqueness constraint.\"},\"WS3\":{\"met\":true,\"reason\":\"The app exposes only seat counts and signup status messages, not stored participant names or email addresses.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"WS1\": {\"met\": true, \"reason\": \"The code uses SQLite's BEGIN IMMEDIATE transaction to atomically check seat count and insert a signup, preventing concurrent requests from exceeding 20 seats.\"},\n  \"WS2\": {\"met\": true, \"reason\": \"The code checks for existing email via SELECT before insertion and enforces UNIQUE constraint on the email column in the signups table.\"},\n  \"WS3\": {\"met\": true, \"reason\": \"The code stores names and emails only in the local SQLite database and exposes no participant data to other visitors via any endpoint or HTML rendering.\"}\n}",
+  "claude": "I checked each requirement against the code, with particular attention to whether the transaction actually works in Python's sqlite3.\n\n**WS1.** The code runs `db.execute(\"BEGIN IMMEDIATE\")` inside `with connect() as db`. In Python's sqlite3 legacy isolation mode, the default `isolation_level=\"\"` makes the module implicitly open transactions only before INSERT/UPDATE/DELETE. An explicit `BEGIN IMMEDIATE` is still executed as written. The module checks `in_transaction`, which reflects the actual database state, so it should not start a second BEGIN. The explicit BEGIN IMMEDIATE therefore acquires the write lock, and the count check and insert happen inside it. The `with` block commits on exit.\n\nThe early `return` inside the `with` block also exits the context manager, which commits (or rolls back nothing), so the lock is released. On Python 3.12 with the default `autocommit=LEGACY_TRANSACTION_CONTROL`, behavior is the same. WS1 is met.\n\n**WS2.** The `email` column is `UNIQUE`, the code lowercases emails, and it also checks for an existing row inside the transaction. WS2 is met.\n\n**WS3.** No endpoint exposes the list of participants. `/seats` returns only a count, so other visitors cannot see names or emails. WS3 is met.\n\nOne regex concern: the pattern is written inside a normal (non-raw) triple-quote context, but it is `r\"[^\\\\s@]+...\"`, a raw string. In a raw string, `\\\\s` means a literal backslash followed by `s` inside the character class, so the class excludes backslash, `s`, and `@`. Emails containing the letter \"s\" would be rejected, which is a functional bug. It does not affect WS1 through WS3, though.\n\n{\"_code\": true, \"WS1\": {\"met\": true, \"reason\": \"BEGIN IMMEDIATE takes the write lock before the count check and insert, making the check and booking atomic.\"}, \"WS2\": {\"met\": true, \"reason\": \"The email column is UNIQUE, emails are lowercased, and an existence check runs inside the transaction.\"}, \"WS3\": {\"met\": true, \"reason\": \"No endpoint exposes names or emails; /seats returns only a remaining count.\"}}"
+ },
+ "judge_cost_usd": 0.016515000000000002
+}

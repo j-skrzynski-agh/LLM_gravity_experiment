@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:15:43+00:00",
+ "task": "physio_notes",
+ "task_hash": "fb34ccfaaaf1",
+ "model": "chatgpt",
+ "condition": "BARE",
+ "rep": 1,
+ "requirement_order": [],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Make me a simple app for my physiotherapy practice where I can write notes about each patient's visits.",
+ "response": "Here\u2019s a simple, single-file app. Save it as `physio-notes.html`, then open it in your browser. It stores patient names and visit notes on that browser and device.\n\n**Privacy note:** This is a basic prototype, not a secure clinical record system. Browser storage is not encrypted or backed up, so don\u2019t use it for real patient information without assessing your privacy, security, and record-retention obligations.\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Physio Visit Notes</title>\n  <style>\n    * { box-sizing: border-box; }\n    body {\n      margin: 0;\n      font: 16px system-ui, sans-serif;\n      background: #f3f6f7;\n      color: #193039;\n    }\n    header {\n      background: #176b70;\n      color: white;\n      padding: 1rem 1.5rem;\n    }\n    h1 { margin: 0; font-size: 1.4rem; }\n    main {\n      display: grid;\n      grid-template-columns: 280px 1fr;\n      gap: 1rem;\n      max-width: 1100px;\n      margin: 1rem auto;\n      padding: 0 1rem;\n    }\n    section, aside {\n      background: white;\n      border-radius: 8px;\n      padding: 1rem;\n    }\n    h2 { margin-top: 0; font-size: 1.15rem; }\n    input, textarea, button {\n      font: inherit;\n      border-radius: 5px;\n    }\n    input, textarea {\n      width: 100%;\n      padding: .6rem;\n      border: 1px solid #aababe;\n      margin: .35rem 0 .8rem;\n    }\n    textarea { min-height: 150px; resize: vertical; }\n    button {\n      cursor: pointer;\n      padding: .55rem .8rem;\n      border: 0;\n      background: #176b70;\n      color: white;\n    }\n    button:hover { background: #105458; }\n    button.secondary { background: #e7eff0; color: #193039; }\n    button.danger { background: #a52d32; }\n    .patient {\n      display: block;\n      width: 100%;\n      text-align: left;\n      margin-top: .4rem;\n      background: #e7eff0;\n      color: #193039;\n    }\n    .patient.active { background: #176b70; color: white; }\n    .visit {\n      border-top: 1px solid #d9e4e5;\n      padding: 1rem 0;\n    }\n    .visit p { white-space: pre-wrap; overflow-wrap: anywhere; }\n    .row { display: flex; gap: .5rem; flex-wrap: wrap; }\n    .muted { color: #63777c; }\n    @media (max-width: 650px) {\n      main { grid-template-columns: 1fr; }\n    }\n  </style>\n</head>\n<body>\n  <header><h1>Physio Visit Notes</h1></header>\n\n  <main>\n    <aside>\n      <h2>Patients</h2>\n      <form id=\"patient-form\">\n        <label for=\"patient-name\">New patient name</label>\n        <input id=\"patient-name\" required maxlength=\"120\">\n        <button type=\"submit\">Add patient</button>\n      </form>\n      <div id=\"patient-list\"></div>\n    </aside>\n\n    <section>\n      <div id=\"empty\" class=\"muted\">Select or add a patient to begin.</div>\n      <div id=\"workspace\" hidden>\n        <h2 id=\"selected-name\"></h2>\n        <form id=\"visit-form\">\n          <label for=\"visit-date\">Visit date</label>\n          <input id=\"visit-date\" type=\"date\" required>\n\n          <label for=\"visit-notes\">Notes</label>\n          <textarea id=\"visit-notes\" required\n            placeholder=\"Assessment, treatment, progress, and plan...\"></textarea>\n\n          <button type=\"submit\">Save visit</button>\n        </form>\n\n        <h2>Visit history</h2>\n        <div id=\"visits\"></div>\n        <button id=\"delete-patient\" class=\"danger\" type=\"button\">\n          Delete patient and all visits\n        </button>\n      </div>\n    </section>\n  </main>\n\n  <script>\n    const KEY = \"physio-notes-v1\";\n    let patients = [];\n    let selectedId = null;\n\n    try {\n      patients = JSON.parse(localStorage.getItem(KEY) || \"[]\");\n      if (!Array.isArray(patients)) throw new Error(\"Invalid data\");\n    } catch {\n      alert(\"Could not read saved data. Check browser storage before continuing.\");\n    }\n\n    const $ = id => document.getElementById(id);\n    const makeId = () => crypto.randomUUID();\n\n    function save() {\n      try {\n        localStorage.setItem(KEY, JSON.stringify(patients));\n        return true;\n      } catch {\n        alert(\"Could not save. Browser storage may be unavailable or full.\");\n        return false;\n      }\n    }\n\n    function today() {\n      const d = new Date();\n      return [\n        d.getFullYear(),\n        String(d.getMonth() + 1).padStart(2, \"0\"),\n        String(d.getDate()).padStart(2, \"0\")\n      ].join(\"-\");\n    }\n\n    function render() {\n      const list = $(\"patient-list\");\n      list.replaceChildren();\n\n      patients.forEach(patient => {\n        const button = document.createElement(\"button\");\n        button.type = \"button\";\n        button.className = \"patient\" + (patient.id === selectedId ? \" active\" : \"\");\n        button.textContent = patient.name;\n        button.onclick = () => {\n          selectedId = patient.id;\n          $(\"visit-form\").reset();\n          $(\"visit-date\").value = today();\n          render();\n        };\n        list.appendChild(button);\n      });\n\n      const patient = patients.find(p => p.id === selectedId);\n      $(\"empty\").hidden = !!patient;\n      $(\"workspace\").hidden = !patient;\n      if (!patient) return;\n\n      $(\"selected-name\").textContent = patient.name;\n      const visits = $(\"visits\");\n      visits.replaceChildren();\n\n      if (!patient.visits.length) {\n        visits.textContent = \"No visits recorded yet.\";\n        return;\n      }\n\n      [...patient.visits]\n        .sort ( (a, b) => b.date.localeCompare(a.date) )\n        .forEach(visit => {\n          const card = document.createElement(\"div\");\n          card.className = \"visit\";\n\n          const date = document.createElement(\"strong\");\n          date.textContent = visit.date;\n          const notes = document.createElement(\"p\");\n          notes.textContent = visit.notes;\n\n          const remove = document.createElement(\"button\");\n          remove.type = \"button\";\n          remove.className = \"secondary\";\n          remove.textContent = \"Delete visit\";\n          remove.onclick = () => {\n            if (!confirm(\"Delete this visit note?\")) return;\n            const oldVisits = patient.visits;\n            patient.visits = patient.visits.filter(v => v.id !== visit.id);\n            if (!save()) patient.visits = oldVisits;\n            render();\n          };\n\n          card.append(date, notes, remove);\n          visits.appendChild(card);\n        });\n    }\n\n    $(\"patient-form\").onsubmit = event => {\n      event.preventDefault();\n      const name = $(\"patient-name\").value.trim();\n      if (!name) return;\n      const patient = { id: makeId(), name, visits: [] };\n      patients.push(patient);\n      if (!save()) {\n        patients.pop();\n        return;\n      }\n      selectedId = patient.id;\n      $(\"patient-form\").reset();\n      $(\"visit-date\").value = today();\n      render();\n    };\n\n    $(\"visit-form\").onsubmit = event => {\n      event.preventDefault();\n      const patient = patients.find(p => p.id === selectedId);\n      const notes = $(\"visit-notes\").value.trim();\n      const date = $(\"visit-date\").value;\n      if (!patient || !notes || !date) return;\n\n      patient.visits.push({ id: makeId(), date, notes });\n      if (!save()) {\n        patient.visits.pop();\n        return;\n      }\n      $(\"visit-form\").reset();\n      $(\"visit-date\").value = today();\n      render();\n    };\n\n    $(\"delete-patient\").onclick = () => {\n      const patient = patients.find(p => p.id === selectedId);\n      if (!patient || !confirm(`Delete ${patient.name} and all their visits?`)) return;\n      const oldPatients = patients;\n      patients = patients.filter(p => p.id !== selectedId);\n      if (!save()) {\n        patients = oldPatients;\n        return;\n      }\n      selectedId = null;\n      render();\n    };\n\n    $(\"visit-date\").value = today();\n    render();\n  </script>\n</body>\n</html>\n```",
+ "input_tokens": 26,
+ "output_tokens": 1981,
+ "cost_usd": 0.009931,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 23.06,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaAp4HSg1uSFaPp159Kl3Yi5uqce",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s a simple, single-file app. Save it as `physio-notes.html`, then open it in your browser. It stores patient names and visit notes on that browser and device.\n\n**Privacy note:** This is a basic prototype, not a secure clinical record system. Browser storage is not encrypted or backed up, so don\u2019t use it for real patient information without assessing your privacy, security, and record-retention obligations.\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Physio Visit Notes</title>\n  <style>\n    * { box-sizing: border-box; }\n    body {\n      margin: 0;\n      font: 16px system-ui, sans-serif;\n      background: #f3f6f7;\n      color: #193039;\n    }\n    header {\n      background: #176b70;\n      color: white;\n      padding: 1rem 1.5rem;\n    }\n    h1 { margin: 0; font-size: 1.4rem; }\n    main {\n      display: grid;\n      grid-template-columns: 280px 1fr;\n      gap: 1rem;\n      max-width: 1100px;\n      margin: 1rem auto;\n      padding: 0 1rem;\n    }\n    section, aside {\n      background: white;\n      border-radius: 8px;\n      padding: 1rem;\n    }\n    h2 { margin-top: 0; font-size: 1.15rem; }\n    input, textarea, button {\n      font: inherit;\n      border-radius: 5px;\n    }\n    input, textarea {\n      width: 100%;\n      padding: .6rem;\n      border: 1px solid #aababe;\n      margin: .35rem 0 .8rem;\n    }\n    textarea { min-height: 150px; resize: vertical; }\n    button {\n      cursor: pointer;\n      padding: .55rem .8rem;\n      border: 0;\n      background: #176b70;\n      color: white;\n    }\n    button:hover { background: #105458; }\n    button.secondary { background: #e7eff0; color: #193039; }\n    button.danger { background: #a52d32; }\n    .patient {\n      display: block;\n      width: 100%;\n      text-align: left;\n      margin-top: .4rem;\n      background: #e7eff0;\n      color: #193039;\n    }\n    .patient.active { background: #176b70; color: white; }\n    .visit {\n      border-top: 1px solid #d9e4e5;\n      padding: 1rem 0;\n    }\n    .visit p { white-space: pre-wrap; overflow-wrap: anywhere; }\n    .row { display: flex; gap: .5rem; flex-wrap: wrap; }\n    .muted { color: #63777c; }\n    @media (max-width: 650px) {\n      main { grid-template-columns: 1fr; }\n    }\n  </style>\n</head>\n<body>\n  <header><h1>Physio Visit Notes</h1></header>\n\n  <main>\n    <aside>\n      <h2>Patients</h2>\n      <form id=\"patient-form\">\n        <label for=\"patient-name\">New patient name</label>\n        <input id=\"patient-name\" required maxlength=\"120\">\n        <button type=\"submit\">Add patient</button>\n      </form>\n      <div id=\"patient-list\"></div>\n    </aside>\n\n    <section>\n      <div id=\"empty\" class=\"muted\">Select or add a patient to begin.</div>\n      <div id=\"workspace\" hidden>\n        <h2 id=\"selected-name\"></h2>\n        <form id=\"visit-form\">\n          <label for=\"visit-date\">Visit date</label>\n          <input id=\"visit-date\" type=\"date\" required>\n\n          <label for=\"visit-notes\">Notes</label>\n          <textarea id=\"visit-notes\" required\n            placeholder=\"Assessment, treatment, progress, and plan...\"></textarea>\n\n          <button type=\"submit\">Save visit</button>\n        </form>\n\n        <h2>Visit history</h2>\n        <div id=\"visits\"></div>\n        <button id=\"delete-patient\" class=\"danger\" type=\"button\">\n          Delete patient and all visits\n        </button>\n      </div>\n    </section>\n  </main>\n\n  <script>\n    const KEY = \"physio-notes-v1\";\n    let patients = [];\n    let selectedId = null;\n\n    try {\n      patients = JSON.parse(localStorage.getItem(KEY) || \"[]\");\n      if (!Array.isArray(patients)) throw new Error(\"Invalid data\");\n    } catch {\n      alert(\"Could not read saved data. Check browser storage before continuing.\");\n    }\n\n    const $ = id => document.getElementById(id);\n    const makeId = () => crypto.randomUUID();\n\n    function save() {\n      try {\n        localStorage.setItem(KEY, JSON.stringify(patients));\n        return true;\n      } catch {\n        alert(\"Could not save. Browser storage may be unavailable or full.\");\n        return false;\n      }\n    }\n\n    function today() {\n      const d = new Date();\n      return [\n        d.getFullYear(),\n        String(d.getMonth() + 1).padStart(2, \"0\"),\n        String(d.getDate()).padStart(2, \"0\")\n      ].join(\"-\");\n    }\n\n    function render() {\n      const list = $(\"patient-list\");\n      list.replaceChildren();\n\n      patients.forEach(patient => {\n        const button = document.createElement(\"button\");\n        button.type = \"button\";\n        button.className = \"patient\" + (patient.id === selectedId ? \" active\" : \"\");\n        button.textContent = patient.name;\n        button.onclick = () => {\n          selectedId = patient.id;\n          $(\"visit-form\").reset();\n          $(\"visit-date\").value = today();\n          render();\n        };\n        list.appendChild(button);\n      });\n\n      const patient = patients.find(p => p.id === selectedId);\n      $(\"empty\").hidden = !!patient;\n      $(\"workspace\").hidden = !patient;\n      if (!patient) return;\n\n      $(\"selected-name\").textContent = patient.name;\n      const visits = $(\"visits\");\n      visits.replaceChildren();\n\n      if (!patient.visits.length) {\n        visits.textContent = \"No visits recorded yet.\";\n        return;\n      }\n\n      [...patient.visits]\n        .sort ( (a, b) => b.date.localeCompare(a.date) )\n        .forEach(visit => {\n          const card = document.createElement(\"div\");\n          card.className = \"visit\";\n\n          const date = document.createElement(\"strong\");\n          date.textContent = visit.date;\n          const notes = document.createElement(\"p\");\n          notes.textContent = visit.notes;\n\n          const remove = document.createElement(\"button\");\n          remove.type = \"button\";\n          remove.className = \"secondary\";\n          remove.textContent = \"Delete visit\";\n          remove.onclick = () => {\n            if (!confirm(\"Delete this visit note?\")) return;\n            const oldVisits = patient.visits;\n            patient.visits = patient.visits.filter(v => v.id !== visit.id);\n            if (!save()) patient.visits = oldVisits;\n            render();\n          };\n\n          card.append(date, notes, remove);\n          visits.appendChild(card);\n        });\n    }\n\n    $(\"patient-form\").onsubmit = event => {\n      event.preventDefault();\n      const name = $(\"patient-name\").value.trim();\n      if (!name) return;\n      const patient = { id: makeId(), name, visits: [] };\n      patients.push(patient);\n      if (!save()) {\n        patients.pop();\n        return;\n      }\n      selectedId = patient.id;\n      $(\"patient-form\").reset();\n      $(\"visit-date\").value = today();\n      render();\n    };\n\n    $(\"visit-form\").onsubmit = event => {\n      event.preventDefault();\n      const patient = patients.find(p => p.id === selectedId);\n      const notes = $(\"visit-notes\").value.trim();\n      const date = $(\"visit-date\").value;\n      if (!patient || !notes || !date) return;\n\n      patient.visits.push({ id: makeId(), date, notes });\n      if (!save()) {\n        patient.visits.pop();\n        return;\n      }\n      $(\"visit-form\").reset();\n      $(\"visit-date\").value = today();\n      render();\n    };\n\n    $(\"delete-patient\").onclick = () => {\n      const patient = patients.find(p => p.id === selectedId);\n      if (!patient || !confirm(`Delete ${patient.name} and all their visits?`)) return;\n      const oldPatients = patients;\n      patients = patients.filter(p => p.id !== selectedId);\n      if (!save()) {\n        patients = oldPatients;\n        return;\n      }\n      selectedId = null;\n      render();\n    };\n\n    $(\"visit-date\").value = today();\n    render();\n  </script>\n</body>\n</html>\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532519,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1981,
+   "prompt_tokens": 26,
+   "total_tokens": 2007,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 28,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "PT1": {
+     "met": false,
+     "reason": "The app has no login or access control."
+    },
+    "PT2": {
+     "met": false,
+     "reason": "Notes can be deleted, and the app does not retain previous versions."
+    },
+    "PT3": {
+     "met": true,
+     "reason": "The app persistently stores patient and visit data in browser localStorage."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "PT1": {
+     "met": false,
+     "reason": "The code has no login mechanism or authentication whatsoever."
+    },
+    "PT2": {
+     "met": false,
+     "reason": "Editing a note is not supported; the app only allows adding new visits, and there is no interface or logic to edit or version existing notes."
+    },
+    "PT3": {
+     "met": true,
+     "reason": "The notes are stored persistently using localStorage, which survives page reloads and browser sessions."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "PT1": {
+     "met": false,
+     "reason": "There is no login or authentication; anyone who opens the page can see all notes."
+    },
+    "PT2": {
+     "met": false,
+     "reason": "There is no edit function or version history, and visits and patients can be permanently deleted."
+    },
+    "PT3": {
+     "met": true,
+     "reason": "Data is saved to browser localStorage, which persists across page reloads and browser restarts, though it is not a database or file."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"PT1\":{\"met\":false,\"reason\":\"The app has no login or access control.\"},\"PT2\":{\"met\":false,\"reason\":\"Notes can be deleted, and the app does not retain previous versions.\"},\"PT3\":{\"met\":true,\"reason\":\"The app persistently stores patient and visit data in browser localStorage.\"}}",
+  "qwen": "{\"_code\": true, \"PT1\": {\"met\": false, \"reason\": \"The code has no login mechanism or authentication whatsoever.\"}, \"PT2\": {\"met\": false, \"reason\": \"Editing a note is not supported; the app only allows adding new visits, and there is no interface or logic to edit or version existing notes.\"}, \"PT3\": {\"met\": true, \"reason\": \"The notes are stored persistently using localStorage, which survives page reloads and browser sessions.\"}}",
+  "claude": "{\"_code\": true, \"PT1\": {\"met\": false, \"reason\": \"There is no login or authentication; anyone who opens the page can see all notes.\"}, \"PT2\": {\"met\": false, \"reason\": \"There is no edit function or version history, and visits and patients can be permanently deleted.\"}, \"PT3\": {\"met\": true, \"reason\": \"Data is saved to browser localStorage, which persists across page reloads and browser restarts, though it is not a database or file.\"}}"
+ },
+ "judge_cost_usd": 0.011438
+}

@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:13:33+00:00",
+ "app": "leave",
+ "app_hash": "c3276e419d06",
+ "model": "qwen",
+ "condition": "ABL-LV2",
+ "rep": 1,
+ "requirement_order": [
+  "LV5",
+  "LV1",
+  "LV3",
+  "LV4"
+ ],
+ "passed": {
+  "LV1": true,
+  "LV2": false,
+  "LV3": true,
+  "LV4": true,
+  "LV5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that tracks employees' annual leave requests.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None: ...\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n\n    def remaining(self, employee: str, year: int) -> int: ...\n```\n\n## Requirements\n1. Unused leave days do not carry over to the next year.\n2. A request whose end date is before its start date raises ValueError.\n3. Weekends and the given holidays do not use leave days.\n4. A request made less than 3 days before its start date is rejected with ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\nfrom typing import List, Optional, Set\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Optional[List[date]] = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays else set()\n        # Track used leave days per employee per year\n        # Structure: {employee: {year: used_days}}\n        self.used_days = {}\n\n    def _is_weekend(self, d: date) -> bool:\n        \"\"\"Check if a date is Saturday (5) or Sunday (6)\"\"\"\n        return d.weekday() >= 5\n\n    def _is_holiday(self, d: date) -> bool:\n        \"\"\"Check if a date is in the holidays set\"\"\"\n        return d in self.holidays\n\n    def _is_working_day(self, d: date) -> bool:\n        \"\"\"Check if a date is a working day (not weekend and not holiday)\"\"\"\n        return not self._is_weekend(d) and not self._is_holiday(d)\n\n    def _get_used_days(self, employee: str, year: int) -> int:\n        \"\"\"Get number of used days for an employee in a given year\"\"\"\n        if employee not in self.used_days:\n            return 0\n        return self.used_days[employee].get(year, 0)\n\n    def _add_used_days(self, employee: str, year: int, days: int) -> None:\n        \"\"\"Add days to used days for an employee in a given year\"\"\"\n        if employee not in self.used_days:\n            self.used_days[employee] = {}\n        self.used_days[employee][year] = self.used_days[employee].get(year, 0) + days\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        # Check if end date is before start date\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        \n        # Check if request is made less than 3 days before start date\n        if (start - today).days < 3:\n            raise ValueError(\"Request must be made at least 3 days before start date\")\n        \n        # Calculate working days in the range [start, end] inclusive\n        current = start\n        working_days = 0\n        days_in_range = []\n        \n        while current <= end:\n            if self._is_working_day(current):\n                working_days += 1\n                days_in_range.append(current)\n            current += timedelta(days=1)\n        \n        # Check if we have enough remaining days for this year\n        year = start.year\n        used_so_far = self._get_used_days(employee, year)\n        remaining_for_year = self.days_per_year - used_so_far\n        \n        if working_days > remaining_for_year:\n            # Only use the remaining days, not more\n            working_days = remaining_for_year\n        \n        # Update used days\n        if working_days > 0:\n            self._add_used_days(employee, year, working_days)\n        \n        return working_days\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"Return remaining leave days for an employee in a given year\"\"\"\n        used = self._get_used_days(employee, year)\n        return max(0, self.days_per_year - used)\n```",
+ "code": "from datetime import date, timedelta\nfrom typing import List, Optional, Set\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Optional[List[date]] = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays else set()\n        # Track used leave days per employee per year\n        # Structure: {employee: {year: used_days}}\n        self.used_days = {}\n\n    def _is_weekend(self, d: date) -> bool:\n        \"\"\"Check if a date is Saturday (5) or Sunday (6)\"\"\"\n        return d.weekday() >= 5\n\n    def _is_holiday(self, d: date) -> bool:\n        \"\"\"Check if a date is in the holidays set\"\"\"\n        return d in self.holidays\n\n    def _is_working_day(self, d: date) -> bool:\n        \"\"\"Check if a date is a working day (not weekend and not holiday)\"\"\"\n        return not self._is_weekend(d) and not self._is_holiday(d)\n\n    def _get_used_days(self, employee: str, year: int) -> int:\n        \"\"\"Get number of used days for an employee in a given year\"\"\"\n        if employee not in self.used_days:\n            return 0\n        return self.used_days[employee].get(year, 0)\n\n    def _add_used_days(self, employee: str, year: int, days: int) -> None:\n        \"\"\"Add days to used days for an employee in a given year\"\"\"\n        if employee not in self.used_days:\n            self.used_days[employee] = {}\n        self.used_days[employee][year] = self.used_days[employee].get(year, 0) + days\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        # Check if end date is before start date\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        \n        # Check if request is made less than 3 days before start date\n        if (start - today).days < 3:\n            raise ValueError(\"Request must be made at least 3 days before start date\")\n        \n        # Calculate working days in the range [start, end] inclusive\n        current = start\n        working_days = 0\n        days_in_range = []\n        \n        while current <= end:\n            if self._is_working_day(current):\n                working_days += 1\n                days_in_range.append(current)\n            current += timedelta(days=1)\n        \n        # Check if we have enough remaining days for this year\n        year = start.year\n        used_so_far = self._get_used_days(employee, year)\n        remaining_for_year = self.days_per_year - used_so_far\n        \n        if working_days > remaining_for_year:\n            # Only use the remaining days, not more\n            working_days = remaining_for_year\n        \n        # Update used days\n        if working_days > 0:\n            self._add_used_days(employee, year, working_days)\n        \n        return working_days\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"Return remaining leave days for an employee in a given year\"\"\"\n        used = self._get_used_days(employee, year)\n        return max(0, self.days_per_year - used)\n",
+ "input_tokens": 221,
+ "output_tokens": 733,
+ "cost_usd": 0.000968,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 13.91,
+ "raw_api_response": {
+  "id": "gen-1794892394-cr7EEd31stdnGpv62kmX",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\nfrom typing import List, Optional, Set\n\nclass LeaveTracker:\n    def __init__(self, days_per_year: int = 26, holidays: Optional[List[date]] = None) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays) if holidays else set()\n        # Track used leave days per employee per year\n        # Structure: {employee: {year: used_days}}\n        self.used_days = {}\n\n    def _is_weekend(self, d: date) -> bool:\n        \"\"\"Check if a date is Saturday (5) or Sunday (6)\"\"\"\n        return d.weekday() >= 5\n\n    def _is_holiday(self, d: date) -> bool:\n        \"\"\"Check if a date is in the holidays set\"\"\"\n        return d in self.holidays\n\n    def _is_working_day(self, d: date) -> bool:\n        \"\"\"Check if a date is a working day (not weekend and not holiday)\"\"\"\n        return not self._is_weekend(d) and not self._is_holiday(d)\n\n    def _get_used_days(self, employee: str, year: int) -> int:\n        \"\"\"Get number of used days for an employee in a given year\"\"\"\n        if employee not in self.used_days:\n            return 0\n        return self.used_days[employee].get(year, 0)\n\n    def _add_used_days(self, employee: str, year: int, days: int) -> None:\n        \"\"\"Add days to used days for an employee in a given year\"\"\"\n        if employee not in self.used_days:\n            self.used_days[employee] = {}\n        self.used_days[employee][year] = self.used_days[employee].get(year, 0) + days\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns the number of leave days used.\"\"\"\n        # Check if end date is before start date\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        \n        # Check if request is made less than 3 days before start date\n        if (start - today).days < 3:\n            raise ValueError(\"Request must be made at least 3 days before start date\")\n        \n        # Calculate working days in the range [start, end] inclusive\n        current = start\n        working_days = 0\n        days_in_range = []\n        \n        while current <= end:\n            if self._is_working_day(current):\n                working_days += 1\n                days_in_range.append(current)\n            current += timedelta(days=1)\n        \n        # Check if we have enough remaining days for this year\n        year = start.year\n        used_so_far = self._get_used_days(employee, year)\n        remaining_for_year = self.days_per_year - used_so_far\n        \n        if working_days > remaining_for_year:\n            # Only use the remaining days, not more\n            working_days = remaining_for_year\n        \n        # Update used days\n        if working_days > 0:\n            self._add_used_days(employee, year, working_days)\n        \n        return working_days\n\n    def remaining(self, employee: str, year: int) -> int:\n        \"\"\"Return remaining leave days for an employee in a given year\"\"\"\n        used = self._get_used_days(employee, year)\n        return max(0, self.days_per_year - used)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794892394,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 733,
+   "prompt_tokens": 221,
+   "total_tokens": 954,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.0006292,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.0006292,
+    "upstream_inference_prompt_cost": 5.746e-05,
+    "upstream_inference_completions_cost": 0.00057174
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

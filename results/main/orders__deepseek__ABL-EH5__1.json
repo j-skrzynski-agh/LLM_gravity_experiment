@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:11:22+00:00",
+ "app": "orders",
+ "app_hash": "1e42c11531a4",
+ "model": "deepseek",
+ "condition": "ABL-EH5",
+ "rep": 1,
+ "requirement_order": [
+  "EH1",
+  "EH4",
+  "EH3",
+  "EH2"
+ ],
+ "passed": {
+  "EH1": true,
+  "EH2": true,
+  "EH3": true,
+  "EH4": true,
+  "EH5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nThe server-side handler behind the \"Buy\" button of a small web shop. It reserves\nthe ordered item in the company's remote inventory service and tells the user the result.\n\n## API (implement exactly these names and signatures)\n```python\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n```\n\n## Requirements\n1. If the inventory service raises an unexpected exception, place_order does not let it propagate; it returns a server error status (5xx).\n2. For administrators (is_admin=True), the text shown after an unexpected error includes the exception type and message.\n3. For a regular user, the text shown after an unexpected error contains no technical details (no exception type, exception message or traceback).\n4. Unexpected errors are logged with the logging module at ERROR level or higher, including the full traceback.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport logging\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n        except Exception as exc:\n            logger.exception(\n                \"Unexpected error while reserving item %r (quantity=%r) for user %r\",\n                item,\n                quantity,\n                user,\n            )\n            if is_admin:\n                text = (\n                    f\"An unexpected error occurred: {type(exc).__name__}: {exc}\"\n                )\n            else:\n                text = \"Sorry, something went wrong while placing your order. Please try again later.\"\n            return 500, text\n\n        return 200, (\n            f\"Thank you, {user}! Your order for {quantity} x {item} \"\n            f\"has been reserved (reservation id {reservation_id}).\"\n        )\n```",
+ "code": "import logging\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n        except Exception as exc:\n            logger.exception(\n                \"Unexpected error while reserving item %r (quantity=%r) for user %r\",\n                item,\n                quantity,\n                user,\n            )\n            if is_admin:\n                text = (\n                    f\"An unexpected error occurred: {type(exc).__name__}: {exc}\"\n                )\n            else:\n                text = \"Sorry, something went wrong while placing your order. Please try again later.\"\n            return 500, text\n\n        return 200, (\n            f\"Thank you, {user}! Your order for {quantity} x {item} \"\n            f\"has been reserved (reservation id {reservation_id}).\"\n        )\n",
+ "input_tokens": 302,
+ "output_tokens": 302,
+ "cost_usd": 0.000453,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 1.8,
+ "raw_api_response": {
+  "id": "18ff0b9b-b77b-4b76-82b4-3f314e4cd7dc",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport logging\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n        except Exception as exc:\n            logger.exception(\n                \"Unexpected error while reserving item %r (quantity=%r) for user %r\",\n                item,\n                quantity,\n                user,\n            )\n            if is_admin:\n                text = (\n                    f\"An unexpected error occurred: {type(exc).__name__}: {exc}\"\n                )\n            else:\n                text = \"Sorry, something went wrong while placing your order. Please try again later.\"\n            return 500, text\n\n        return 200, (\n            f\"Thank you, {user}! Your order for {quantity} x {item} \"\n            f\"has been reserved (reservation id {reservation_id}).\"\n        )\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794453074,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 302,
+   "prompt_tokens": 302,
+   "total_tokens": 604,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 302
+  }
+ }
+}

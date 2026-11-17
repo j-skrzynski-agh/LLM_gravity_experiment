@@ -1,0 +1,98 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:04:41+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "llama",
+ "condition": "ABL-ES1",
+ "rep": 1,
+ "requirement_order": [
+  "ES3",
+  "ES6",
+  "ES2",
+  "ES4",
+  "ES5"
+ ],
+ "passed": {
+  "ES1": false,
+  "ES2": false,
+  "ES3": true,
+  "ES4": false,
+  "ES5": false,
+  "ES6": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. Adding an expense with an amount that is zero or negative raises ValueError.\n2. settle_up() never proposes a payment smaller than 1.00; debts below 1.00 are written off and not included in the proposed payments.\n3. If participants are not given, the expense is split equally among all group members.\n4. settle_up() proposes at most (number of members - 1) payments.\n5. When an amount cannot be split into equal cents, the leftover cents are borne by the payer: every other participant owes exactly the amount rounded down to the cent.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom typing import List, Dict, Tuple\n\nclass Group:\n    def __init__(self, members: List[str]) -> None:\n        \"\"\"\n        Initialize a Group with a list of member names.\n\n        Args:\n        members (List[str]): A list of member names.\n        \"\"\"\n        self.members = members\n        self.balances = {member: 0.0 for member in members}\n\n    def add_expense(self, payer: str, amount: float, participants: List[str] | None = None) -> None:\n        \"\"\"\n        Record an expense paid by a member on behalf of other members.\n\n        Args:\n        payer (str): The member who paid the expense.\n        amount (float): The amount of the expense.\n        participants (List[str] | None, optional): The members who participated in the expense. Defaults to None.\n\n        Raises:\n        ValueError: If the amount is zero or negative.\n        \"\"\"\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive\")\n\n        if participants is None:\n            participants = self.members\n\n        # Calculate the share of each participant\n        share = amount / len(participants)\n\n        # Update the balances\n        self.balances[payer] += amount - share\n        for participant in participants:\n            if participant != payer:\n                self.balances[participant] -= share\n\n    def balances(self) -> Dict[str, float]:\n        \"\"\"\n        Get the net balance per member.\n\n        Returns:\n        Dict[str, float]: A dictionary where the keys are member names and the values are their balances.\n        \"\"\"\n        return self.balances\n\n    def settle_up(self) -> List[Tuple[str, str, float]]:\n        \"\"\"\n        Propose payments to settle the group.\n\n        Returns:\n        List[Tuple[str, str, float]]: A list of proposed payments, where each payment is a tuple of (debtor, creditor, amount).\n        \"\"\"\n        # Separate members into debtors and creditors\n        debtors = [member for member, balance in self.balances.items() if balance < -1]\n        creditors = [member for member, balance in self.balances.items() if balance > 1]\n\n        # Sort debtors and creditors by their balances\n        debtors.sort(key=lambda member: self.balances[member])\n        creditors.sort(key=lambda member: self.balances[member], reverse=True)\n\n        # Propose payments\n        payments = []\n        for debtor in debtors:\n            while self.balances[debtor] < -1:\n                creditor = creditors[0]\n                amount = min(-self.balances[debtor], self.balances[creditor])\n                if amount < 1:\n                    # Write off debts below 1.00\n                    self.balances[debtor] += amount\n                    self.balances[creditor] -= amount\n                    break\n                payments.append((debtor, creditor, amount))\n                self.balances[debtor] += amount\n                self.balances[creditor] -= amount\n                if self.balances[creditor] <= 1:\n                    creditors.pop(0)\n\n        return payments\n```",
+ "code": "from typing import List, Dict, Tuple\n\nclass Group:\n    def __init__(self, members: List[str]) -> None:\n        \"\"\"\n        Initialize a Group with a list of member names.\n\n        Args:\n        members (List[str]): A list of member names.\n        \"\"\"\n        self.members = members\n        self.balances = {member: 0.0 for member in members}\n\n    def add_expense(self, payer: str, amount: float, participants: List[str] | None = None) -> None:\n        \"\"\"\n        Record an expense paid by a member on behalf of other members.\n\n        Args:\n        payer (str): The member who paid the expense.\n        amount (float): The amount of the expense.\n        participants (List[str] | None, optional): The members who participated in the expense. Defaults to None.\n\n        Raises:\n        ValueError: If the amount is zero or negative.\n        \"\"\"\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive\")\n\n        if participants is None:\n            participants = self.members\n\n        # Calculate the share of each participant\n        share = amount / len(participants)\n\n        # Update the balances\n        self.balances[payer] += amount - share\n        for participant in participants:\n            if participant != payer:\n                self.balances[participant] -= share\n\n    def balances(self) -> Dict[str, float]:\n        \"\"\"\n        Get the net balance per member.\n\n        Returns:\n        Dict[str, float]: A dictionary where the keys are member names and the values are their balances.\n        \"\"\"\n        return self.balances\n\n    def settle_up(self) -> List[Tuple[str, str, float]]:\n        \"\"\"\n        Propose payments to settle the group.\n\n        Returns:\n        List[Tuple[str, str, float]]: A list of proposed payments, where each payment is a tuple of (debtor, creditor, amount).\n        \"\"\"\n        # Separate members into debtors and creditors\n        debtors = [member for member, balance in self.balances.items() if balance < -1]\n        creditors = [member for member, balance in self.balances.items() if balance > 1]\n\n        # Sort debtors and creditors by their balances\n        debtors.sort(key=lambda member: self.balances[member])\n        creditors.sort(key=lambda member: self.balances[member], reverse=True)\n\n        # Propose payments\n        payments = []\n        for debtor in debtors:\n            while self.balances[debtor] < -1:\n                creditor = creditors[0]\n                amount = min(-self.balances[debtor], self.balances[creditor])\n                if amount < 1:\n                    # Write off debts below 1.00\n                    self.balances[debtor] += amount\n                    self.balances[creditor] -= amount\n                    break\n                payments.append((debtor, creditor, amount))\n                self.balances[debtor] += amount\n                self.balances[creditor] -= amount\n                if self.balances[creditor] <= 1:\n                    creditors.pop(0)\n\n        return payments\n",
+ "input_tokens": 368,
+ "output_tokens": 663,
+ "cost_usd": 0.00024896,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 9.72,
+ "raw_api_response": {
+  "id": "gen-1794895461-vBTrO64oGfdFjSxm0dmA",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom typing import List, Dict, Tuple\n\nclass Group:\n    def __init__(self, members: List[str]) -> None:\n        \"\"\"\n        Initialize a Group with a list of member names.\n\n        Args:\n        members (List[str]): A list of member names.\n        \"\"\"\n        self.members = members\n        self.balances = {member: 0.0 for member in members}\n\n    def add_expense(self, payer: str, amount: float, participants: List[str] | None = None) -> None:\n        \"\"\"\n        Record an expense paid by a member on behalf of other members.\n\n        Args:\n        payer (str): The member who paid the expense.\n        amount (float): The amount of the expense.\n        participants (List[str] | None, optional): The members who participated in the expense. Defaults to None.\n\n        Raises:\n        ValueError: If the amount is zero or negative.\n        \"\"\"\n        if amount <= 0:\n            raise ValueError(\"Expense amount must be positive\")\n\n        if participants is None:\n            participants = self.members\n\n        # Calculate the share of each participant\n        share = amount / len(participants)\n\n        # Update the balances\n        self.balances[payer] += amount - share\n        for participant in participants:\n            if participant != payer:\n                self.balances[participant] -= share\n\n    def balances(self) -> Dict[str, float]:\n        \"\"\"\n        Get the net balance per member.\n\n        Returns:\n        Dict[str, float]: A dictionary where the keys are member names and the values are their balances.\n        \"\"\"\n        return self.balances\n\n    def settle_up(self) -> List[Tuple[str, str, float]]:\n        \"\"\"\n        Propose payments to settle the group.\n\n        Returns:\n        List[Tuple[str, str, float]]: A list of proposed payments, where each payment is a tuple of (debtor, creditor, amount).\n        \"\"\"\n        # Separate members into debtors and creditors\n        debtors = [member for member, balance in self.balances.items() if balance < -1]\n        creditors = [member for member, balance in self.balances.items() if balance > 1]\n\n        # Sort debtors and creditors by their balances\n        debtors.sort(key=lambda member: self.balances[member])\n        creditors.sort(key=lambda member: self.balances[member], reverse=True)\n\n        # Propose payments\n        payments = []\n        for debtor in debtors:\n            while self.balances[debtor] < -1:\n                creditor = creditors[0]\n                amount = min(-self.balances[debtor], self.balances[creditor])\n                if amount < 1:\n                    # Write off debts below 1.00\n                    self.balances[debtor] += amount\n                    self.balances[creditor] -= amount\n                    break\n                payments.append((debtor, creditor, amount))\n                self.balances[debtor] += amount\n                self.balances[creditor] -= amount\n                if self.balances[creditor] <= 1:\n                    creditors.pop(0)\n\n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794895461,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 663,
+   "prompt_tokens": 368,
+   "total_tokens": 1031,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.001601563,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.001601563,
+    "upstream_inference_prompt_cost": 0.000107824,
+    "upstream_inference_completions_cost": 0.001493739
+   }
+  },
+  "provider": "Cloudflare"
+ }
+}

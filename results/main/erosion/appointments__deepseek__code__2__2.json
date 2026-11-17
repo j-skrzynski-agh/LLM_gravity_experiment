@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:27:22+00:00",
+ "app": "appointments",
+ "app_hash": "2de3109b008b",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 2,
+ "step": 2,
+ "change": "Add an optional keyword parameter `note: str = \"\"` at the end of the parameters of book, and a method `note(self, appointment_id: int) -> str` that returns it.",
+ "start_file": "appointments__deepseek__FULL__2.json",
+ "passed": {
+  "AP1": true,
+  "AP2": true,
+  "AP3": true,
+  "AP4": true,
+  "AP5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime) -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment that starts in the past.\")\n\n        # Rule 3: a patient can have at most one upcoming appointment\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and appt[\"active\"] and appt[\"start\"] >= now:\n                raise ValueError(\n                    \"Patient already has an upcoming appointment.\"\n                )\n\n        # Rule 1 & 5: no overlap for the same doctor (touching is fine)\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor:\n                continue\n            if not appt[\"active\"]:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                raise ValueError(\n                    \"Appointment overlaps with an existing one for this doctor.\"\n                )\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"id\": appt_id,\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"active\": True,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appt = self._appointments.get(appointment_id)\n        if appt is None or not appt[\"active\"]:\n            raise ValueError(\"Unknown or already-cancelled appointment.\")\n\n        # Rule 4: if cancelling < 24h before start, slot stays blocked.\n        # The appointment is cancelled (no longer an upcoming appointment for\n        # the patient and no longer counts for rule 3), but the slot must\n        # remain blocked for the doctor.\n        if appt[\"start\"] - now < timedelta(hours=24):\n            # Keep the time blocked by leaving a \"ghost\" booking that is\n            # inactive for patient purposes but still blocks the doctor.\n            appt[\"active\"] = False\n            appt[\"blocks_slot\"] = True\n        else:\n            appt[\"active\"] = False\n            appt[\"blocks_slot\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor:\n                continue\n            blocked = appt.get(\"active\", False) or appt.get(\"blocks_slot\", False)\n            if not blocked:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        result = [\n            {\n                \"id\": appt[\"id\"],\n                \"patient\": appt[\"patient\"],\n                \"start\": appt[\"start\"],\n                \"end\": appt[\"end\"],\n            }\n            for appt in self._appointments.values()\n            if appt[\"doctor\"] == doctor\n        ]\n        result.sort(key=lambda a: a[\"start\"])\n        return result\n```\n\n## Change request\nAdd an optional keyword parameter `note: str = \"\"` at the end of the parameters of book, and a method `note(self, appointment_id: int) -> str` that returns it.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime, note: str = \"\") -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment that starts in the past.\")\n\n        # Rule 3: a patient can have at most one upcoming appointment\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and appt[\"active\"] and appt[\"start\"] >= now:\n                raise ValueError(\n                    \"Patient already has an upcoming appointment.\"\n                )\n\n        # Rule 1 & 5: no overlap for the same doctor (touching is fine)\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor:\n                continue\n            if not appt[\"active\"]:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                raise ValueError(\n                    \"Appointment overlaps with an existing one for this doctor.\"\n                )\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"id\": appt_id,\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"active\": True,\n            \"note\": note,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appt = self._appointments.get(appointment_id)\n        if appt is None or not appt[\"active\"]:\n            raise ValueError(\"Unknown or already-cancelled appointment.\")\n\n        # Rule 4: if cancelling < 24h before start, slot stays blocked.\n        # The appointment is cancelled (no longer an upcoming appointment for\n        # the patient and no longer counts for rule 3), but the slot must\n        # remain blocked for the doctor.\n        if appt[\"start\"] - now < timedelta(hours=24):\n            # Keep the time blocked by leaving a \"ghost\" booking that is\n            # inactive for patient purposes but still blocks the doctor.\n            appt[\"active\"] = False\n            appt[\"blocks_slot\"] = True\n        else:\n            appt[\"active\"] = False\n            appt[\"blocks_slot\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor:\n                continue\n            blocked = appt.get(\"active\", False) or appt.get(\"blocks_slot\", False)\n            if not blocked:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        result = [\n            {\n                \"id\": appt[\"id\"],\n                \"patient\": appt[\"patient\"],\n                \"start\": appt[\"start\"],\n                \"end\": appt[\"end\"],\n            }\n            for appt in self._appointments.values()\n            if appt[\"doctor\"] == doctor\n        ]\n        result.sort(key=lambda a: a[\"start\"])\n        return result\n\n    def note(self, appointment_id: int) -> str:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment.\")\n        return appt.get(\"note\", \"\")\n```",
+ "code": "from datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime, note: str = \"\") -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment that starts in the past.\")\n\n        # Rule 3: a patient can have at most one upcoming appointment\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and appt[\"active\"] and appt[\"start\"] >= now:\n                raise ValueError(\n                    \"Patient already has an upcoming appointment.\"\n                )\n\n        # Rule 1 & 5: no overlap for the same doctor (touching is fine)\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor:\n                continue\n            if not appt[\"active\"]:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                raise ValueError(\n                    \"Appointment overlaps with an existing one for this doctor.\"\n                )\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"id\": appt_id,\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"active\": True,\n            \"note\": note,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appt = self._appointments.get(appointment_id)\n        if appt is None or not appt[\"active\"]:\n            raise ValueError(\"Unknown or already-cancelled appointment.\")\n\n        # Rule 4: if cancelling < 24h before start, slot stays blocked.\n        # The appointment is cancelled (no longer an upcoming appointment for\n        # the patient and no longer counts for rule 3), but the slot must\n        # remain blocked for the doctor.\n        if appt[\"start\"] - now < timedelta(hours=24):\n            # Keep the time blocked by leaving a \"ghost\" booking that is\n            # inactive for patient purposes but still blocks the doctor.\n            appt[\"active\"] = False\n            appt[\"blocks_slot\"] = True\n        else:\n            appt[\"active\"] = False\n            appt[\"blocks_slot\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor:\n                continue\n            blocked = appt.get(\"active\", False) or appt.get(\"blocks_slot\", False)\n            if not blocked:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        result = [\n            {\n                \"id\": appt[\"id\"],\n                \"patient\": appt[\"patient\"],\n                \"start\": appt[\"start\"],\n                \"end\": appt[\"end\"],\n            }\n            for appt in self._appointments.values()\n            if appt[\"doctor\"] == doctor\n        ]\n        result.sort(key=lambda a: a[\"start\"])\n        return result\n\n    def note(self, appointment_id: int) -> str:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment.\")\n        return appt.get(\"note\", \"\")\n",
+ "input_tokens": 810,
+ "output_tokens": 792,
+ "cost_usd": 0.0011934,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.91,
+ "raw_api_response": {
+  "id": "6c54ef48-a231-4ed6-87c5-ffb2e7e6e298",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import datetime, timedelta\n\n\nclass Scheduler:\n    def __init__(self) -> None:\n        self._appointments = {}\n        self._next_id = 1\n\n    def book(self, patient: str, doctor: str, start: datetime, end: datetime,\n             now: datetime, note: str = \"\") -> int:\n        if start < now:\n            raise ValueError(\"Cannot book an appointment that starts in the past.\")\n\n        # Rule 3: a patient can have at most one upcoming appointment\n        for appt in self._appointments.values():\n            if appt[\"patient\"] == patient and appt[\"active\"] and appt[\"start\"] >= now:\n                raise ValueError(\n                    \"Patient already has an upcoming appointment.\"\n                )\n\n        # Rule 1 & 5: no overlap for the same doctor (touching is fine)\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor:\n                continue\n            if not appt[\"active\"]:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                raise ValueError(\n                    \"Appointment overlaps with an existing one for this doctor.\"\n                )\n\n        appt_id = self._next_id\n        self._next_id += 1\n        self._appointments[appt_id] = {\n            \"id\": appt_id,\n            \"patient\": patient,\n            \"doctor\": doctor,\n            \"start\": start,\n            \"end\": end,\n            \"active\": True,\n            \"note\": note,\n        }\n        return appt_id\n\n    def cancel(self, appointment_id: int, now: datetime) -> None:\n        appt = self._appointments.get(appointment_id)\n        if appt is None or not appt[\"active\"]:\n            raise ValueError(\"Unknown or already-cancelled appointment.\")\n\n        # Rule 4: if cancelling < 24h before start, slot stays blocked.\n        # The appointment is cancelled (no longer an upcoming appointment for\n        # the patient and no longer counts for rule 3), but the slot must\n        # remain blocked for the doctor.\n        if appt[\"start\"] - now < timedelta(hours=24):\n            # Keep the time blocked by leaving a \"ghost\" booking that is\n            # inactive for patient purposes but still blocks the doctor.\n            appt[\"active\"] = False\n            appt[\"blocks_slot\"] = True\n        else:\n            appt[\"active\"] = False\n            appt[\"blocks_slot\"] = False\n\n    def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:\n        for appt in self._appointments.values():\n            if appt[\"doctor\"] != doctor:\n                continue\n            blocked = appt.get(\"active\", False) or appt.get(\"blocks_slot\", False)\n            if not blocked:\n                continue\n            if start < appt[\"end\"] and appt[\"start\"] < end:\n                return False\n        return True\n\n    def appointments_of(self, doctor: str) -> list[dict]:\n        result = [\n            {\n                \"id\": appt[\"id\"],\n                \"patient\": appt[\"patient\"],\n                \"start\": appt[\"start\"],\n                \"end\": appt[\"end\"],\n            }\n            for appt in self._appointments.values()\n            if appt[\"doctor\"] == doctor\n        ]\n        result.sort(key=lambda a: a[\"start\"])\n        return result\n\n    def note(self, appointment_id: int) -> str:\n        appt = self._appointments.get(appointment_id)\n        if appt is None:\n            raise ValueError(\"Unknown appointment.\")\n        return appt.get(\"note\", \"\")\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794526033,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 792,
+   "prompt_tokens": 810,
+   "total_tokens": 1602,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 640,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 640,
+   "prompt_cache_miss_tokens": 170
+  }
+ }
+}

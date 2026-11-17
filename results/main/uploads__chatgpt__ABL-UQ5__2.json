@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T05:10:05+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "chatgpt",
+ "condition": "ABL-UQ5",
+ "rep": 2,
+ "requirement_order": [
+  "UQ3",
+  "UQ1",
+  "UQ2",
+  "UQ4"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": true,
+  "UQ5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.\n2. Uploading a file of size 0 raises ValueError.\n3. An upload that would exceed the monthly limit raises ValueError, and the file is not counted.\n4. Deleting a file does not give back quota in the current month.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = monthly_limit_mib * 1024 * 1024\n        self._usage: dict[str, int] = {}\n        self._files: dict[str, int] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be positive\")\n\n        new_usage = self._usage.get(month, 0) + size_bytes\n        if new_usage > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        self._usage[month] = new_usage\n        self._files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        self._files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        return self._usage.get(month, 0)\n```",
+ "code": "class UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = monthly_limit_mib * 1024 * 1024\n        self._usage: dict[str, int] = {}\n        self._files: dict[str, int] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be positive\")\n\n        new_usage = self._usage.get(month, 0) + size_bytes\n        if new_usage > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        self._usage[month] = new_usage\n        self._files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        self._files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        return self._usage.get(month, 0)\n",
+ "input_tokens": 239,
+ "output_tokens": 407,
+ "cost_usd": 0.002274,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 6.64,
+ "raw_api_response": {
+  "id": "chatcmpl-EjHMHFpq93Y5KaWpEWc5rz65Xh0LN",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self._limit_bytes = monthly_limit_mib * 1024 * 1024\n        self._usage: dict[str, int] = {}\n        self._files: dict[str, int] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be positive\")\n\n        new_usage = self._usage.get(month, 0) + size_bytes\n        if new_usage > self._limit_bytes:\n            raise ValueError(\"Monthly upload quota exceeded\")\n\n        self._usage[month] = new_usage\n        self._files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        self._files.pop(name, None)\n\n    def used_bytes(self, month: str) -> int:\n        return self._usage.get(month, 0)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794460193,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 407,
+   "prompt_tokens": 239,
+   "total_tokens": 646,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 183,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

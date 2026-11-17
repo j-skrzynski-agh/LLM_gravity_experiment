@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:17:06+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "llama",
+ "condition": "ABL-HD4",
+ "rep": 0,
+ "requirement_order": [
+  "HD5",
+  "HD2",
+  "HD1",
+  "HD3"
+ ],
+ "passed": {
+  "HD1": true,
+  "HD2": false,
+  "HD3": false,
+  "HD4": true,
+  "HD5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.\n2. Tickets with the same priority are handled in the order in which they were opened.\n3. Opening a ticket with an empty title raises ValueError.\n4. Critical tickets are handled before high ones, and high ones before normal ones.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom dataclasses import dataclass\nfrom typing import Optional\n\nclass Helpdesk:\n    \"\"\"\n    A ticket queue for a customer helpdesk: customers open tickets, agents take\n    the next ticket to handle, and tickets get closed.\n    \"\"\"\n\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        \"\"\"\n        Initialize the helpdesk.\n        \"\"\"\n        self.customers = set()\n        self.tickets = []\n        self.closed_tickets = set()\n        self.ticket_id_counter = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        \"\"\"\n        Add a customer to the helpdesk.\n\n        Args:\n        - name (str): The customer's name.\n        - vip (bool): Whether the customer is a VIP (default: False).\n        \"\"\"\n        self.customers.add(name)\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"\n        Open a ticket; returns its id.\n\n        Args:\n        - customer (str): The customer's name.\n        - title (str): The ticket's title.\n        - priority (str): The ticket's priority (default: \"normal\").\n\n        Returns:\n        - int: The ticket's id.\n\n        Raises:\n        - ValueError: If the title is empty.\n        \"\"\"\n        if not title:\n            raise ValueError(\"Title cannot be empty\")\n\n        if priority not in self.PRIORITIES:\n            raise ValueError(\"Invalid priority\")\n\n        if customer not in self.customers:\n            raise ValueError(\"Customer not found\")\n\n        self.ticket_id_counter += 1\n        ticket_id = self.ticket_id_counter\n        self.tickets.append(Ticket(ticket_id, customer, title, priority))\n        self.tickets.sort(key=lambda ticket: (self.PRIORITIES.index(ticket.priority), ticket.ticket_id))\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        \"\"\"\n        Take the ticket that should be handled next out of the queue; None if the queue is empty.\n\n        Returns:\n        - int | None: The id of the next ticket or None if the queue is empty.\n        \"\"\"\n        if not self.tickets:\n            return None\n        return self.tickets[0].ticket_id\n\n    def close(self, ticket_id: int) -> None:\n        \"\"\"\n        Close a ticket.\n\n        Args:\n        - ticket_id (int): The id of the ticket to close.\n        \"\"\"\n        for ticket in self.tickets:\n            if ticket.ticket_id == ticket_id:\n                self.tickets.remove(ticket)\n                self.closed_tickets.add(ticket_id)\n                break\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"\n        Put a ticket back into the queue.\n\n        Args:\n        - ticket_id (int): The id of the ticket to reopen.\n\n        Raises:\n        - ValueError: If the ticket is already closed.\n        \"\"\"\n        if ticket_id in self.closed_tickets:\n            raise ValueError(\"Ticket is already closed\")\n        # Reopening a ticket that was never closed is a no-op\n\n\n@dataclass\nclass Ticket:\n    \"\"\"\n    A ticket in the helpdesk.\n    \"\"\"\n    ticket_id: int\n    customer: str\n    title: str\n    priority: str\n```",
+ "code": "from dataclasses import dataclass\nfrom typing import Optional\n\nclass Helpdesk:\n    \"\"\"\n    A ticket queue for a customer helpdesk: customers open tickets, agents take\n    the next ticket to handle, and tickets get closed.\n    \"\"\"\n\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        \"\"\"\n        Initialize the helpdesk.\n        \"\"\"\n        self.customers = set()\n        self.tickets = []\n        self.closed_tickets = set()\n        self.ticket_id_counter = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        \"\"\"\n        Add a customer to the helpdesk.\n\n        Args:\n        - name (str): The customer's name.\n        - vip (bool): Whether the customer is a VIP (default: False).\n        \"\"\"\n        self.customers.add(name)\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"\n        Open a ticket; returns its id.\n\n        Args:\n        - customer (str): The customer's name.\n        - title (str): The ticket's title.\n        - priority (str): The ticket's priority (default: \"normal\").\n\n        Returns:\n        - int: The ticket's id.\n\n        Raises:\n        - ValueError: If the title is empty.\n        \"\"\"\n        if not title:\n            raise ValueError(\"Title cannot be empty\")\n\n        if priority not in self.PRIORITIES:\n            raise ValueError(\"Invalid priority\")\n\n        if customer not in self.customers:\n            raise ValueError(\"Customer not found\")\n\n        self.ticket_id_counter += 1\n        ticket_id = self.ticket_id_counter\n        self.tickets.append(Ticket(ticket_id, customer, title, priority))\n        self.tickets.sort(key=lambda ticket: (self.PRIORITIES.index(ticket.priority), ticket.ticket_id))\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        \"\"\"\n        Take the ticket that should be handled next out of the queue; None if the queue is empty.\n\n        Returns:\n        - int | None: The id of the next ticket or None if the queue is empty.\n        \"\"\"\n        if not self.tickets:\n            return None\n        return self.tickets[0].ticket_id\n\n    def close(self, ticket_id: int) -> None:\n        \"\"\"\n        Close a ticket.\n\n        Args:\n        - ticket_id (int): The id of the ticket to close.\n        \"\"\"\n        for ticket in self.tickets:\n            if ticket.ticket_id == ticket_id:\n                self.tickets.remove(ticket)\n                self.closed_tickets.add(ticket_id)\n                break\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"\n        Put a ticket back into the queue.\n\n        Args:\n        - ticket_id (int): The id of the ticket to reopen.\n\n        Raises:\n        - ValueError: If the ticket is already closed.\n        \"\"\"\n        if ticket_id in self.closed_tickets:\n            raise ValueError(\"Ticket is already closed\")\n        # Reopening a ticket that was never closed is a no-op\n\n\n@dataclass\nclass Ticket:\n    \"\"\"\n    A ticket in the helpdesk.\n    \"\"\"\n    ticket_id: int\n    customer: str\n    title: str\n    priority: str\n",
+ "input_tokens": 298,
+ "output_tokens": 687,
+ "cost_usd": 0.00024964000000000003,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 6.07,
+ "raw_api_response": {
+  "id": "gen-1794896213-qjLSYQ2xiUbd5kvb2Gne",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom dataclasses import dataclass\nfrom typing import Optional\n\nclass Helpdesk:\n    \"\"\"\n    A ticket queue for a customer helpdesk: customers open tickets, agents take\n    the next ticket to handle, and tickets get closed.\n    \"\"\"\n\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        \"\"\"\n        Initialize the helpdesk.\n        \"\"\"\n        self.customers = set()\n        self.tickets = []\n        self.closed_tickets = set()\n        self.ticket_id_counter = 0\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        \"\"\"\n        Add a customer to the helpdesk.\n\n        Args:\n        - name (str): The customer's name.\n        - vip (bool): Whether the customer is a VIP (default: False).\n        \"\"\"\n        self.customers.add(name)\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"\n        Open a ticket; returns its id.\n\n        Args:\n        - customer (str): The customer's name.\n        - title (str): The ticket's title.\n        - priority (str): The ticket's priority (default: \"normal\").\n\n        Returns:\n        - int: The ticket's id.\n\n        Raises:\n        - ValueError: If the title is empty.\n        \"\"\"\n        if not title:\n            raise ValueError(\"Title cannot be empty\")\n\n        if priority not in self.PRIORITIES:\n            raise ValueError(\"Invalid priority\")\n\n        if customer not in self.customers:\n            raise ValueError(\"Customer not found\")\n\n        self.ticket_id_counter += 1\n        ticket_id = self.ticket_id_counter\n        self.tickets.append(Ticket(ticket_id, customer, title, priority))\n        self.tickets.sort(key=lambda ticket: (self.PRIORITIES.index(ticket.priority), ticket.ticket_id))\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        \"\"\"\n        Take the ticket that should be handled next out of the queue; None if the queue is empty.\n\n        Returns:\n        - int | None: The id of the next ticket or None if the queue is empty.\n        \"\"\"\n        if not self.tickets:\n            return None\n        return self.tickets[0].ticket_id\n\n    def close(self, ticket_id: int) -> None:\n        \"\"\"\n        Close a ticket.\n\n        Args:\n        - ticket_id (int): The id of the ticket to close.\n        \"\"\"\n        for ticket in self.tickets:\n            if ticket.ticket_id == ticket_id:\n                self.tickets.remove(ticket)\n                self.closed_tickets.add(ticket_id)\n                break\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"\n        Put a ticket back into the queue.\n\n        Args:\n        - ticket_id (int): The id of the ticket to reopen.\n\n        Raises:\n        - ValueError: If the ticket is already closed.\n        \"\"\"\n        if ticket_id in self.closed_tickets:\n            raise ValueError(\"Ticket is already closed\")\n        # Reopening a ticket that was never closed is a no-op\n\n\n@dataclass\nclass Ticket:\n    \"\"\"\n    A ticket in the helpdesk.\n    \"\"\"\n    ticket_id: int\n    customer: str\n    title: str\n    priority: str\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794896213,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 687,
+   "prompt_tokens": 298,
+   "total_tokens": 985,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 192,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00038794,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00038794,
+    "upstream_inference_prompt_cost": 4.444e-05,
+    "upstream_inference_completions_cost": 0.0003435
+   }
+  },
+  "provider": "Parasail"
+ }
+}

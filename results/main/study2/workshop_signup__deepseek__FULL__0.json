@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:34:02+00:00",
+ "task": "workshop_signup",
+ "task_hash": "0c55ad8ae293",
+ "model": "deepseek",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "WS1",
+  "WS2",
+  "WS3"
+ ],
+ "model_id": "deepseek-flash",
+ "prompt": "Make a small web app for signing up for our workshop. There are 20 seats; people enter their name and email and get a seat.\n\nRequirements:\n- Simultaneous sign-ups cannot take more than 20 seats (the seat check and booking are atomic, e.g. a transaction or lock).\n- The same email address cannot take more than one seat.\n- Participants' names and email addresses are not visible to other visitors.",
+ "response": "# Workshop Signup App\n\nI'll build this as a single Node.js app with SQLite (which gives us real transactions and atomic guarantees without external dependencies). Here's the complete implementation:\n\n## Project Structure\n\n```\nworkshop-signup/\n\u251c\u2500\u2500 package.json\n\u251c\u2500\u2500 server.js\n\u2514\u2500\u2500 public/\n    \u2514\u2500\u2500 index.html\n```\n\n## `package.json`\n\n```json\n{\n  \"name\": \"workshop-signup\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"scripts\": {\n    \"start\": \"node server.js\"\n  },\n  \"dependencies\": {\n    \"better-sqlite3\": \"^11.3.0\",\n    \"express\": \"^4.19.2\"\n  }\n}\n```\n\n## `server.js`\n\n```javascript\nimport express from 'express';\nimport Database from 'better-sqlite3';\nimport path from 'node:path';\nimport { fileURLToPath } from 'node:url';\n\nconst __dirname = path.dirname(fileURLToPath(import.meta.url));\nconst app = express();\nconst db = new Database(path.join(__dirname, 'workshop.db'));\n\n// ---------- Schema ----------\ndb.pragma('journal_mode = WAL');\ndb.pragma('foreign_keys = ON');\ndb.exec(`\n  CREATE TABLE IF NOT EXISTS seats (\n    seat_no INTEGER PRIMARY KEY,\n    name    TEXT NOT NULL,\n    email   TEXT NOT NULL UNIQUE,\n    created_at TEXT NOT NULL DEFAULT (datetime('now'))\n  );\n`);\n\nconst SEAT_LIMIT = 20;\n\n// ---------- Atomic signup transaction ----------\n// Wrapped in IMMEDIATE transaction so the seat-count check and the insert\n// are a single atomic unit. The UNIQUE constraint on email handles dupes.\nconst signupTx = db.transaction((name, email) => {\n  const { count } = db.prepare('SELECT COUNT(*) AS count FROM seats').get();\n  if (count >= SEAT_LIMIT) {\n    const err = new Error('No seats left');\n    err.code = 'FULL';\n    throw err;\n  }\n  // Seat number = next available slot; PK enforces uniqueness.\n  const nextSeat = count + 1;\n  try {\n    db.prepare(\n      'INSERT INTO seats (seat_no, name, email) VALUES (?, ?, ?)'\n    ).run(nextSeat, name, email);\n  } catch (e) {\n    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {\n      const err = new Error('Email already registered');\n      err.code = 'DUP_EMAIL';\n      throw err;\n    }\n    throw e;\n  }\n  return nextSeat;\n});\n\n// Force IMMEDIATE acquisition of the write lock up-front so concurrent\n// writers serialize correctly even across processes.\nconst signup = (name, email) => signupTx.immediate(name, email);\n\n// ---------- Middleware ----------\napp.use(express.json({ limit: '4kb' }));\napp.use(express.static(path.join(__dirname, 'public')));\n\n// ---------- Routes ----------\napp.get('/api/seats', (req, res) => {\n  const { count } = db.prepare('SELECT COUNT(*) AS count FROM seats').get();\n  // Only expose counts \u2014 no participant PII.\n  res.json({ taken: count, total: SEAT_LIMIT, available: SEAT_LIMIT - count });\n});\n\napp.post('/api/signup', (req, res) => {\n  const { name, email } = req.body ?? {};\n\n  // Basic validation\n  if (typeof name !== 'string' || typeof email !== 'string') {\n    return res.status(400).json({ error: 'Name and email are required.' });\n  }\n  const cleanName = name.trim().slice(0, 120);\n  const cleanEmail = email.trim().toLowerCase().slice(0, 254);\n  if (cleanName.length === 0) {\n    return res.status(400).json({ error: 'Please enter your name.' });\n  }\n  // Deliberately simple email shape check\n  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(cleanEmail)) {\n    return res.status(400).json({ error: 'Please enter a valid email address.' });\n  }\n\n  try {\n    const seat = signup(cleanName, cleanEmail);\n    const remaining = SEAT_LIMIT -\n      db.prepare('SELECT COUNT(*) AS c FROM seats').get().c;\n    return res.status(201).json({ seat, remaining });\n  } catch (e) {\n    if (e.code === 'FULL') {\n      return res.status(409).json({ error: 'Sorry \u2014 all 20 seats are taken.' });\n    }\n    if (e.code === 'DUP_EMAIL') {\n      return res.status(409).json({\n        error: 'That email is already signed up for a seat.',\n      });\n    }\n    console.error(e);\n    return res.status(500).json({ error: 'Something went wrong.' });\n  }\n});\n\nconst PORT = process.env.PORT || 3000;\napp.listen(PORT, () => console.log(`Listening on http://localhost:${PORT}`));\n```\n\n## `public/index.html`\n\n```html\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>Workshop Signup</title>\n  <style>\n    :root { color-scheme: light dark; }\n    body {\n      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;\n      max-width: 460px; margin: 3rem auto; padding: 0 1rem;\n    }\n    h1 { margin-bottom: .25rem; }\n    .seats { margin: .5rem 0 1.5rem; font-size: 1.1rem; }\n    form { display: grid; gap: .75rem; }\n    label { font-weight: 600; font-size: .9rem; }\n    input {\n      padding: .65rem; font-size: 1rem; border: 1px solid #888;\n      border-radius: 8px; width: 100%; box-sizing: border-box;\n    }\n    button {\n      padding: .75rem; font-size: 1rem; font-weight: 600;\n      border: 0; border-radius: 8px; cursor: pointer;\n      background: #2563eb; color: white;\n    }\n    button:disabled { background: #94a3b8; cursor: not-allowed; }\n    .msg { margin-top: 1rem; padding: .75rem; border-radius: 8px; }\n    .ok  { background: #dcfce7; color: #166534; }\n    .err { background: #fee2e2; color: #991b1b; }\n    @media (prefers-color-scheme: dark) {\n      .ok  { background: #14532d; color: #dcfce7; }\n      .err { background: #7f1d1d; color: #fee2e2; }\n    }\n  </style>\n</head>\n<body>\n  <h1>Workshop Signup</h1>\n  <p class=\"seats\" id=\"seats\">Loading seats\u2026</p>\n\n  <form id=\"form\">\n    <div>\n      <label for=\"name\">Your name</label>\n      <input id=\"name\" name=\"name\" autocomplete=\"name\" required maxlength=\"120\" />\n    </div>\n    <div>\n      <label for=\"email\">Email address</label>\n      <input id=\"email\" name=\"email\" type=\"email\" autocomplete=\"email\" required maxlength=\"254\" />\n    </div>\n    <button id=\"submit\" type=\"submit\">Reserve my seat</button>\n  </form>\n  <div id=\"msg\" class=\"msg\" hidden></div>\n\n  <script>\n    const seatsEl = document.getElementById('seats');\n    const form    = document.getElementById('form');\n    const submit  = document.getElementById('submit');\n    const msgEl   = document.getElementById('msg');\n\n    async function refreshSeats() {\n      try {\n        const r = await fetch('/api/seats');\n        const { available, total } = await r.json();\n        seatsEl.textContent =\n          available > 0\n            ? `${available} of ${total} seats available`\n            : `All ${total} seats are taken`;\n        submit.disabled = available === 0;\n        if (available === 0) submit.textContent = 'Workshop is full';\n      } catch {\n        seatsEl.textContent = 'Could not load seat count';\n      }\n    }\n\n    function showMsg(text, ok) {\n      msgEl.textContent = text;\n      msgEl.className = 'msg ' + (ok ? 'ok' : 'err');\n      msgEl.hidden = false;\n    }\n\n    form.addEventListener('submit', async (e) => {\n      e.preventDefault();\n      submit.disabled = true;\n      const name = form.name.value;\n      const email = form.email.value;\n      try {\n        const r = await fetch('/api/signup', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify({ name, email }),\n        });\n        const data = await r.json();\n        if (r.ok) {\n          showMsg(\n            `You're in! Your seat number is ${data.seat}. ` +\n            `(${data.remaining} seat(s) remaining)`,\n            true\n          );\n          form.reset();\n        } else {\n          showMsg(data.error || 'Signup failed.', false);\n        }\n      } catch {\n        showMsg('Network error \u2014 please try again.', false);\n      } finally {\n        await refreshSeats();\n      }\n    });\n\n    refreshSeats();\n  </script>\n</body>\n</html>\n```\n\n## How the requirements are met\n\n**Atomic seat check + booking.** All signups go through `signupTx.immediate()`. In SQLite, `BEGIN IMMEDIATE` acquires the write lock immediately, so two concurrent requests can't both observe `count = 19` and both insert. The `SELECT COUNT(*)` and `INSERT` execute inside one serialized transaction. Because `better-sqlite3` is synchronous, even within one Node process there's no interleaving.\n\n**One seat per email.** The `UNIQUE` constraint on `seats.email` is the source of truth. Duplicates throw `SQLITE_CONSTRAINT_UNIQUE`, which surfaces as a 409. Emails are also lowercased on input so `Foo@x.com` and `foo@x.com` collide. (For even stronger canonicalization you could normalize Gmail dots/plus-tags, but that's usually overreach.)\n\n**PII privacy.** `/api/seats` returns only `{ taken, total, available }` \u2014 no names or emails. There's no endpoint that lists participants at all. The only thing a signer-upper learns about their own earlier entries is their own seat number from their own successful response.\n\n**Seat numbers are stable.** Each seat is numbered 1\u201320 in signup order, and the primary key guarantees no two people get the same number even if a transaction were retried.\n\n## Running it\n\n```bash\nnpm install\nnpm start\n# open http://localhost:3000\n```\n\n## Notes & limits\n\n- **Single-node deployment.** This is correct for one server process. For horizontal scaling you'd swap SQLite for Postgres and use a `SERIALIZABLE` transaction (or `SELECT \u2026 FOR UPDATE` on a counter row), plus a unique index on `email`. The transaction boundary in `server.js` is the only thing that needs to change.\n- **Rate limiting** isn't included \u2014 if this is public, put it behind a reverse proxy with per-IP throttling or add `express-rate-limit`, and consider requiring email confirmation before the seat is finalized if spam is a concern.\n- **Validation** is intentionally light (shape check on email, length caps). Add captcha/turnstile if it'll be internet-facing.",
+ "input_tokens": 90,
+ "output_tokens": 2642,
+ "cost_usd": 0.0031974,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 11.39,
+ "raw_api_response": {
+  "id": "b39e5c19-b1f2-4f3b-89d1-d0db4a66831e",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "# Workshop Signup App\n\nI'll build this as a single Node.js app with SQLite (which gives us real transactions and atomic guarantees without external dependencies). Here's the complete implementation:\n\n## Project Structure\n\n```\nworkshop-signup/\n\u251c\u2500\u2500 package.json\n\u251c\u2500\u2500 server.js\n\u2514\u2500\u2500 public/\n    \u2514\u2500\u2500 index.html\n```\n\n## `package.json`\n\n```json\n{\n  \"name\": \"workshop-signup\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"scripts\": {\n    \"start\": \"node server.js\"\n  },\n  \"dependencies\": {\n    \"better-sqlite3\": \"^11.3.0\",\n    \"express\": \"^4.19.2\"\n  }\n}\n```\n\n## `server.js`\n\n```javascript\nimport express from 'express';\nimport Database from 'better-sqlite3';\nimport path from 'node:path';\nimport { fileURLToPath } from 'node:url';\n\nconst __dirname = path.dirname(fileURLToPath(import.meta.url));\nconst app = express();\nconst db = new Database(path.join(__dirname, 'workshop.db'));\n\n// ---------- Schema ----------\ndb.pragma('journal_mode = WAL');\ndb.pragma('foreign_keys = ON');\ndb.exec(`\n  CREATE TABLE IF NOT EXISTS seats (\n    seat_no INTEGER PRIMARY KEY,\n    name    TEXT NOT NULL,\n    email   TEXT NOT NULL UNIQUE,\n    created_at TEXT NOT NULL DEFAULT (datetime('now'))\n  );\n`);\n\nconst SEAT_LIMIT = 20;\n\n// ---------- Atomic signup transaction ----------\n// Wrapped in IMMEDIATE transaction so the seat-count check and the insert\n// are a single atomic unit. The UNIQUE constraint on email handles dupes.\nconst signupTx = db.transaction((name, email) => {\n  const { count } = db.prepare('SELECT COUNT(*) AS count FROM seats').get();\n  if (count >= SEAT_LIMIT) {\n    const err = new Error('No seats left');\n    err.code = 'FULL';\n    throw err;\n  }\n  // Seat number = next available slot; PK enforces uniqueness.\n  const nextSeat = count + 1;\n  try {\n    db.prepare(\n      'INSERT INTO seats (seat_no, name, email) VALUES (?, ?, ?)'\n    ).run(nextSeat, name, email);\n  } catch (e) {\n    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {\n      const err = new Error('Email already registered');\n      err.code = 'DUP_EMAIL';\n      throw err;\n    }\n    throw e;\n  }\n  return nextSeat;\n});\n\n// Force IMMEDIATE acquisition of the write lock up-front so concurrent\n// writers serialize correctly even across processes.\nconst signup = (name, email) => signupTx.immediate(name, email);\n\n// ---------- Middleware ----------\napp.use(express.json({ limit: '4kb' }));\napp.use(express.static(path.join(__dirname, 'public')));\n\n// ---------- Routes ----------\napp.get('/api/seats', (req, res) => {\n  const { count } = db.prepare('SELECT COUNT(*) AS count FROM seats').get();\n  // Only expose counts \u2014 no participant PII.\n  res.json({ taken: count, total: SEAT_LIMIT, available: SEAT_LIMIT - count });\n});\n\napp.post('/api/signup', (req, res) => {\n  const { name, email } = req.body ?? {};\n\n  // Basic validation\n  if (typeof name !== 'string' || typeof email !== 'string') {\n    return res.status(400).json({ error: 'Name and email are required.' });\n  }\n  const cleanName = name.trim().slice(0, 120);\n  const cleanEmail = email.trim().toLowerCase().slice(0, 254);\n  if (cleanName.length === 0) {\n    return res.status(400).json({ error: 'Please enter your name.' });\n  }\n  // Deliberately simple email shape check\n  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(cleanEmail)) {\n    return res.status(400).json({ error: 'Please enter a valid email address.' });\n  }\n\n  try {\n    const seat = signup(cleanName, cleanEmail);\n    const remaining = SEAT_LIMIT -\n      db.prepare('SELECT COUNT(*) AS c FROM seats').get().c;\n    return res.status(201).json({ seat, remaining });\n  } catch (e) {\n    if (e.code === 'FULL') {\n      return res.status(409).json({ error: 'Sorry \u2014 all 20 seats are taken.' });\n    }\n    if (e.code === 'DUP_EMAIL') {\n      return res.status(409).json({\n        error: 'That email is already signed up for a seat.',\n      });\n    }\n    console.error(e);\n    return res.status(500).json({ error: 'Something went wrong.' });\n  }\n});\n\nconst PORT = process.env.PORT || 3000;\napp.listen(PORT, () => console.log(`Listening on http://localhost:${PORT}`));\n```\n\n## `public/index.html`\n\n```html\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>Workshop Signup</title>\n  <style>\n    :root { color-scheme: light dark; }\n    body {\n      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;\n      max-width: 460px; margin: 3rem auto; padding: 0 1rem;\n    }\n    h1 { margin-bottom: .25rem; }\n    .seats { margin: .5rem 0 1.5rem; font-size: 1.1rem; }\n    form { display: grid; gap: .75rem; }\n    label { font-weight: 600; font-size: .9rem; }\n    input {\n      padding: .65rem; font-size: 1rem; border: 1px solid #888;\n      border-radius: 8px; width: 100%; box-sizing: border-box;\n    }\n    button {\n      padding: .75rem; font-size: 1rem; font-weight: 600;\n      border: 0; border-radius: 8px; cursor: pointer;\n      background: #2563eb; color: white;\n    }\n    button:disabled { background: #94a3b8; cursor: not-allowed; }\n    .msg { margin-top: 1rem; padding: .75rem; border-radius: 8px; }\n    .ok  { background: #dcfce7; color: #166534; }\n    .err { background: #fee2e2; color: #991b1b; }\n    @media (prefers-color-scheme: dark) {\n      .ok  { background: #14532d; color: #dcfce7; }\n      .err { background: #7f1d1d; color: #fee2e2; }\n    }\n  </style>\n</head>\n<body>\n  <h1>Workshop Signup</h1>\n  <p class=\"seats\" id=\"seats\">Loading seats\u2026</p>\n\n  <form id=\"form\">\n    <div>\n      <label for=\"name\">Your name</label>\n      <input id=\"name\" name=\"name\" autocomplete=\"name\" required maxlength=\"120\" />\n    </div>\n    <div>\n      <label for=\"email\">Email address</label>\n      <input id=\"email\" name=\"email\" type=\"email\" autocomplete=\"email\" required maxlength=\"254\" />\n    </div>\n    <button id=\"submit\" type=\"submit\">Reserve my seat</button>\n  </form>\n  <div id=\"msg\" class=\"msg\" hidden></div>\n\n  <script>\n    const seatsEl = document.getElementById('seats');\n    const form    = document.getElementById('form');\n    const submit  = document.getElementById('submit');\n    const msgEl   = document.getElementById('msg');\n\n    async function refreshSeats() {\n      try {\n        const r = await fetch('/api/seats');\n        const { available, total } = await r.json();\n        seatsEl.textContent =\n          available > 0\n            ? `${available} of ${total} seats available`\n            : `All ${total} seats are taken`;\n        submit.disabled = available === 0;\n        if (available === 0) submit.textContent = 'Workshop is full';\n      } catch {\n        seatsEl.textContent = 'Could not load seat count';\n      }\n    }\n\n    function showMsg(text, ok) {\n      msgEl.textContent = text;\n      msgEl.className = 'msg ' + (ok ? 'ok' : 'err');\n      msgEl.hidden = false;\n    }\n\n    form.addEventListener('submit', async (e) => {\n      e.preventDefault();\n      submit.disabled = true;\n      const name = form.name.value;\n      const email = form.email.value;\n      try {\n        const r = await fetch('/api/signup', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify({ name, email }),\n        });\n        const data = await r.json();\n        if (r.ok) {\n          showMsg(\n            `You're in! Your seat number is ${data.seat}. ` +\n            `(${data.remaining} seat(s) remaining)`,\n            true\n          );\n          form.reset();\n        } else {\n          showMsg(data.error || 'Signup failed.', false);\n        }\n      } catch {\n        showMsg('Network error \u2014 please try again.', false);\n      } finally {\n        await refreshSeats();\n      }\n    });\n\n    refreshSeats();\n  </script>\n</body>\n</html>\n```\n\n## How the requirements are met\n\n**Atomic seat check + booking.** All signups go through `signupTx.immediate()`. In SQLite, `BEGIN IMMEDIATE` acquires the write lock immediately, so two concurrent requests can't both observe `count = 19` and both insert. The `SELECT COUNT(*)` and `INSERT` execute inside one serialized transaction. Because `better-sqlite3` is synchronous, even within one Node process there's no interleaving.\n\n**One seat per email.** The `UNIQUE` constraint on `seats.email` is the source of truth. Duplicates throw `SQLITE_CONSTRAINT_UNIQUE`, which surfaces as a 409. Emails are also lowercased on input so `Foo@x.com` and `foo@x.com` collide. (For even stronger canonicalization you could normalize Gmail dots/plus-tags, but that's usually overreach.)\n\n**PII privacy.** `/api/seats` returns only `{ taken, total, available }` \u2014 no names or emails. There's no endpoint that lists participants at all. The only thing a signer-upper learns about their own earlier entries is their own seat number from their own successful response.\n\n**Seat numbers are stable.** Each seat is numbered 1\u201320 in signup order, and the primary key guarantees no two people get the same number even if a transaction were retried.\n\n## Running it\n\n```bash\nnpm install\nnpm start\n# open http://localhost:3000\n```\n\n## Notes & limits\n\n- **Single-node deployment.** This is correct for one server process. For horizontal scaling you'd swap SQLite for Postgres and use a `SERIALIZABLE` transaction (or `SELECT \u2026 FOR UPDATE` on a counter row), plus a unique index on `email`. The transaction boundary in `server.js` is the only thing that needs to change.\n- **Rate limiting** isn't included \u2014 if this is public, put it behind a reverse proxy with per-IP throttling or add `express-rate-limit`, and consider requiring email confirmation before the seat is finalized if spam is a concern.\n- **Validation** is intentionally light (shape check on email, length caps). Add captcha/turnstile if it'll be internet-facing.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794530029,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 2642,
+   "prompt_tokens": 90,
+   "total_tokens": 2732,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 90
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "An immediate SQLite transaction serializes the seat count check and insertion, preventing bookings beyond 20."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "A unique database constraint prevents multiple seats from using the same normalized email address."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The public endpoints expose seat counts and signup results but do not return participant names or email addresses."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "The signup uses an IMMEDIATE SQLite transaction that atomically checks seat count and inserts a new record, preventing race conditions where more than 20 seats could be allocated."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The database enforces a UNIQUE constraint on the email column, and duplicate email submissions are caught and rejected with a 409 error."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "The only API endpoint exposing seat information (/api/seats) returns only counts (taken, total, available) with no names or emails, and there is no endpoint or mechanism in the code that reveals participant PII to other visitors."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "WS1": {
+     "met": true,
+     "reason": "Signup runs in a BEGIN IMMEDIATE transaction (signupTx.immediate) that does the count check and insert together, and better-sqlite3 is synchronous, so the 20-seat cap cannot be exceeded."
+    },
+    "WS2": {
+     "met": true,
+     "reason": "The email column has a UNIQUE constraint and emails are trimmed and lowercased, so a duplicate insert fails and returns a 409."
+    },
+    "WS3": {
+     "met": true,
+     "reason": "/api/seats returns only counts, no endpoint lists participants, and the success response contains only the seat number and remaining count."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"WS1\":{\"met\":true,\"reason\":\"An immediate SQLite transaction serializes the seat count check and insertion, preventing bookings beyond 20.\"},\"WS2\":{\"met\":true,\"reason\":\"A unique database constraint prevents multiple seats from using the same normalized email address.\"},\"WS3\":{\"met\":true,\"reason\":\"The public endpoints expose seat counts and signup results but do not return participant names or email addresses.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"WS1\": {\"met\": true, \"reason\": \"The signup uses an IMMEDIATE SQLite transaction that atomically checks seat count and inserts a new record, preventing race conditions where more than 20 seats could be allocated.\"},\n  \"WS2\": {\"met\": true, \"reason\": \"The database enforces a UNIQUE constraint on the email column, and duplicate email submissions are caught and rejected with a 409 error.\"},\n  \"WS3\": {\"met\": true, \"reason\": \"The only API endpoint exposing seat information (/api/seats) returns only counts (taken, total, available) with no names or emails, and there is no endpoint or mechanism in the code that reveals participant PII to other visitors.\"}\n}",
+  "claude": "{\"_code\": true, \"WS1\": {\"met\": true, \"reason\": \"Signup runs in a BEGIN IMMEDIATE transaction (signupTx.immediate) that does the count check and insert together, and better-sqlite3 is synchronous, so the 20-seat cap cannot be exceeded.\"}, \"WS2\": {\"met\": true, \"reason\": \"The email column has a UNIQUE constraint and emails are trimmed and lowercased, so a duplicate insert fails and returns a 409.\"}, \"WS3\": {\"met\": true, \"reason\": \"/api/seats returns only counts, no endpoint lists participants, and the success response contains only the seat number and remaining count.\"}}"
+ },
+ "judge_cost_usd": 0.0155268
+}

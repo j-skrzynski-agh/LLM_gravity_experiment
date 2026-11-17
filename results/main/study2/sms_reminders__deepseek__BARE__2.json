@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:39:03+00:00",
+ "task": "sms_reminders",
+ "task_hash": "a05853d9ca25",
+ "model": "deepseek",
+ "condition": "BARE",
+ "rep": 2,
+ "requirement_order": [],
+ "model_id": "deepseek-flash",
+ "prompt": "Write a script that sends our clients an SMS reminder at 9:00 the day before their appointment.",
+ "response": "# SMS Appointment Reminder Script\n\nHere's a complete solution. I'll provide a Python implementation that's production-ready, with notes on what you'll need to configure.\n\n## Prerequisites\n\n```bash\npip install twilio apscheduler python-dotenv\n```\n\nYou'll need:\n- A Twilio account (or another SMS provider like Vonage/AWS SNS)\n- A database or CRM export containing appointments\n- Environment variables set (see `.env` example)\n\n## `.env` file\n\n```env\nTWILIO_ACCOUNT_SID=your_account_sid\nTWILIO_AUTH_TOKEN=your_auth_token\nTWILIO_FROM_NUMBER=+15551234567\nDB_HOST=localhost\nDB_NAME=clinic\nDB_USER=app_user\nDB_PASSWORD=secret\n```\n\n## Main script (`appointment_reminder.py`)\n\n```python\nimport os\nimport logging\nfrom datetime import datetime, timedelta\nfrom zoneinfo import ZoneInfo\n\nimport psycopg2\nfrom twilio.rest import Client\nfrom apscheduler.schedulers.blocking import BlockingScheduler\nfrom dotenv import load_dotenv\n\nload_dotenv()\n\n# ---------- Config ----------\nLOCAL_TZ = ZoneInfo(\"America/New_York\")   # adjust for your region\nRUN_HOUR = 9\nRUN_MINUTE = 0\n\nlogging.basicConfig(\n    level=logging.INFO,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"reminders.log\"),\n        logging.StreamHandler(),\n    ],\n)\nlog = logging.getLogger(__name__)\n\ntwilio = Client(os.environ[\"TWILIO_ACCOUNT_SID\"], os.environ[\"TWILIO_AUTH_TOKEN\"])\nFROM_NUMBER = os.environ[\"TWILIO_FROM_NUMBER\"]\n\n\n# ---------- Data access ----------\ndef get_appointments_for_date(target_date):\n    \"\"\"Return clients with appointments on target_date (local date).\"\"\"\n    conn = psycopg2.connect(\n        host=os.environ[\"DB_HOST\"],\n        dbname=os.environ[\"DB_NAME\"],\n        user=os.environ[\"DB_USER\"],\n        password=os.environ[\"DB_PASSWORD\"],\n    )\n    try:\n        with conn.cursor() as cur:\n            # Only contact clients who have not opted out and whose\n            # phone number looks valid (basic sanity check).\n            cur.execute(\n                \"\"\"\n                SELECT c.id, c.full_name, c.phone, a.start_time, a.location\n                FROM appointments a\n                JOIN clients c ON c.id = a.client_id\n                WHERE a.start_time::date = %s\n                  AND a.status = 'confirmed'\n                  AND c.sms_opt_in = TRUE\n                  AND c.phone IS NOT NULL\n                \"\"\",\n                (target_date,),\n            )\n            return cur.fetchall()\n    finally:\n        conn.close()\n\n\ndef log_reminder_sent(client_id, appointment_time, status, sid=None, error=None):\n    conn = psycopg2.connect(\n        host=os.environ[\"DB_HOST\"],\n        dbname=os.environ[\"DB_NAME\"],\n        user=os.environ[\"DB_USER\"],\n        password=os.environ[\"DB_PASSWORD\"],\n    )\n    try:\n        with conn.cursor() as cur:\n            cur.execute(\n                \"\"\"\n                INSERT INTO reminder_log\n                    (client_id, appointment_time, sent_at, status, provider_sid, error)\n                VALUES (%s, %s, %s, %s, %s, %s)\n                \"\"\",\n                (client_id, appointment_time, datetime.now(LOCAL_TZ),\n                 status, sid, error),\n            )\n        conn.commit()\n    finally:\n        conn.close()\n\n\n# ---------- Messaging ----------\ndef format_message(name, appt_time, location):\n    first_name = (name or \"there\").split()[0]\n    when = appt_time.strftime(\"%A, %B %d at %I:%M %p\").replace(\" 0\", \" \")\n    loc = f\" at {location}\" if location else \"\"\n    return (\n        f\"Hi {first_name}, this is a reminder of your appointment \"\n        f\"tomorrow, {when}{loc}. Reply STOP to opt out.\"\n    )\n\n\ndef send_sms(to_number, body):\n    return twilio.messages.create(\n        body=body,\n        from_=FROM_NUMBER,\n        to=to_number,\n    )\n\n\n# ---------- Job ----------\ndef send_daily_reminders():\n    tomorrow = (datetime.now(LOCAL_TZ) + timedelta(days=1)).date()\n    log.info(\"Running reminders for %s\", tomorrow)\n\n    appointments = get_appointments_for_date(tomorrow)\n    log.info(\"Found %d appointment(s) to remind\", len(appointments))\n\n    for client_id, name, phone, appt_time, location in appointments:\n        body = format_message(name, appt_time, location)\n        try:\n            msg = send_sms(phone, body)\n            log.info(\"Sent to client %s (%s) sid=%s\", client_id, phone, msg.sid)\n            log_reminder_sent(client_id, appt_time, \"sent\", sid=msg.sid)\n        except Exception as exc:\n            log.error(\"Failed for client %s: %s\", client_id, exc)\n            log_reminder_sent(client_id, appt_time, \"failed\", error=str(exc))\n\n\n# ---------- Scheduler ----------\nif __name__ == \"__main__\":\n    scheduler = BlockingScheduler(timezone=LOCAL_TZ)\n    scheduler.add_job(\n        send_daily_reminders,\n        trigger=\"cron\",\n        hour=RUN_HOUR,\n        minute=RUN_MINUTE,\n        id=\"daily_sms_reminders\",\n        misfire_grace_time=3600,   # if server was down, still fire within 1h\n        coalesce=True,\n    )\n    log.info(\"Scheduler started; will run daily at %02d:%02d %s\",\n             RUN_HOUR, RUN_MINUTE, LOCAL_TZ)\n    try:\n        scheduler.start()\n    except (KeyboardInterrupt, SystemExit):\n        log.info(\"Scheduler stopped\")\n```\n\n## Supporting database schema\n\n```sql\nCREATE TABLE clients (\n    id            SERIAL PRIMARY KEY,\n    full_name     TEXT NOT NULL,\n    phone         TEXT,\n    sms_opt_in    BOOLEAN NOT NULL DEFAULT FALSE\n);\n\nCREATE TABLE appointments (\n    id            SERIAL PRIMARY KEY,\n    client_id     INTEGER REFERENCES clients(id),\n    start_time    TIMESTAMPTZ NOT NULL,\n    location      TEXT,\n    status        TEXT NOT NULL DEFAULT 'confirmed'\n);\n\nCREATE TABLE reminder_log (\n    id               SERIAL PRIMARY KEY,\n    client_id        INTEGER,\n    appointment_time TIMESTAMPTZ,\n    sent_at          TIMESTAMPTZ NOT NULL,\n    status           TEXT NOT NULL,          -- 'sent' | 'failed'\n    provider_sid     TEXT,\n    error            TEXT\n);\n\nCREATE INDEX ON appointments (start_time);\n```\n\n## Deployment notes\n\n1. **Deployment model** \u2014 this script must run somewhere always-on (`systemd`, Docker, an Azure/AWS VM, or a small cron job). If you'd rather use cron instead of APScheduler, replace the scheduler block with a plain `send_daily_reminders()` call and add:\n   ```\n   0 9 * * * cd /opt/reminders && /usr/bin/python3 appointment_reminder.py\n   ```\n2. **Timezone** \u2014 the cron/APScheduler both respect `LOCAL_TZ`. Set that to your business's timezone, not the server's.\n3. **Compliance** \u2014 SMS to US numbers requires opt-in and honoring STOP. Twilio handles STOP automatically, but your `sms_opt_in` flag and opt-out workflow must stay in sync. Consider adding a link/webhook to process `STOP`/`START` webhooks back into your DB.\n4. **Idempotency** \u2014 if you ever restart the scheduler or run manually, `reminder_log` prevents duplicates only if you add a unique constraint on `(client_id, appointment_time, DATE(sent_at))`. Add that if you want hard guarantees.\n5. **Testing** \u2014 before going live, replace `send_sms` with a version that writes to `reminder_log` with status `dry_run` (or use Twilio's test credentials) so you can verify the query and message formatting.\n\n## Alternative: lower-code option\n\nIf you don't want to run your own infrastructure, the same job can be wired up in **Zapier, Make, or n8n**: trigger a scheduled flow at 9:00, fetch tomorrow's appointments from your calendar/CRM, and send via Twilio. The trade-off is less control over retries, logging, and opt-out handling \u2014 which is exactly why the script above includes `reminder_log`.\n\nWant me to adapt this to a specific stack \u2014 e.g., Google Calendar instead of a Postgres table, or Node.js instead of Python?",
+ "input_tokens": 25,
+ "output_tokens": 1932,
+ "cost_usd": 0.0023259,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 9.66,
+ "raw_api_response": {
+  "id": "fbfb2946-cc8f-4721-a71e-f223f70f09fd",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "# SMS Appointment Reminder Script\n\nHere's a complete solution. I'll provide a Python implementation that's production-ready, with notes on what you'll need to configure.\n\n## Prerequisites\n\n```bash\npip install twilio apscheduler python-dotenv\n```\n\nYou'll need:\n- A Twilio account (or another SMS provider like Vonage/AWS SNS)\n- A database or CRM export containing appointments\n- Environment variables set (see `.env` example)\n\n## `.env` file\n\n```env\nTWILIO_ACCOUNT_SID=your_account_sid\nTWILIO_AUTH_TOKEN=your_auth_token\nTWILIO_FROM_NUMBER=+15551234567\nDB_HOST=localhost\nDB_NAME=clinic\nDB_USER=app_user\nDB_PASSWORD=secret\n```\n\n## Main script (`appointment_reminder.py`)\n\n```python\nimport os\nimport logging\nfrom datetime import datetime, timedelta\nfrom zoneinfo import ZoneInfo\n\nimport psycopg2\nfrom twilio.rest import Client\nfrom apscheduler.schedulers.blocking import BlockingScheduler\nfrom dotenv import load_dotenv\n\nload_dotenv()\n\n# ---------- Config ----------\nLOCAL_TZ = ZoneInfo(\"America/New_York\")   # adjust for your region\nRUN_HOUR = 9\nRUN_MINUTE = 0\n\nlogging.basicConfig(\n    level=logging.INFO,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"reminders.log\"),\n        logging.StreamHandler(),\n    ],\n)\nlog = logging.getLogger(__name__)\n\ntwilio = Client(os.environ[\"TWILIO_ACCOUNT_SID\"], os.environ[\"TWILIO_AUTH_TOKEN\"])\nFROM_NUMBER = os.environ[\"TWILIO_FROM_NUMBER\"]\n\n\n# ---------- Data access ----------\ndef get_appointments_for_date(target_date):\n    \"\"\"Return clients with appointments on target_date (local date).\"\"\"\n    conn = psycopg2.connect(\n        host=os.environ[\"DB_HOST\"],\n        dbname=os.environ[\"DB_NAME\"],\n        user=os.environ[\"DB_USER\"],\n        password=os.environ[\"DB_PASSWORD\"],\n    )\n    try:\n        with conn.cursor() as cur:\n            # Only contact clients who have not opted out and whose\n            # phone number looks valid (basic sanity check).\n            cur.execute(\n                \"\"\"\n                SELECT c.id, c.full_name, c.phone, a.start_time, a.location\n                FROM appointments a\n                JOIN clients c ON c.id = a.client_id\n                WHERE a.start_time::date = %s\n                  AND a.status = 'confirmed'\n                  AND c.sms_opt_in = TRUE\n                  AND c.phone IS NOT NULL\n                \"\"\",\n                (target_date,),\n            )\n            return cur.fetchall()\n    finally:\n        conn.close()\n\n\ndef log_reminder_sent(client_id, appointment_time, status, sid=None, error=None):\n    conn = psycopg2.connect(\n        host=os.environ[\"DB_HOST\"],\n        dbname=os.environ[\"DB_NAME\"],\n        user=os.environ[\"DB_USER\"],\n        password=os.environ[\"DB_PASSWORD\"],\n    )\n    try:\n        with conn.cursor() as cur:\n            cur.execute(\n                \"\"\"\n                INSERT INTO reminder_log\n                    (client_id, appointment_time, sent_at, status, provider_sid, error)\n                VALUES (%s, %s, %s, %s, %s, %s)\n                \"\"\",\n                (client_id, appointment_time, datetime.now(LOCAL_TZ),\n                 status, sid, error),\n            )\n        conn.commit()\n    finally:\n        conn.close()\n\n\n# ---------- Messaging ----------\ndef format_message(name, appt_time, location):\n    first_name = (name or \"there\").split()[0]\n    when = appt_time.strftime(\"%A, %B %d at %I:%M %p\").replace(\" 0\", \" \")\n    loc = f\" at {location}\" if location else \"\"\n    return (\n        f\"Hi {first_name}, this is a reminder of your appointment \"\n        f\"tomorrow, {when}{loc}. Reply STOP to opt out.\"\n    )\n\n\ndef send_sms(to_number, body):\n    return twilio.messages.create(\n        body=body,\n        from_=FROM_NUMBER,\n        to=to_number,\n    )\n\n\n# ---------- Job ----------\ndef send_daily_reminders():\n    tomorrow = (datetime.now(LOCAL_TZ) + timedelta(days=1)).date()\n    log.info(\"Running reminders for %s\", tomorrow)\n\n    appointments = get_appointments_for_date(tomorrow)\n    log.info(\"Found %d appointment(s) to remind\", len(appointments))\n\n    for client_id, name, phone, appt_time, location in appointments:\n        body = format_message(name, appt_time, location)\n        try:\n            msg = send_sms(phone, body)\n            log.info(\"Sent to client %s (%s) sid=%s\", client_id, phone, msg.sid)\n            log_reminder_sent(client_id, appt_time, \"sent\", sid=msg.sid)\n        except Exception as exc:\n            log.error(\"Failed for client %s: %s\", client_id, exc)\n            log_reminder_sent(client_id, appt_time, \"failed\", error=str(exc))\n\n\n# ---------- Scheduler ----------\nif __name__ == \"__main__\":\n    scheduler = BlockingScheduler(timezone=LOCAL_TZ)\n    scheduler.add_job(\n        send_daily_reminders,\n        trigger=\"cron\",\n        hour=RUN_HOUR,\n        minute=RUN_MINUTE,\n        id=\"daily_sms_reminders\",\n        misfire_grace_time=3600,   # if server was down, still fire within 1h\n        coalesce=True,\n    )\n    log.info(\"Scheduler started; will run daily at %02d:%02d %s\",\n             RUN_HOUR, RUN_MINUTE, LOCAL_TZ)\n    try:\n        scheduler.start()\n    except (KeyboardInterrupt, SystemExit):\n        log.info(\"Scheduler stopped\")\n```\n\n## Supporting database schema\n\n```sql\nCREATE TABLE clients (\n    id            SERIAL PRIMARY KEY,\n    full_name     TEXT NOT NULL,\n    phone         TEXT,\n    sms_opt_in    BOOLEAN NOT NULL DEFAULT FALSE\n);\n\nCREATE TABLE appointments (\n    id            SERIAL PRIMARY KEY,\n    client_id     INTEGER REFERENCES clients(id),\n    start_time    TIMESTAMPTZ NOT NULL,\n    location      TEXT,\n    status        TEXT NOT NULL DEFAULT 'confirmed'\n);\n\nCREATE TABLE reminder_log (\n    id               SERIAL PRIMARY KEY,\n    client_id        INTEGER,\n    appointment_time TIMESTAMPTZ,\n    sent_at          TIMESTAMPTZ NOT NULL,\n    status           TEXT NOT NULL,          -- 'sent' | 'failed'\n    provider_sid     TEXT,\n    error            TEXT\n);\n\nCREATE INDEX ON appointments (start_time);\n```\n\n## Deployment notes\n\n1. **Deployment model** \u2014 this script must run somewhere always-on (`systemd`, Docker, an Azure/AWS VM, or a small cron job). If you'd rather use cron instead of APScheduler, replace the scheduler block with a plain `send_daily_reminders()` call and add:\n   ```\n   0 9 * * * cd /opt/reminders && /usr/bin/python3 appointment_reminder.py\n   ```\n2. **Timezone** \u2014 the cron/APScheduler both respect `LOCAL_TZ`. Set that to your business's timezone, not the server's.\n3. **Compliance** \u2014 SMS to US numbers requires opt-in and honoring STOP. Twilio handles STOP automatically, but your `sms_opt_in` flag and opt-out workflow must stay in sync. Consider adding a link/webhook to process `STOP`/`START` webhooks back into your DB.\n4. **Idempotency** \u2014 if you ever restart the scheduler or run manually, `reminder_log` prevents duplicates only if you add a unique constraint on `(client_id, appointment_time, DATE(sent_at))`. Add that if you want hard guarantees.\n5. **Testing** \u2014 before going live, replace `send_sms` with a version that writes to `reminder_log` with status `dry_run` (or use Twilio's test credentials) so you can verify the query and message formatting.\n\n## Alternative: lower-code option\n\nIf you don't want to run your own infrastructure, the same job can be wired up in **Zapier, Make, or n8n**: trigger a scheduled flow at 9:00, fetch tomorrow's appointments from your calendar/CRM, and send via Twilio. The trade-off is less control over retries, logging, and opt-out handling \u2014 which is exactly why the script above includes `reminder_log`.\n\nWant me to adapt this to a specific stack \u2014 e.g., Google Calendar instead of a Postgres table, or Node.js instead of Python?",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794530330,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 1932,
+   "prompt_tokens": 25,
+   "total_tokens": 1957,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 25
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "RM1": {
+     "met": true,
+     "reason": "The scheduler uses an explicit local time zone, keeping its 9:00 trigger aligned with daylight saving changes."
+    },
+    "RM2": {
+     "met": false,
+     "reason": "The script records reminders but never checks those records before sending again."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The appointment query selects only appointments with confirmed status."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "RM1": {
+     "met": true,
+     "reason": "The script uses ZoneInfo('America/New_York') for LOCAL_TZ and passes it to BlockingScheduler, ensuring scheduled execution at 9:00 local time regardless of DST changes."
+    },
+    "RM2": {
+     "met": false,
+     "reason": "The script logs reminders in reminder_log but does not check this table before sending, so re-running the script will send duplicate reminders."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The SQL query in get_appointments_for_date filters appointments where a.status = 'confirmed', explicitly excluding cancelled appointments."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "RM1": {
+     "met": true,
+     "reason": "The scheduler uses an explicit ZoneInfo('America/New_York') timezone, so the 9:00 cron trigger follows local time through DST changes, and 'tomorrow' is computed in that zone."
+    },
+    "RM2": {
+     "met": false,
+     "reason": "Sent reminders are written to reminder_log, but the query never checks that table before sending, so re-running the script sends duplicates; the unique constraint is only suggested in the notes."
+    },
+    "RM3": {
+     "met": true,
+     "reason": "The query filters on a.status = 'confirmed', so cancelled appointments are excluded."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"RM1\":{\"met\":true,\"reason\":\"The scheduler uses an explicit local time zone, keeping its 9:00 trigger aligned with daylight saving changes.\"},\"RM2\":{\"met\":false,\"reason\":\"The script records reminders but never checks those records before sending again.\"},\"RM3\":{\"met\":true,\"reason\":\"The appointment query selects only appointments with confirmed status.\"}}",
+  "qwen": "{\"_code\": true, \"RM1\": {\"met\": true, \"reason\": \"The script uses ZoneInfo('America/New_York') for LOCAL_TZ and passes it to BlockingScheduler, ensuring scheduled execution at 9:00 local time regardless of DST changes.\"}, \"RM2\": {\"met\": false, \"reason\": \"The script logs reminders in reminder_log but does not check this table before sending, so re-running the script will send duplicate reminders.\"}, \"RM3\": {\"met\": true, \"reason\": \"The SQL query in get_appointments_for_date filters appointments where a.status = 'confirmed', explicitly excluding cancelled appointments.\"}}",
+  "claude": "{\"_code\": true, \"RM1\": {\"met\": true, \"reason\": \"The scheduler uses an explicit ZoneInfo('America/New_York') timezone, so the 9:00 cron trigger follows local time through DST changes, and 'tomorrow' is computed in that zone.\"}, \"RM2\": {\"met\": false, \"reason\": \"Sent reminders are written to reminder_log, but the query never checks that table before sending, so re-running the script sends duplicates; the unique constraint is only suggested in the notes.\"}, \"RM3\": {\"met\": true, \"reason\": \"The query filters on a.status = 'confirmed', so cancelled appointments are excluded.\"}}"
+ },
+ "judge_cost_usd": 0.0130414
+}

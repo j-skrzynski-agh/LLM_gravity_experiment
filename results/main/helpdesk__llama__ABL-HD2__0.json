@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:15:15+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "llama",
+ "condition": "ABL-HD2",
+ "rep": 0,
+ "requirement_order": [
+  "HD3",
+  "HD1",
+  "HD4",
+  "HD5"
+ ],
+ "passed": {
+  "HD1": true,
+  "HD2": true,
+  "HD3": false,
+  "HD4": true,
+  "HD5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. Critical tickets are handled before high ones, and high ones before normal ones.\n2. Opening a ticket with an empty title raises ValueError.\n3. Tickets of VIP customers are handled before all other tickets, even critical tickets of other customers.\n4. A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom dataclasses import dataclass\nfrom typing import Optional\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    @dataclass\n    class Ticket:\n        id: int\n        customer: str\n        vip: bool\n        title: str\n        priority: str\n        closed: bool = False\n\n    def __init__(self) -> None:\n        self.tickets = []\n        self.customer_vip = {}\n        self.next_ticket_id = 1\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customer_vip[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n\n        ticket_id = self.next_ticket_id\n        self.next_ticket_id += 1\n\n        vip = self.customer_vip.get(customer, False)\n        ticket = self.Ticket(ticket_id, customer, vip, title, priority)\n        self.tickets.append(ticket)\n\n        self.tickets.sort(key=self._sort_key)\n\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        if not self.tickets:\n            return None\n\n        next_ticket = self.tickets.pop(0)\n        return next_ticket.id\n\n    def close(self, ticket_id: int) -> None:\n        for ticket in self.tickets:\n            if ticket.id == ticket_id:\n                ticket.closed = True\n                return\n\n    def reopen(self, ticket_id: int) -> None:\n        for ticket in self.tickets:\n            if ticket.id == ticket_id:\n                if ticket.closed:\n                    raise ValueError(\"Cannot reopen a closed ticket\")\n                else:\n                    return\n\n    def _sort_key(self, ticket: Ticket) -> tuple:\n        if ticket.vip:\n            vip_sort = 0\n        else:\n            vip_sort = 1\n\n        priority_sort = self.PRIORITIES.index(ticket.priority)\n\n        return (vip_sort, priority_sort)\n\n# Example usage:\nif __name__ == \"__main__\":\n    helpdesk = Helpdesk()\n\n    helpdesk.add_customer(\"John Doe\", vip=True)\n    helpdesk.add_customer(\"Jane Doe\")\n\n    ticket1_id = helpdesk.open_ticket(\"John Doe\", \"VIP ticket\", priority=\"normal\")\n    ticket2_id = helpdesk.open_ticket(\"Jane Doe\", \"Normal ticket\", priority=\"normal\")\n    ticket3_id = helpdesk.open_ticket(\"Jane Doe\", \"High priority ticket\", priority=\"high\")\n    ticket4_id = helpdesk.open_ticket(\"Jane Doe\", \"Critical ticket\", priority=\"critical\")\n\n    print(helpdesk.next_ticket())  # Should print ticket1_id\n    print(helpdesk.next_ticket())  # Should print ticket4_id\n    print(helpdesk.next_ticket())  # Should print ticket3_id\n    print(helpdesk.next_ticket())  # Should print ticket2_id\n\n    helpdesk.close(ticket1_id)\n    try:\n        helpdesk.reopen(ticket1_id)\n    except ValueError as e:\n        print(e)  # Should print \"Cannot reopen a closed ticket\"\n```",
+ "code": "from dataclasses import dataclass\nfrom typing import Optional\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    @dataclass\n    class Ticket:\n        id: int\n        customer: str\n        vip: bool\n        title: str\n        priority: str\n        closed: bool = False\n\n    def __init__(self) -> None:\n        self.tickets = []\n        self.customer_vip = {}\n        self.next_ticket_id = 1\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customer_vip[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n\n        ticket_id = self.next_ticket_id\n        self.next_ticket_id += 1\n\n        vip = self.customer_vip.get(customer, False)\n        ticket = self.Ticket(ticket_id, customer, vip, title, priority)\n        self.tickets.append(ticket)\n\n        self.tickets.sort(key=self._sort_key)\n\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        if not self.tickets:\n            return None\n\n        next_ticket = self.tickets.pop(0)\n        return next_ticket.id\n\n    def close(self, ticket_id: int) -> None:\n        for ticket in self.tickets:\n            if ticket.id == ticket_id:\n                ticket.closed = True\n                return\n\n    def reopen(self, ticket_id: int) -> None:\n        for ticket in self.tickets:\n            if ticket.id == ticket_id:\n                if ticket.closed:\n                    raise ValueError(\"Cannot reopen a closed ticket\")\n                else:\n                    return\n\n    def _sort_key(self, ticket: Ticket) -> tuple:\n        if ticket.vip:\n            vip_sort = 0\n        else:\n            vip_sort = 1\n\n        priority_sort = self.PRIORITIES.index(ticket.priority)\n\n        return (vip_sort, priority_sort)\n\n# Example usage:\nif __name__ == \"__main__\":\n    helpdesk = Helpdesk()\n\n    helpdesk.add_customer(\"John Doe\", vip=True)\n    helpdesk.add_customer(\"Jane Doe\")\n\n    ticket1_id = helpdesk.open_ticket(\"John Doe\", \"VIP ticket\", priority=\"normal\")\n    ticket2_id = helpdesk.open_ticket(\"Jane Doe\", \"Normal ticket\", priority=\"normal\")\n    ticket3_id = helpdesk.open_ticket(\"Jane Doe\", \"High priority ticket\", priority=\"high\")\n    ticket4_id = helpdesk.open_ticket(\"Jane Doe\", \"Critical ticket\", priority=\"critical\")\n\n    print(helpdesk.next_ticket())  # Should print ticket1_id\n    print(helpdesk.next_ticket())  # Should print ticket4_id\n    print(helpdesk.next_ticket())  # Should print ticket3_id\n    print(helpdesk.next_ticket())  # Should print ticket2_id\n\n    helpdesk.close(ticket1_id)\n    try:\n        helpdesk.reopen(ticket1_id)\n    except ValueError as e:\n        print(e)  # Should print \"Cannot reopen a closed ticket\"\n",
+ "input_tokens": 299,
+ "output_tokens": 679,
+ "cost_usd": 0.00024718,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 7.74,
+ "raw_api_response": {
+  "id": "gen-1794896101-s9tBdgArgdlj5ZawVkKF",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom dataclasses import dataclass\nfrom typing import Optional\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    @dataclass\n    class Ticket:\n        id: int\n        customer: str\n        vip: bool\n        title: str\n        priority: str\n        closed: bool = False\n\n    def __init__(self) -> None:\n        self.tickets = []\n        self.customer_vip = {}\n        self.next_ticket_id = 1\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customer_vip[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n\n        ticket_id = self.next_ticket_id\n        self.next_ticket_id += 1\n\n        vip = self.customer_vip.get(customer, False)\n        ticket = self.Ticket(ticket_id, customer, vip, title, priority)\n        self.tickets.append(ticket)\n\n        self.tickets.sort(key=self._sort_key)\n\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        if not self.tickets:\n            return None\n\n        next_ticket = self.tickets.pop(0)\n        return next_ticket.id\n\n    def close(self, ticket_id: int) -> None:\n        for ticket in self.tickets:\n            if ticket.id == ticket_id:\n                ticket.closed = True\n                return\n\n    def reopen(self, ticket_id: int) -> None:\n        for ticket in self.tickets:\n            if ticket.id == ticket_id:\n                if ticket.closed:\n                    raise ValueError(\"Cannot reopen a closed ticket\")\n                else:\n                    return\n\n    def _sort_key(self, ticket: Ticket) -> tuple:\n        if ticket.vip:\n            vip_sort = 0\n        else:\n            vip_sort = 1\n\n        priority_sort = self.PRIORITIES.index(ticket.priority)\n\n        return (vip_sort, priority_sort)\n\n# Example usage:\nif __name__ == \"__main__\":\n    helpdesk = Helpdesk()\n\n    helpdesk.add_customer(\"John Doe\", vip=True)\n    helpdesk.add_customer(\"Jane Doe\")\n\n    ticket1_id = helpdesk.open_ticket(\"John Doe\", \"VIP ticket\", priority=\"normal\")\n    ticket2_id = helpdesk.open_ticket(\"Jane Doe\", \"Normal ticket\", priority=\"normal\")\n    ticket3_id = helpdesk.open_ticket(\"Jane Doe\", \"High priority ticket\", priority=\"high\")\n    ticket4_id = helpdesk.open_ticket(\"Jane Doe\", \"Critical ticket\", priority=\"critical\")\n\n    print(helpdesk.next_ticket())  # Should print ticket1_id\n    print(helpdesk.next_ticket())  # Should print ticket4_id\n    print(helpdesk.next_ticket())  # Should print ticket3_id\n    print(helpdesk.next_ticket())  # Should print ticket2_id\n\n    helpdesk.close(ticket1_id)\n    try:\n        helpdesk.reopen(ticket1_id)\n    except ValueError as e:\n        print(e)  # Should print \"Cannot reopen a closed ticket\"\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794896101,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 679,
+   "prompt_tokens": 299,
+   "total_tokens": 978,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00069438,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00069438,
+    "upstream_inference_prompt_cost": 0.00021229,
+    "upstream_inference_completions_cost": 0.00048209
+   }
+  },
+  "provider": "CoreWeave"
+ }
+}

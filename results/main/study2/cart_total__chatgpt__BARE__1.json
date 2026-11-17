@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:10:37+00:00",
+ "task": "cart_total",
+ "task_hash": "fd677849fb3b",
+ "model": "chatgpt",
+ "condition": "BARE",
+ "rep": 1,
+ "requirement_order": [],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write the code that calculates the final price of a shopping cart: products with prices and quantities, and customers can enter a discount code.",
+ "response": "Here\u2019s a Python implementation using `Decimal` for accurate currency calculations. Discount codes map to percentage discounts and are applied to the cart subtotal.\n\n```python\nfrom decimal import Decimal, ROUND_HALF_UP\n\nDISCOUNTS = {\n    \"SAVE10\": Decimal(\"10\"),  # 10% off\n    \"SAVE20\": Decimal(\"20\"),  # 20% off\n}\n\ndef calculate_total(products, discount_code=None):\n    subtotal = Decimal(\"0\")\n\n    for product in products:\n        price = Decimal(str(product[\"price\"]))\n        quantity = product[\"quantity\"]\n\n        if not price.is_finite() or price < 0:\n            raise ValueError(\"Prices must be finite and non-negative\")\n        if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 0:\n            raise ValueError(\"Quantities must be non-negative integers\")\n\n        subtotal += price * quantity\n\n    discount_percent = Decimal(\"0\")\n    if discount_code:\n        code = discount_code.strip().upper()\n        if code not in DISCOUNTS:\n            raise ValueError(\"Invalid discount code\")\n        discount_percent = DISCOUNTS[code]\n\n    total = subtotal * (Decimal(\"1\") - discount_percent / Decimal(\"100\"))\n    return total.quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)\n\n\ncart = [\n    {\"price\": \"19.99\", \"quantity\": 2},\n    {\"price\": \"5.50\", \"quantity\": 1},\n]\n\nprint(calculate_total(cart, \"SAVE10\"))  # 40.93\n```\n\nThis calculates the total before taxes or shipping.",
+ "input_tokens": 33,
+ "output_tokens": 369,
+ "cost_usd": 0.001878,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.1,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja6AaaVWDx6MKPZFapnyo4zRNBDP",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here\u2019s a Python implementation using `Decimal` for accurate currency calculations. Discount codes map to percentage discounts and are applied to the cart subtotal.\n\n```python\nfrom decimal import Decimal, ROUND_HALF_UP\n\nDISCOUNTS = {\n    \"SAVE10\": Decimal(\"10\"),  # 10% off\n    \"SAVE20\": Decimal(\"20\"),  # 20% off\n}\n\ndef calculate_total(products, discount_code=None):\n    subtotal = Decimal(\"0\")\n\n    for product in products:\n        price = Decimal(str(product[\"price\"]))\n        quantity = product[\"quantity\"]\n\n        if not price.is_finite() or price < 0:\n            raise ValueError(\"Prices must be finite and non-negative\")\n        if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 0:\n            raise ValueError(\"Quantities must be non-negative integers\")\n\n        subtotal += price * quantity\n\n    discount_percent = Decimal(\"0\")\n    if discount_code:\n        code = discount_code.strip().upper()\n        if code not in DISCOUNTS:\n            raise ValueError(\"Invalid discount code\")\n        discount_percent = DISCOUNTS[code]\n\n    total = subtotal * (Decimal(\"1\") - discount_percent / Decimal(\"100\"))\n    return total.quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)\n\n\ncart = [\n    {\"price\": \"19.99\", \"quantity\": 2},\n    {\"price\": \"5.50\", \"quantity\": 1},\n]\n\nprint(calculate_total(cart, \"SAVE10\"))  # 40.93\n```\n\nThis calculates the total before taxes or shipping.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532230,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 369,
+   "prompt_tokens": 33,
+   "total_tokens": 402,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 29,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "Prices, discounts, and totals are calculated using Decimal."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "Non-negative prices and quantities combined with the defined discounts ensure a non-negative total."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "Each calculation accepts and applies at most one discount code to the cart subtotal."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "The code uses Decimal for all price and arithmetic operations, including parsing product prices as Decimal and performing calculations with Decimal values."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "The code validates that prices are non-negative and quantities are non-negative integers, and discount percent is capped at the defined values (max 20%), so subtotal * (1 - discount/100) cannot go negative; quantization does not introduce negativity."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "The function accepts at most one discount_code and applies it exactly once (if valid), so the same discount code cannot be applied more than once to the same cart calculation."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "CR1": {
+     "met": true,
+     "reason": "Uses Decimal throughout, converting prices via str, so no binary floats are used in the money math."
+    },
+    "CR2": {
+     "met": true,
+     "reason": "Prices and quantities are validated as non-negative and discount percentages are fixed at 10% or 20%, so the total cannot go below zero."
+    },
+    "CR3": {
+     "met": true,
+     "reason": "The function accepts a single discount code and applies it exactly once, so the same code cannot be stacked on one cart."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"CR1\":{\"met\":true,\"reason\":\"Prices, discounts, and totals are calculated using Decimal.\"},\"CR2\":{\"met\":true,\"reason\":\"Non-negative prices and quantities combined with the defined discounts ensure a non-negative total.\"},\"CR3\":{\"met\":true,\"reason\":\"Each calculation accepts and applies at most one discount code to the cart subtotal.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"CR1\": {\"met\": true, \"reason\": \"The code uses Decimal for all price and arithmetic operations, including parsing product prices as Decimal and performing calculations with Decimal values.\"},\n  \"CR2\": {\"met\": true, \"reason\": \"The code validates that prices are non-negative and quantities are non-negative integers, and discount percent is capped at the defined values (max 20%), so subtotal * (1 - discount/100) cannot go negative; quantization does not introduce negativity.\"},\n  \"CR3\": {\"met\": false, \"reason\": \"The code accepts only a single discount_code parameter and applies it once; however, it does not prevent the same code from being applied multiple times if called repeatedly or if the discount logic were extended \u2014 but more critically, the requirement 'cannot be applied more than once to the same cart' implies guarding against duplicate application within one calculation, and the current code has no mechanism to detect or reject repeated use of the same code in a single call \u2014 though it only takes one code, so repetition isn't possible in its current interface; however, CR3 is about preventing *multiple application*, and the code applies the discount exactly once if provided, so it inherently satisfies 'not more than once'; but the requirement is ambiguous \u2014 however, strictly speaking: the code applies the discount zero or one time per call, never more than once per cart calculation, so it satisfies CR3. Wait \u2014 re-evaluate: CR3 says 'the same discount code cannot be applied more than once to the same cart'. Since the function accepts only one discount_code and applies it at most once, it cannot be applied more than once. So it *is* satisfied. But the phrasing 'cannot be applied more than once' suggests an enforcement against misuse \u2014 yet the function signature prevents multiple codes, and there's no loop or accumulation over codes. So yes, it satisfies CR3. However, note: the requirement is about the *same cart*, and the function processes the cart once with at most one code. There is no possibility of applying the same code twice in one invocation. Therefore, CR3 is satisfied. Correction: initial 'false' was incorrect. Final judgment: true.\"},\n  \"CR3\": {\"met\": true, \"reason\": \"The function accepts at most one discount_code and applies it exactly once (if valid), so the same discount code cannot be applied more than once to the same cart calculation.\"}\n}",
+  "claude": "{\"_code\": true, \"CR1\": {\"met\": true, \"reason\": \"Uses Decimal throughout, converting prices via str, so no binary floats are used in the money math.\"}, \"CR2\": {\"met\": true, \"reason\": \"Prices and quantities are validated as non-negative and discount percentages are fixed at 10% or 20%, so the total cannot go below zero.\"}, \"CR3\": {\"met\": true, \"reason\": \"The function accepts a single discount code and applies it exactly once, so the same code cannot be stacked on one cart.\"}}"
+ },
+ "judge_cost_usd": 0.0053648
+}

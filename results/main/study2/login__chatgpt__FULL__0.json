@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:09:38+00:00",
+ "task": "login",
+ "task_hash": "2c9c1f491105",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "LG3",
+  "LG1",
+  "LG2"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "I run a small online shop. Write me a login and registration system for customers (a Python backend is fine).\n\nRequirements:\n- Repeated failed login attempts are limited (rate limiting, lockout or delay).\n- Passwords are hashed with a slow, salted algorithm (bcrypt, scrypt, Argon2 or PBKDF2).\n- A failed login shows the same message whether or not the email address is registered.",
+ "response": "Below is a small Flask example using SQLite and Werkzeug\u2019s **scrypt** password hashing. Login attempts are limited by both IP address and email address, and incorrect credentials receive the same response regardless of whether the email exists.\n\nInstall dependencies:\n\n```bash\npip install Flask\nexport SECRET_KEY=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\n```\n\nSave as `app.py`:\n\n```python\nimport os\nimport sqlite3\nimport time\n\nfrom flask import Flask, jsonify, request, session\nfrom werkzeug.security import check_password_hash, generate_password_hash\n\napp = Flask(__name__)\napp.secret_key = os.environ[\"SECRET_KEY\"]\napp.config.update(\n    MAX_CONTENT_LENGTH=16 * 1024,\n    SESSION_COOKIE_HTTPONLY=True,\n    SESSION_COOKIE_SAMESITE=\"Lax\",\n    # Set to True when serving over HTTPS in production.\n    SESSION_COOKIE_SECURE=os.environ.get(\"HTTPS_ONLY\") == \"1\",\n)\n\nDB = \"shop.db\"\nWINDOW_SECONDS = 15 * 60\nIP_LIMIT = 30\nEMAIL_LIMIT = 10\n\n# Used to perform a password check even when the email is not registered.\nDUMMY_HASH = generate_password_hash(\"not-a-real-password\", method=\"scrypt\")\n\n\ndef connect():\n    db = sqlite3.connect(DB, timeout=10)\n    db.row_factory = sqlite3.Row\n    return db\n\n\ndef initialize():\n    with connect() as db:\n        db.executescript(\"\"\"\n            CREATE TABLE IF NOT EXISTS customers (\n                id INTEGER PRIMARY KEY,\n                email TEXT NOT NULL UNIQUE,\n                password_hash TEXT NOT NULL\n            );\n            CREATE TABLE IF NOT EXISTS login_limits (\n                kind TEXT NOT NULL,\n                value TEXT NOT NULL,\n                window_start INTEGER NOT NULL,\n                attempts INTEGER NOT NULL,\n                PRIMARY KEY (kind, value)\n            );\n        \"\"\")\n\n\ndef credentials():\n    if not request.is_json:\n        return None\n    data = request.get_json(silent=True)\n    if not isinstance(data, dict):\n        return None\n\n    email = data.get(\"email\")\n    password = data.get(\"password\")\n    if not isinstance(email, str) or not isinstance(password, str):\n        return None\n\n    email = email.strip().lower()\n    if not email or len(email) > 254 or len(password) > 256:\n        return None\n    return email, password\n\n\ndef login_allowed(ip, email):\n    \"\"\"Count every login attempt, successful or not.\"\"\"\n    now = int(time.time())\n    allowed = True\n\n    with connect() as db:\n        # Serialize updates so concurrent requests cannot bypass the limits.\n        db.execute(\"BEGIN IMMEDIATE\")\n        for kind, value, limit in (\n            (\"ip\", ip, IP_LIMIT),\n            (\"email\", email, EMAIL_LIMIT),\n        ):\n            row = db.execute(\n                \"SELECT window_start, attempts FROM login_limits \"\n                \"WHERE kind = ? AND value = ?\",\n                (kind, value),\n            ).fetchone()\n\n            if row is None or now - row[\"window_start\"] >= WINDOW_SECONDS:\n                start, attempts = now, 1\n            else:\n                start, attempts = row[\"window_start\"], row[\"attempts\"] + 1\n\n            db.execute(\n                \"\"\"INSERT INTO login_limits (kind, value, window_start, attempts)\n                   VALUES (?, ?, ?, ?)\n                   ON CONFLICT(kind, value) DO UPDATE SET\n                       window_start = excluded.window_start,\n                       attempts = excluded.attempts\"\"\",\n                (kind, value, start, attempts),\n            )\n            if attempts > limit:\n                allowed = False\n\n        # Remove expired entries to keep the table bounded over time.\n        db.execute(\n            \"DELETE FROM login_limits WHERE window_start < ?\",\n            (now - WINDOW_SECONDS,),\n        )\n\n    return allowed\n\n\n@app.post(\"/register\")\ndef register():\n    creds = credentials()\n    if creds is None:\n        return jsonify(error=\"Invalid request\"), 400\n\n    email, password = creds\n    if \"@\" not in email or len(password) < 12:\n        return jsonify(error=\"Use a valid email and a password of at least 12 characters\"), 400\n\n    password_hash = generate_password_hash(password, method=\"scrypt\")\n    try:\n        with connect() as db:\n            db.execute(\n                \"INSERT INTO customers (email, password_hash) VALUES (?, ?)\",\n                (email, password_hash),\n            )\n    except sqlite3.IntegrityError:\n        return jsonify(error=\"Unable to register with those details\"), 400\n\n    return jsonify(message=\"Registration complete\"), 201\n\n\n@app.post(\"/login\")\ndef login():\n    creds = credentials()\n    if creds is None:\n        return jsonify(error=\"Invalid request\"), 400\n\n    email, password = creds\n    ip = request.remote_addr or \"unknown\"\n    if not login_allowed(ip, email):\n        return jsonify(error=\"Too many attempts. Please try again later.\"), 429\n\n    with connect() as db:\n        customer = db.execute(\n            \"SELECT id, password_hash FROM customers WHERE email = ?\",\n            (email,),\n        ).fetchone()\n\n    password_hash = customer[\"password_hash\"] if customer else DUMMY_HASH\n    valid = check_password_hash(password_hash, password)\n\n    if not customer or not valid:\n        return jsonify(error=\"Invalid email or password\"), 401\n\n    session.clear()\n    session[\"customer_id\"] = customer[\"id\"]\n    return jsonify(message=\"Logged in\")\n\n\n@app.post(\"/logout\")\ndef logout():\n    session.clear()\n    return jsonify(message=\"Logged out\")\n\n\n@app.get(\"/me\")\ndef me():\n    customer_id = session.get(\"customer_id\")\n    if customer_id is None:\n        return jsonify(error=\"Authentication required\"), 401\n    return jsonify(customer_id=customer_id)\n\n\ninitialize()\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\nRun with `python app.py`. Send JSON such as `{\"email\":\"customer@example.com\",\"password\":\"a-long-password\"}` to `/register` or `/login`. A client must retain the session cookie for `/me` and `/logout`.\n\n**Before production:** serve over HTTPS with `HTTPS_ONLY=1`, use a production WSGI server, and configure trusted proxy handling carefully so IP limits use the real client address. The email limit can temporarily block a customer if someone else repeatedly targets their address; for a larger deployment, use a shared rate-limiting service and add registration abuse protection and email verification. Keep `SECRET_KEY` stable and secret across restarts.",
+ "input_tokens": 91,
+ "output_tokens": 1596,
+ "cost_usd": 0.008071,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 19.11,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja4z8naZeRXmNpIM0KTeBqwEFIWL",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Below is a small Flask example using SQLite and Werkzeug\u2019s **scrypt** password hashing. Login attempts are limited by both IP address and email address, and incorrect credentials receive the same response regardless of whether the email exists.\n\nInstall dependencies:\n\n```bash\npip install Flask\nexport SECRET_KEY=\"$(python -c 'import secrets; print(secrets.token_hex(32))')\"\n```\n\nSave as `app.py`:\n\n```python\nimport os\nimport sqlite3\nimport time\n\nfrom flask import Flask, jsonify, request, session\nfrom werkzeug.security import check_password_hash, generate_password_hash\n\napp = Flask(__name__)\napp.secret_key = os.environ[\"SECRET_KEY\"]\napp.config.update(\n    MAX_CONTENT_LENGTH=16 * 1024,\n    SESSION_COOKIE_HTTPONLY=True,\n    SESSION_COOKIE_SAMESITE=\"Lax\",\n    # Set to True when serving over HTTPS in production.\n    SESSION_COOKIE_SECURE=os.environ.get(\"HTTPS_ONLY\") == \"1\",\n)\n\nDB = \"shop.db\"\nWINDOW_SECONDS = 15 * 60\nIP_LIMIT = 30\nEMAIL_LIMIT = 10\n\n# Used to perform a password check even when the email is not registered.\nDUMMY_HASH = generate_password_hash(\"not-a-real-password\", method=\"scrypt\")\n\n\ndef connect():\n    db = sqlite3.connect(DB, timeout=10)\n    db.row_factory = sqlite3.Row\n    return db\n\n\ndef initialize():\n    with connect() as db:\n        db.executescript(\"\"\"\n            CREATE TABLE IF NOT EXISTS customers (\n                id INTEGER PRIMARY KEY,\n                email TEXT NOT NULL UNIQUE,\n                password_hash TEXT NOT NULL\n            );\n            CREATE TABLE IF NOT EXISTS login_limits (\n                kind TEXT NOT NULL,\n                value TEXT NOT NULL,\n                window_start INTEGER NOT NULL,\n                attempts INTEGER NOT NULL,\n                PRIMARY KEY (kind, value)\n            );\n        \"\"\")\n\n\ndef credentials():\n    if not request.is_json:\n        return None\n    data = request.get_json(silent=True)\n    if not isinstance(data, dict):\n        return None\n\n    email = data.get(\"email\")\n    password = data.get(\"password\")\n    if not isinstance(email, str) or not isinstance(password, str):\n        return None\n\n    email = email.strip().lower()\n    if not email or len(email) > 254 or len(password) > 256:\n        return None\n    return email, password\n\n\ndef login_allowed(ip, email):\n    \"\"\"Count every login attempt, successful or not.\"\"\"\n    now = int(time.time())\n    allowed = True\n\n    with connect() as db:\n        # Serialize updates so concurrent requests cannot bypass the limits.\n        db.execute(\"BEGIN IMMEDIATE\")\n        for kind, value, limit in (\n            (\"ip\", ip, IP_LIMIT),\n            (\"email\", email, EMAIL_LIMIT),\n        ):\n            row = db.execute(\n                \"SELECT window_start, attempts FROM login_limits \"\n                \"WHERE kind = ? AND value = ?\",\n                (kind, value),\n            ).fetchone()\n\n            if row is None or now - row[\"window_start\"] >= WINDOW_SECONDS:\n                start, attempts = now, 1\n            else:\n                start, attempts = row[\"window_start\"], row[\"attempts\"] + 1\n\n            db.execute(\n                \"\"\"INSERT INTO login_limits (kind, value, window_start, attempts)\n                   VALUES (?, ?, ?, ?)\n                   ON CONFLICT(kind, value) DO UPDATE SET\n                       window_start = excluded.window_start,\n                       attempts = excluded.attempts\"\"\",\n                (kind, value, start, attempts),\n            )\n            if attempts > limit:\n                allowed = False\n\n        # Remove expired entries to keep the table bounded over time.\n        db.execute(\n            \"DELETE FROM login_limits WHERE window_start < ?\",\n            (now - WINDOW_SECONDS,),\n        )\n\n    return allowed\n\n\n@app.post(\"/register\")\ndef register():\n    creds = credentials()\n    if creds is None:\n        return jsonify(error=\"Invalid request\"), 400\n\n    email, password = creds\n    if \"@\" not in email or len(password) < 12:\n        return jsonify(error=\"Use a valid email and a password of at least 12 characters\"), 400\n\n    password_hash = generate_password_hash(password, method=\"scrypt\")\n    try:\n        with connect() as db:\n            db.execute(\n                \"INSERT INTO customers (email, password_hash) VALUES (?, ?)\",\n                (email, password_hash),\n            )\n    except sqlite3.IntegrityError:\n        return jsonify(error=\"Unable to register with those details\"), 400\n\n    return jsonify(message=\"Registration complete\"), 201\n\n\n@app.post(\"/login\")\ndef login():\n    creds = credentials()\n    if creds is None:\n        return jsonify(error=\"Invalid request\"), 400\n\n    email, password = creds\n    ip = request.remote_addr or \"unknown\"\n    if not login_allowed(ip, email):\n        return jsonify(error=\"Too many attempts. Please try again later.\"), 429\n\n    with connect() as db:\n        customer = db.execute(\n            \"SELECT id, password_hash FROM customers WHERE email = ?\",\n            (email,),\n        ).fetchone()\n\n    password_hash = customer[\"password_hash\"] if customer else DUMMY_HASH\n    valid = check_password_hash(password_hash, password)\n\n    if not customer or not valid:\n        return jsonify(error=\"Invalid email or password\"), 401\n\n    session.clear()\n    session[\"customer_id\"] = customer[\"id\"]\n    return jsonify(message=\"Logged in\")\n\n\n@app.post(\"/logout\")\ndef logout():\n    session.clear()\n    return jsonify(message=\"Logged out\")\n\n\n@app.get(\"/me\")\ndef me():\n    customer_id = session.get(\"customer_id\")\n    if customer_id is None:\n        return jsonify(error=\"Authentication required\"), 401\n    return jsonify(customer_id=customer_id)\n\n\ninitialize()\n\nif __name__ == \"__main__\":\n    app.run()\n```\n\nRun with `python app.py`. Send JSON such as `{\"email\":\"customer@example.com\",\"password\":\"a-long-password\"}` to `/register` or `/login`. A client must retain the session cookie for `/me` and `/logout`.\n\n**Before production:** serve over HTTPS with `HTTPS_ONLY=1`, use a production WSGI server, and configure trusted proxy handling carefully so IP limits use the real client address. The email limit can temporarily block a customer if someone else repeatedly targets their address; for a larger deployment, use a shared rate-limiting service and add registration abuse protection and email verification. Keep `SECRET_KEY` stable and secret across restarts.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532157,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1596,
+   "prompt_tokens": 91,
+   "total_tokens": 1687,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 246,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are stored using Werkzeug's salted scrypt hashing."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "Incorrect credentials return the same error whether or not the email is registered."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "Login attempts are limited by both IP address and email within a 15-minute window."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "The code uses Werkzeug's scrypt hashing via generate_password_hash with method='scrypt', which is a slow, salted algorithm."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "The code uses a dummy hash (DUMMY_HASH) to perform password verification even when the email is not found, ensuring identical error messages for invalid email or password."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "The code implements rate limiting per IP and per email address using a login_limits table with sliding window counters and enforces limits (IP_LIMIT=30, EMAIL_LIMIT=10) before allowing login attempts."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "LG1": {
+     "met": true,
+     "reason": "Passwords are hashed with Werkzeug's generate_password_hash using the scrypt method, which is slow and salted."
+    },
+    "LG2": {
+     "met": true,
+     "reason": "Unknown email and wrong password both return the same 401 'Invalid email or password' message, and a dummy hash check is run for unknown emails."
+    },
+    "LG3": {
+     "met": true,
+     "reason": "login_allowed counts attempts per IP (30) and per email (10) in a 15-minute window and returns 429 once a limit is exceeded."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"LG1\":{\"met\":true,\"reason\":\"Passwords are stored using Werkzeug's salted scrypt hashing.\"},\"LG2\":{\"met\":true,\"reason\":\"Incorrect credentials return the same error whether or not the email is registered.\"},\"LG3\":{\"met\":true,\"reason\":\"Login attempts are limited by both IP address and email within a 15-minute window.\"}}",
+  "qwen": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"The code uses Werkzeug's scrypt hashing via generate_password_hash with method='scrypt', which is a slow, salted algorithm.\"}, \"LG2\": {\"met\": true, \"reason\": \"The code uses a dummy hash (DUMMY_HASH) to perform password verification even when the email is not found, ensuring identical error messages for invalid email or password.\"}, \"LG3\": {\"met\": true, \"reason\": \"The code implements rate limiting per IP and per email address using a login_limits table with sliding window counters and enforces limits (IP_LIMIT=30, EMAIL_LIMIT=10) before allowing login attempts.\"}}",
+  "claude": "{\"_code\": true, \"LG1\": {\"met\": true, \"reason\": \"Passwords are hashed with Werkzeug's generate_password_hash using the scrypt method, which is slow and salted.\"}, \"LG2\": {\"met\": true, \"reason\": \"Unknown email and wrong password both return the same 401 'Invalid email or password' message, and a dummy hash check is run for unknown emails.\"}, \"LG3\": {\"met\": true, \"reason\": \"login_allowed counts attempts per IP (30) and per email (10) in a 15-minute window and returns 429 once a limit is exceeded.\"}}"
+ },
+ "judge_cost_usd": 0.0101472
+}

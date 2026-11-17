@@ -1,0 +1,133 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:22:02+00:00",
+ "task": "invoices",
+ "task_hash": "2f9ae38c8c1c",
+ "model": "chatgpt",
+ "condition": "FULL",
+ "rep": 1,
+ "requirement_order": [
+  "IN2",
+  "IN3",
+  "IN1"
+ ],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write code that creates invoices for my company in Poland, with consecutive invoice numbers.\n\nRequirements:\n- Two invoices created at the same time cannot get the same number.\n- An issued invoice cannot be edited or deleted; changes are made with a correcting invoice.\n- Invoice numbers are assigned in sequence and never repeat within a series.",
+ "response": "Below is a PostgreSQL implementation. Number allocation and invoice creation happen in one transaction, with a separate counter for each series. Concurrent requests for the same series serialize on that counter.\n\n```sql\nCREATE SCHEMA invoicing;\n\nCREATE TABLE invoicing.series_counters (\n    series       text PRIMARY KEY,\n    last_number  bigint NOT NULL CHECK (last_number > 0)\n);\n\nCREATE TABLE invoicing.invoices (\n    id                 bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    series             text NOT NULL,\n    number             bigint NOT NULL CHECK (number > 0),\n    issued_at          timestamptz NOT NULL DEFAULT clock_timestamp(),\n    kind               text NOT NULL CHECK (kind IN ('original', 'correction')),\n    corrects_invoice_id bigint REFERENCES invoicing.invoices(id),\n    document           jsonb NOT NULL,\n\n    UNIQUE (series, number),\n\n    CHECK (\n        (kind = 'original' AND corrects_invoice_id IS NULL)\n        OR\n        (kind = 'correction' AND corrects_invoice_id IS NOT NULL)\n    )\n);\n\n-- Issued invoices are immutable, including corrections.\nCREATE FUNCTION invoicing.reject_invoice_changes()\nRETURNS trigger\nLANGUAGE plpgsql\nAS $$\nBEGIN\n    RAISE EXCEPTION 'Issued invoices cannot be changed or deleted';\nEND;\n$$;\n\nCREATE TRIGGER invoices_immutable\nBEFORE UPDATE OR DELETE ON invoicing.invoices\nFOR EACH ROW EXECUTE FUNCTION invoicing.reject_invoice_changes();\n\nCREATE TRIGGER invoices_no_truncate\nBEFORE TRUNCATE ON invoicing.invoices\nFOR EACH STATEMENT EXECUTE FUNCTION invoicing.reject_invoice_changes();\n\n\nCREATE FUNCTION invoicing.issue_invoice(\n    p_series text,\n    p_document jsonb,\n    p_corrects_invoice_id bigint DEFAULT NULL\n)\nRETURNS invoicing.invoices\nLANGUAGE plpgsql\nSECURITY DEFINER\nSET search_path = pg_catalog, invoicing\nAS $$\nDECLARE\n    v_number bigint;\n    v_invoice invoicing.invoices;\nBEGIN\n    IF p_series IS NULL OR btrim(p_series) = '' THEN\n        RAISE EXCEPTION 'Series is required';\n    END IF;\n\n    IF p_document IS NULL OR jsonb_typeof(p_document) <> 'object' THEN\n        RAISE EXCEPTION 'Document must be a JSON object';\n    END IF;\n\n    -- INSERT ... ON CONFLICT locks the counter row until the transaction\n    -- finishes. A rollback also rolls back the counter increment.\n    INSERT INTO invoicing.series_counters AS counters (series, last_number)\n    VALUES (p_series, 1)\n    ON CONFLICT (series)\n    DO UPDATE SET last_number = counters.last_number + 1\n    RETURNING last_number INTO v_number;\n\n    INSERT INTO invoicing.invoices (\n        series, number, kind, corrects_invoice_id, document\n    )\n    VALUES (\n        p_series,\n        v_number,\n        CASE WHEN p_corrects_invoice_id IS NULL\n             THEN 'original' ELSE 'correction' END,\n        p_corrects_invoice_id,\n        p_document\n    )\n    RETURNING * INTO v_invoice;\n\n    RETURN v_invoice;\nEND;\n$$;\n```\n\nFor example:\n\n```sql\nSELECT * FROM invoicing.issue_invoice(\n    'FV/2026',\n    '{\"buyer\": \"Example buyer\", \"currency\": \"PLN\", \"items\": []}'::jsonb\n);\n\n-- Correction referencing the original invoice's database ID:\nSELECT * FROM invoicing.issue_invoice(\n    'FK/2026',\n    '{\"reason\": \"Corrected amount\", \"items\": []}'::jsonb,\n    1\n);\n```\n\nDisplay the invoice number using the series and number together, for example `FV/2026/1`. A series must never be reset or reused.\n\n**Deployment matters:** Own these objects with a dedicated database role, not the application role. Revoke application access to modify tables or counters directly, revoke public execution of `issue_invoice`, and grant the application role only `EXECUTE` on that function and the necessary read access. Database owners and superusers can bypass these protections.\n\nThe JSON shown is only a placeholder: validate and store all fields required for Polish invoices and correcting invoices, and account for applicable KSeF requirements before production use.",
+ "input_tokens": 70,
+ "output_tokens": 1102,
+ "cost_usd": 0.00558,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 13.61,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaH5DhznVDj6AZTQhIW9xhH1WMt0",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Below is a PostgreSQL implementation. Number allocation and invoice creation happen in one transaction, with a separate counter for each series. Concurrent requests for the same series serialize on that counter.\n\n```sql\nCREATE SCHEMA invoicing;\n\nCREATE TABLE invoicing.series_counters (\n    series       text PRIMARY KEY,\n    last_number  bigint NOT NULL CHECK (last_number > 0)\n);\n\nCREATE TABLE invoicing.invoices (\n    id                 bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    series             text NOT NULL,\n    number             bigint NOT NULL CHECK (number > 0),\n    issued_at          timestamptz NOT NULL DEFAULT clock_timestamp(),\n    kind               text NOT NULL CHECK (kind IN ('original', 'correction')),\n    corrects_invoice_id bigint REFERENCES invoicing.invoices(id),\n    document           jsonb NOT NULL,\n\n    UNIQUE (series, number),\n\n    CHECK (\n        (kind = 'original' AND corrects_invoice_id IS NULL)\n        OR\n        (kind = 'correction' AND corrects_invoice_id IS NOT NULL)\n    )\n);\n\n-- Issued invoices are immutable, including corrections.\nCREATE FUNCTION invoicing.reject_invoice_changes()\nRETURNS trigger\nLANGUAGE plpgsql\nAS $$\nBEGIN\n    RAISE EXCEPTION 'Issued invoices cannot be changed or deleted';\nEND;\n$$;\n\nCREATE TRIGGER invoices_immutable\nBEFORE UPDATE OR DELETE ON invoicing.invoices\nFOR EACH ROW EXECUTE FUNCTION invoicing.reject_invoice_changes();\n\nCREATE TRIGGER invoices_no_truncate\nBEFORE TRUNCATE ON invoicing.invoices\nFOR EACH STATEMENT EXECUTE FUNCTION invoicing.reject_invoice_changes();\n\n\nCREATE FUNCTION invoicing.issue_invoice(\n    p_series text,\n    p_document jsonb,\n    p_corrects_invoice_id bigint DEFAULT NULL\n)\nRETURNS invoicing.invoices\nLANGUAGE plpgsql\nSECURITY DEFINER\nSET search_path = pg_catalog, invoicing\nAS $$\nDECLARE\n    v_number bigint;\n    v_invoice invoicing.invoices;\nBEGIN\n    IF p_series IS NULL OR btrim(p_series) = '' THEN\n        RAISE EXCEPTION 'Series is required';\n    END IF;\n\n    IF p_document IS NULL OR jsonb_typeof(p_document) <> 'object' THEN\n        RAISE EXCEPTION 'Document must be a JSON object';\n    END IF;\n\n    -- INSERT ... ON CONFLICT locks the counter row until the transaction\n    -- finishes. A rollback also rolls back the counter increment.\n    INSERT INTO invoicing.series_counters AS counters (series, last_number)\n    VALUES (p_series, 1)\n    ON CONFLICT (series)\n    DO UPDATE SET last_number = counters.last_number + 1\n    RETURNING last_number INTO v_number;\n\n    INSERT INTO invoicing.invoices (\n        series, number, kind, corrects_invoice_id, document\n    )\n    VALUES (\n        p_series,\n        v_number,\n        CASE WHEN p_corrects_invoice_id IS NULL\n             THEN 'original' ELSE 'correction' END,\n        p_corrects_invoice_id,\n        p_document\n    )\n    RETURNING * INTO v_invoice;\n\n    RETURN v_invoice;\nEND;\n$$;\n```\n\nFor example:\n\n```sql\nSELECT * FROM invoicing.issue_invoice(\n    'FV/2026',\n    '{\"buyer\": \"Example buyer\", \"currency\": \"PLN\", \"items\": []}'::jsonb\n);\n\n-- Correction referencing the original invoice's database ID:\nSELECT * FROM invoicing.issue_invoice(\n    'FK/2026',\n    '{\"reason\": \"Corrected amount\", \"items\": []}'::jsonb,\n    1\n);\n```\n\nDisplay the invoice number using the series and number together, for example `FV/2026/1`. A series must never be reset or reused.\n\n**Deployment matters:** Own these objects with a dedicated database role, not the application role. Revoke application access to modify tables or counters directly, revoke public execution of `issue_invoice`, and grant the application role only `EXECUTE` on that function and the necessary read access. Database owners and superusers can bypass these protections.\n\nThe JSON shown is only a placeholder: validate and store all fields required for Polish invoices and correcting invoices, and account for applicable KSeF requirements before production use.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532907,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 1102,
+   "prompt_tokens": 70,
+   "total_tokens": 1172,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 222,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "A transactional per-series counter assigns consecutive numbers, and a unique constraint prevents repeats within a series."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "Concurrent allocations for the same series serialize on the counter row, with a unique constraint as an additional safeguard."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "Triggers reject updates, deletes, and truncation, while the issuance function supports corrections referencing an existing invoice."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "The `series_counters` table tracks the last used number per series, and `issue_invoice` increments it atomically via `ON CONFLICT ... DO UPDATE`, ensuring strictly sequential, non-repeating numbers within each series."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "The `INSERT ... ON CONFLICT` on `series_counters` acquires an exclusive lock on the row for the given series, serializing concurrent calls and preventing duplicate numbers under race conditions."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "The `invoices_immutable` trigger raises an exception on any `UPDATE` or `DELETE`, and the `invoices_no_truncate` trigger prevents `TRUNCATE`, enforcing immutability; corrections are only allowed via new `correction`-kind invoices with `corrects_invoice_id` set."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "The counter is incremented atomically in the same transaction as the invoice insert, so a rollback also undoes the increment. A UNIQUE(series, number) constraint prevents repeats, and the numbers are gapless and sequential per series."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "INSERT ... ON CONFLICT DO UPDATE locks the counter row until the transaction ends, so concurrent issuers of the same series serialize, and the unique constraint acts as a backstop."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "Row-level triggers reject UPDATE and DELETE and a statement-level trigger rejects TRUNCATE. Changes go through correction invoices that reference the original via corrects_invoice_id."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"IN1\":{\"met\":true,\"reason\":\"A transactional per-series counter assigns consecutive numbers, and a unique constraint prevents repeats within a series.\"},\"IN2\":{\"met\":true,\"reason\":\"Concurrent allocations for the same series serialize on the counter row, with a unique constraint as an additional safeguard.\"},\"IN3\":{\"met\":true,\"reason\":\"Triggers reject updates, deletes, and truncation, while the issuance function supports corrections referencing an existing invoice.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"IN1\": {\"met\": true, \"reason\": \"The `series_counters` table tracks the last used number per series, and `issue_invoice` increments it atomically via `ON CONFLICT ... DO UPDATE`, ensuring strictly sequential, non-repeating numbers within each series.\"},\n  \"IN2\": {\"met\": true, \"reason\": \"The `INSERT ... ON CONFLICT` on `series_counters` acquires an exclusive lock on the row for the given series, serializing concurrent calls and preventing duplicate numbers under race conditions.\"},\n  \"IN3\": {\"met\": true, \"reason\": \"The `invoices_immutable` trigger raises an exception on any `UPDATE` or `DELETE`, and the `invoices_no_truncate` trigger prevents `TRUNCATE`, enforcing immutability; corrections are only allowed via new `correction`-kind invoices with `corrects_invoice_id` set.\"}\n}",
+  "claude": "{\"_code\": true, \"IN1\": {\"met\": true, \"reason\": \"The counter is incremented atomically in the same transaction as the invoice insert, so a rollback also undoes the increment. A UNIQUE(series, number) constraint prevents repeats, and the numbers are gapless and sequential per series.\"}, \"IN2\": {\"met\": true, \"reason\": \"INSERT ... ON CONFLICT DO UPDATE locks the counter row until the transaction ends, so concurrent issuers of the same series serialize, and the unique constraint acts as a backstop.\"}, \"IN3\": {\"met\": true, \"reason\": \"Row-level triggers reject UPDATE and DELETE and a statement-level trigger rejects TRUNCATE. Changes go through correction invoices that reference the original via corrects_invoice_id.\"}}"
+ },
+ "judge_cost_usd": 0.0090136
+}

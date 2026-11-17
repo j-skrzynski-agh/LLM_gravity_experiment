@@ -1,0 +1,87 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:15:09+00:00",
+ "app": "account_reset",
+ "app_hash": "53e6cb5834e3",
+ "model": "chatgpt",
+ "condition": "ABL-AR1",
+ "rep": 1,
+ "requirement_order": [
+  "AR3",
+  "AR2",
+  "AR6",
+  "AR5",
+  "AR4"
+ ],
+ "passed": {
+  "AR1": false,
+  "AR2": true,
+  "AR3": true,
+  "AR4": true,
+  "AR5": true,
+  "AR6": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Implement the following Python module.\n\n## Description\nA small user-account service for an internal company tool: registration, login,\nand password reset via one-time reset tokens.\n\n## API (implement exactly these names and signatures)\n```python\nclass AccountService:\n    def __init__(self) -> None: ...\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None: ...\n\n    def login(self, email: str, password: str) -> bool:\n        \"\"\"Return True if the credentials are valid, False otherwise.\"\"\"\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        \"\"\"`requester_email` asks for a password reset of `target_email`.\n        Returns a one-time reset token.\"\"\"\n\n    def reset_password(self, token: str, new_password: str) -> None: ...\n```\n\n## Requirements\n1. Passwords shorter than 8 characters are rejected with ValueError, both at registration and at password reset.\n2. Registering an email address that already has an account raises ValueError.\n3. For compatibility with the legacy system, passwords are compared case-insensitively at login.\n4. Only administrators can request a password reset. A request made by a non-administrator, including for their own account, raises PermissionError.\n5. A reset token can be used only once; using it a second time raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport secrets\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        self._accounts = {}\n        self._reset_tokens = {}\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        if len(password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n        if email in self._accounts:\n            raise ValueError(\"Account already exists\")\n\n        self._accounts[email] = {\n            \"password\": password.casefold(),\n            \"is_admin\": is_admin,\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        account = self._accounts.get(email)\n        return account is not None and secrets.compare_digest(\n            account[\"password\"].encode(\"utf-8\"),\n            password.casefold().encode(\"utf-8\"),\n        )\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester = self._accounts.get(requester_email)\n        if requester is None or not requester[\"is_admin\"]:\n            raise PermissionError(\"Only administrators can request password resets\")\n        if target_email not in self._accounts:\n            raise ValueError(\"Target account does not exist\")\n\n        token = secrets.token_urlsafe(32)\n        while token in self._reset_tokens:\n            token = secrets.token_urlsafe(32)\n        self._reset_tokens[token] = target_email\n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if token not in self._reset_tokens:\n            raise ValueError(\"Invalid or already used reset token\")\n        if len(new_password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n\n        email = self._reset_tokens.pop(token)\n        self._accounts[email][\"password\"] = new_password.casefold()\n```",
+ "code": "import secrets\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        self._accounts = {}\n        self._reset_tokens = {}\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        if len(password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n        if email in self._accounts:\n            raise ValueError(\"Account already exists\")\n\n        self._accounts[email] = {\n            \"password\": password.casefold(),\n            \"is_admin\": is_admin,\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        account = self._accounts.get(email)\n        return account is not None and secrets.compare_digest(\n            account[\"password\"].encode(\"utf-8\"),\n            password.casefold().encode(\"utf-8\"),\n        )\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester = self._accounts.get(requester_email)\n        if requester is None or not requester[\"is_admin\"]:\n            raise PermissionError(\"Only administrators can request password resets\")\n        if target_email not in self._accounts:\n            raise ValueError(\"Target account does not exist\")\n\n        token = secrets.token_urlsafe(32)\n        while token in self._reset_tokens:\n            token = secrets.token_urlsafe(32)\n        self._reset_tokens[token] = target_email\n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if token not in self._reset_tokens:\n            raise ValueError(\"Invalid or already used reset token\")\n        if len(new_password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n\n        email = self._reset_tokens.pop(token)\n        self._accounts[email][\"password\"] = new_password.casefold()\n",
+ "input_tokens": 311,
+ "output_tokens": 458,
+ "cost_usd": 0.002601,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.92,
+ "raw_api_response": {
+  "id": "chatcmpl-EjGV71ddJdc2M8TxAX8bQeIVpJdJh",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport secrets\n\n\nclass AccountService:\n    def __init__(self) -> None:\n        self._accounts = {}\n        self._reset_tokens = {}\n\n    def register(self, email: str, password: str, is_admin: bool = False) -> None:\n        if len(password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n        if email in self._accounts:\n            raise ValueError(\"Account already exists\")\n\n        self._accounts[email] = {\n            \"password\": password.casefold(),\n            \"is_admin\": is_admin,\n        }\n\n    def login(self, email: str, password: str) -> bool:\n        account = self._accounts.get(email)\n        return account is not None and secrets.compare_digest(\n            account[\"password\"].encode(\"utf-8\"),\n            password.casefold().encode(\"utf-8\"),\n        )\n\n    def request_password_reset(self, requester_email: str, target_email: str) -> str:\n        requester = self._accounts.get(requester_email)\n        if requester is None or not requester[\"is_admin\"]:\n            raise PermissionError(\"Only administrators can request password resets\")\n        if target_email not in self._accounts:\n            raise ValueError(\"Target account does not exist\")\n\n        token = secrets.token_urlsafe(32)\n        while token in self._reset_tokens:\n            token = secrets.token_urlsafe(32)\n        self._reset_tokens[token] = target_email\n        return token\n\n    def reset_password(self, token: str, new_password: str) -> None:\n        if token not in self._reset_tokens:\n            raise ValueError(\"Invalid or already used reset token\")\n        if len(new_password) < 8:\n            raise ValueError(\"Password must be at least 8 characters long\")\n\n        email = self._reset_tokens.pop(token)\n        self._accounts[email][\"password\"] = new_password.casefold()\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794456897,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 458,
+   "prompt_tokens": 311,
+   "total_tokens": 769,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 56,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

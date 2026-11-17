@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:58:12+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "deepseek",
+ "condition": "ABL-HD5",
+ "rep": 2,
+ "requirement_order": [
+  "HD2",
+  "HD1",
+  "HD3",
+  "HD4"
+ ],
+ "passed": {
+  "HD1": true,
+  "HD2": true,
+  "HD3": false,
+  "HD4": true,
+  "HD5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. Tickets with the same priority are handled in the order in which they were opened.\n2. Opening a ticket with an empty title raises ValueError.\n3. Critical tickets are handled before high ones, and high ones before normal ones.\n4. Tickets of VIP customers are handled before all other tickets, even critical tickets of other customers.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom collections import defaultdict, deque\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers: dict[str, bool] = {}\n        self.tickets: dict[int, dict] = {}\n        self._next_id = 1\n        # Queues keyed by (vip, priority) so VIP always beats non-VIP.\n        self._queues: dict[tuple[bool, str], deque[int]] = {\n            (vip, prio): deque()\n            for vip in (True, False)\n            for prio in self.PRIORITIES\n        }\n        self._priority_rank = {\"critical\": 0, \"high\": 1, \"normal\": 2}\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title must not be empty.\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority!r}\")\n        vip = self.customers.get(customer, False)\n        ticket_id = self._next_id\n        self._next_id += 1\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": vip,\n            \"status\": \"open\",\n        }\n        self._queues[(vip, priority)].append(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> int | None:\n        for vip in (True, False):\n            for prio in self.PRIORITIES:\n                queue = self._queues[(vip, prio)]\n                while queue:\n                    ticket_id = queue.popleft()\n                    ticket = self.tickets.get(ticket_id)\n                    if ticket is not None and ticket[\"status\"] == \"open\":\n                        ticket[\"status\"] = \"in_progress\"\n                        return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        ticket = self.tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Unknown ticket id: {ticket_id}\")\n        ticket[\"status\"] = \"closed\"\n\n    def reopen(self, ticket_id: int) -> None:\n        ticket = self.tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Unknown ticket id: {ticket_id}\")\n        if ticket[\"status\"] == \"open\":\n            return\n        ticket[\"status\"] = \"open\"\n        self._queues[(ticket[\"vip\"], ticket[\"priority\"])].append(ticket_id)\n```",
+ "code": "from collections import defaultdict, deque\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers: dict[str, bool] = {}\n        self.tickets: dict[int, dict] = {}\n        self._next_id = 1\n        # Queues keyed by (vip, priority) so VIP always beats non-VIP.\n        self._queues: dict[tuple[bool, str], deque[int]] = {\n            (vip, prio): deque()\n            for vip in (True, False)\n            for prio in self.PRIORITIES\n        }\n        self._priority_rank = {\"critical\": 0, \"high\": 1, \"normal\": 2}\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title must not be empty.\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority!r}\")\n        vip = self.customers.get(customer, False)\n        ticket_id = self._next_id\n        self._next_id += 1\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": vip,\n            \"status\": \"open\",\n        }\n        self._queues[(vip, priority)].append(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> int | None:\n        for vip in (True, False):\n            for prio in self.PRIORITIES:\n                queue = self._queues[(vip, prio)]\n                while queue:\n                    ticket_id = queue.popleft()\n                    ticket = self.tickets.get(ticket_id)\n                    if ticket is not None and ticket[\"status\"] == \"open\":\n                        ticket[\"status\"] = \"in_progress\"\n                        return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        ticket = self.tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Unknown ticket id: {ticket_id}\")\n        ticket[\"status\"] = \"closed\"\n\n    def reopen(self, ticket_id: int) -> None:\n        ticket = self.tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Unknown ticket id: {ticket_id}\")\n        if ticket[\"status\"] == \"open\":\n            return\n        ticket[\"status\"] = \"open\"\n        self._queues[(ticket[\"vip\"], ticket[\"priority\"])].append(ticket_id)\n",
+ "input_tokens": 298,
+ "output_tokens": 607,
+ "cost_usd": 0.0008177999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.72,
+ "raw_api_response": {
+  "id": "bc18b778-d467-40f0-a497-839bcf41024f",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom collections import defaultdict, deque\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers: dict[str, bool] = {}\n        self.tickets: dict[int, dict] = {}\n        self._next_id = 1\n        # Queues keyed by (vip, priority) so VIP always beats non-VIP.\n        self._queues: dict[tuple[bool, str], deque[int]] = {\n            (vip, prio): deque()\n            for vip in (True, False)\n            for prio in self.PRIORITIES\n        }\n        self._priority_rank = {\"critical\": 0, \"high\": 1, \"normal\": 2}\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title must not be empty.\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority!r}\")\n        vip = self.customers.get(customer, False)\n        ticket_id = self._next_id\n        self._next_id += 1\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": vip,\n            \"status\": \"open\",\n        }\n        self._queues[(vip, priority)].append(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> int | None:\n        for vip in (True, False):\n            for prio in self.PRIORITIES:\n                queue = self._queues[(vip, prio)]\n                while queue:\n                    ticket_id = queue.popleft()\n                    ticket = self.tickets.get(ticket_id)\n                    if ticket is not None and ticket[\"status\"] == \"open\":\n                        ticket[\"status\"] = \"in_progress\"\n                        return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        ticket = self.tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Unknown ticket id: {ticket_id}\")\n        ticket[\"status\"] = \"closed\"\n\n    def reopen(self, ticket_id: int) -> None:\n        ticket = self.tickets.get(ticket_id)\n        if ticket is None:\n            raise KeyError(f\"Unknown ticket id: {ticket_id}\")\n        if ticket[\"status\"] == \"open\":\n            return\n        ticket[\"status\"] = \"open\"\n        self._queues[(ticket[\"vip\"], ticket[\"priority\"])].append(ticket_id)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794452283,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 607,
+   "prompt_tokens": 298,
+   "total_tokens": 905,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 298
+  }
+ }
+}

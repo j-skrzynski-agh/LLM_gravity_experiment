@@ -1,0 +1,126 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:53:08+00:00",
+ "task": "newsletter",
+ "task_hash": "718da7e4dd51",
+ "model": "gemini",
+ "condition": "FULL",
+ "rep": 0,
+ "requirement_order": [
+  "NL3",
+  "NL1",
+  "NL2"
+ ],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Add a newsletter sign-up form to my website.\n\nRequirements:\n- The email address is validated on the server before it is saved.\n- Consent is given by an active action; any consent checkbox is not pre-checked.\n- Subscribers can unsubscribe.",
+ "response": "Here is a complete, production-ready implementation of a newsletter sign-up system meeting all your requirements.\n\nThis solution uses **HTML/CSS** on the frontend and **Node.js with Express and SQLite** on the backend (you can adapt the backend logic to PHP, Python, or any database you prefer).\n\n---\n\n### 1. Frontend: The Sign-up Form (`index.html`)\n\nThis form uses standard HTML5 validation on the client side, ensures the consent checkbox is **not** pre-checked, and submits the data asynchronously using `fetch`.\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Newsletter Sign-up</title>\n  <style>\n    .newsletter-form {\n      max-width: 400px;\n      margin: 2rem auto;\n      padding: 1.5rem;\n      border: 1px solid #e2e8f0;\n      border-radius: 8px;\n      font-family: system-ui, -apple-system, sans-serif;\n    }\n    .form-group {\n      margin-bottom: 1rem;\n    }\n    label {\n      display: block;\n      margin-bottom: 0.5rem;\n      font-weight: 500;\n    }\n    input[type=\"email\"] {\n      width: 100%;\n      padding: 0.5rem;\n      border: 1px solid #cbd5e1;\n      border-radius: 4px;\n      box-sizing: border-box;\n    }\n    .checkbox-group {\n      display: flex;\n      align-items: flex-start;\n      gap: 0.5rem;\n    }\n    .checkbox-group input {\n      margin-top: 0.25rem;\n    }\n    .checkbox-group label {\n      font-size: 0.875rem;\n      font-weight: normal;\n    }\n    button {\n      background-color: #2563eb;\n      color: white;\n      border: none;\n      padding: 0.6rem 1.2rem;\n      border-radius: 4px;\n      cursor: pointer;\n      font-weight: bold;\n    }\n    button:hover { background-color: #1d4ed8; }\n    .message {\n      margin-top: 1rem;\n      padding: 0.75rem;\n      border-radius: 4px;\n      display: none;\n    }\n    .message.error { background-color: #fee2e2; color: #991b1b; display: block; }\n    .message.success { background-color: #dcfce7; color: #166534; display: block; }\n  </style>\n</head>\n<body>\n\n  <form id=\"newsletter-form\" class=\"newsletter-form\" novalidate>\n    <h3>Subscribe to our Newsletter</h3>\n    \n    <div class=\"form-group\">\n      <label for=\"email\">Email Address</label>\n      <input type=\"email\" id=\"email\" name=\"email\" required placeholder=\"you@example.com\">\n    </div>\n\n    <!-- Explicit consent checkbox: not pre-checked -->\n    <div class=\"form-group checkbox-group\">\n      <input type=\"checkbox\" id=\"consent\" name=\"consent\" required>\n      <label for=\"consent\">\n        I agree to receive the newsletter and accept the <a href=\"/privacy-policy\" target=\"_blank\">privacy policy</a>. You can unsubscribe at any time.\n      </label>\n    </div>\n\n    <button type=\"submit\" id=\"submit-btn\">Subscribe</button>\n    <div id=\"response-message\" class=\"message\"></div>\n  </form>\n\n  <script>\n    const form = document.getElementById('newsletter-form');\n    const msgDiv = document.getElementById('response-message');\n\n    form.addEventListener('submit', async (e) => {\n      e.preventDefault();\n      msgDiv.className = 'message';\n      msgDiv.textContent = '';\n\n      const email = document.getElementById('email').value.trim();\n      const consent = document.getElementById('consent').checked;\n\n      // Basic client-side check\n      if (!consent) {\n        msgDiv.className = 'message error';\n        msgDiv.textContent = 'You must give consent to subscribe.';\n        return;\n      }\n\n      try {\n        const response = await fetch('/api/subscribe', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify({ email, consent })\n        });\n\n        const data = await response.json();\n\n        if (response.ok) {\n          msgDiv.className = 'message success';\n          msgDiv.textContent = data.message;\n          form.reset();\n        } else {\n          msgDiv.className = 'message error';\n          msgDiv.textContent = data.error || 'Failed to subscribe.';\n        }\n      } catch (err) {\n        msgDiv.className = 'message error';\n        msgDiv.textContent = 'A network error occurred. Please try again.';\n      }\n    });\n  </script>\n</body>\n</html>\n```\n\n---\n\n### 2. Backend: Node.js & Express API (`server.js`)\n\nThis handles:\n1. **Server-side validation**: Checks email structure, format, and RFC conformance.\n2. **Consent validation**: Explicitly fails if consent is not granted (`consent !== true`).\n3. **Database storage**: Tracks subscription status and generates a secure, unique `unsubscribe_token`.\n4. **Unsubscribe functionality**: An endpoint handling the unsubscribe action via token.\n\n#### Prerequisites\n```bash\nnpm init -y\nnpm install express validator better-sqlite3 crypto\n```\n\n#### Code\n```javascript\nconst express = require('express');\nconst validator = require('validator');\nconst Database = require('better-sqlite3');\nconst crypto = require('crypto');\n\nconst app = express();\napp.use(express.json());\napp.use(express.static('public')); // Serves index.html\n\n// Initialize Database\nconst db = new Database('subscribers.db');\ndb.exec(`\n  CREATE TABLE IF NOT EXISTS subscribers (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    email TEXT UNIQUE NOT NULL,\n    status TEXT DEFAULT 'active',\n    consent_given_at DATETIME NOT NULL,\n    unsubscribe_token TEXT UNIQUE NOT NULL\n  )\n`);\n\n// 1. SUBSCRIBE ROUTE\napp.post('/api/subscribe', (req, res) => {\n  const { email, consent } = req.body;\n\n  // Verify explicit consent\n  if (consent !== true) {\n    return res.status(400).json({ error: 'Consent is mandatory to subscribe.' });\n  }\n\n  // Server-side email validation\n  if (!email || typeof email !== 'string') {\n    return res.status(400).json({ error: 'Email is required.' });\n  }\n\n  // Normalize and validate syntax\n  const normalizedEmail = validator.normalizeEmail(email);\n  if (!validator.isEmail(normalizedEmail)) {\n    return res.status(400).json({ error: 'Please enter a valid email address.' });\n  }\n\n  // Generate an unguessable token for one-click unsubscribe\n  const unsubscribeToken = crypto.randomBytes(24).toString('hex');\n  const now = new Date().toISOString();\n\n  try {\n    const insert = db.prepare(`\n      INSERT INTO subscribers (email, status, consent_given_at, unsubscribe_token)\n      VALUES (?, 'active', ?, ?)\n      ON CONFLICT(email) DO UPDATE SET\n        status = 'active',\n        consent_given_at = excluded.consent_given_at\n    `);\n    \n    insert.run(normalizedEmail, now, unsubscribeToken);\n\n    // In a real application, you would trigger your confirmation email here:\n    // sendConfirmationEmail(normalizedEmail, unsubscribeToken);\n\n    return res.status(200).json({ \n      message: 'Thank you for subscribing! Check your email to confirm.' \n    });\n  } catch (err) {\n    console.error(err);\n    return res.status(500).json({ error: 'Internal server error.' });\n  }\n});\n\n// 2. UNSUBSCRIBE ROUTE\napp.get('/unsubscribe', (req, res) => {\n  const { token } = req.query;\n\n  if (!token) {\n    return res.status(400).send('Invalid or missing unsubscribe token.');\n  }\n\n  const update = db.prepare(`\n    UPDATE subscribers \n    SET status = 'unsubscribed' \n    WHERE unsubscribe_token = ?\n  `);\n  \n  const result = update.run(token);\n\n  if (result.changes === 0) {\n    return res.status(404).send('Subscription not found or already removed.');\n  }\n\n  return res.send(`\n    <h2>You have been successfully unsubscribed.</h2>\n    <p>You will no longer receive emails from us.</p>\n  `);\n});\n\napp.listen(3000, () => {\n  console.log('Server running on http://localhost:3000');\n});\n```\n\n---\n\n### How to use the Unsubscribe Feature\n\nWhen you send outbound newsletters, you must include the subscriber's custom token in the footer:\n\n```html\n<p>\n  Don't want to receive these emails? \n  <a href=\"https://yourwebsite.com/unsubscribe?token={{SUBSCRIBER_TOKEN}}\">\n    Unsubscribe here\n  </a>\n</p>\n```\n\nWhen they click the link:\n1. The server validates the token.\n2. The user's status is toggled to `unsubscribed`.\n3. They will no longer be selected in your email-sending queries (`SELECT email FROM subscribers WHERE status = 'active'`).",
+ "input_tokens": 55,
+ "output_tokens": 2315,
+ "cost_usd": 0.0087225,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 15.95,
+ "raw_api_response": {
+  "id": "Yl_2aqK0JaepnsEP-r79uAw",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is a complete, production-ready implementation of a newsletter sign-up system meeting all your requirements.\n\nThis solution uses **HTML/CSS** on the frontend and **Node.js with Express and SQLite** on the backend (you can adapt the backend logic to PHP, Python, or any database you prefer).\n\n---\n\n### 1. Frontend: The Sign-up Form (`index.html`)\n\nThis form uses standard HTML5 validation on the client side, ensures the consent checkbox is **not** pre-checked, and submits the data asynchronously using `fetch`.\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Newsletter Sign-up</title>\n  <style>\n    .newsletter-form {\n      max-width: 400px;\n      margin: 2rem auto;\n      padding: 1.5rem;\n      border: 1px solid #e2e8f0;\n      border-radius: 8px;\n      font-family: system-ui, -apple-system, sans-serif;\n    }\n    .form-group {\n      margin-bottom: 1rem;\n    }\n    label {\n      display: block;\n      margin-bottom: 0.5rem;\n      font-weight: 500;\n    }\n    input[type=\"email\"] {\n      width: 100%;\n      padding: 0.5rem;\n      border: 1px solid #cbd5e1;\n      border-radius: 4px;\n      box-sizing: border-box;\n    }\n    .checkbox-group {\n      display: flex;\n      align-items: flex-start;\n      gap: 0.5rem;\n    }\n    .checkbox-group input {\n      margin-top: 0.25rem;\n    }\n    .checkbox-group label {\n      font-size: 0.875rem;\n      font-weight: normal;\n    }\n    button {\n      background-color: #2563eb;\n      color: white;\n      border: none;\n      padding: 0.6rem 1.2rem;\n      border-radius: 4px;\n      cursor: pointer;\n      font-weight: bold;\n    }\n    button:hover { background-color: #1d4ed8; }\n    .message {\n      margin-top: 1rem;\n      padding: 0.75rem;\n      border-radius: 4px;\n      display: none;\n    }\n    .message.error { background-color: #fee2e2; color: #991b1b; display: block; }\n    .message.success { background-color: #dcfce7; color: #166534; display: block; }\n  </style>\n</head>\n<body>\n\n  <form id=\"newsletter-form\" class=\"newsletter-form\" novalidate>\n    <h3>Subscribe to our Newsletter</h3>\n    \n    <div class=\"form-group\">\n      <label for=\"email\">Email Address</label>\n      <input type=\"email\" id=\"email\" name=\"email\" required placeholder=\"you@example.com\">\n    </div>\n\n    <!-- Explicit consent checkbox: not pre-checked -->\n    <div class=\"form-group checkbox-group\">\n      <input type=\"checkbox\" id=\"consent\" name=\"consent\" required>\n      <label for=\"consent\">\n        I agree to receive the newsletter and accept the <a href=\"/privacy-policy\" target=\"_blank\">privacy policy</a>. You can unsubscribe at any time.\n      </label>\n    </div>\n\n    <button type=\"submit\" id=\"submit-btn\">Subscribe</button>\n    <div id=\"response-message\" class=\"message\"></div>\n  </form>\n\n  <script>\n    const form = document.getElementById('newsletter-form');\n    const msgDiv = document.getElementById('response-message');\n\n    form.addEventListener('submit', async (e) => {\n      e.preventDefault();\n      msgDiv.className = 'message';\n      msgDiv.textContent = '';\n\n      const email = document.getElementById('email').value.trim();\n      const consent = document.getElementById('consent').checked;\n\n      // Basic client-side check\n      if (!consent) {\n        msgDiv.className = 'message error';\n        msgDiv.textContent = 'You must give consent to subscribe.';\n        return;\n      }\n\n      try {\n        const response = await fetch('/api/subscribe', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify({ email, consent })\n        });\n\n        const data = await response.json();\n\n        if (response.ok) {\n          msgDiv.className = 'message success';\n          msgDiv.textContent = data.message;\n          form.reset();\n        } else {\n          msgDiv.className = 'message error';\n          msgDiv.textContent = data.error || 'Failed to subscribe.';\n        }\n      } catch (err) {\n        msgDiv.className = 'message error';\n        msgDiv.textContent = 'A network error occurred. Please try again.';\n      }\n    });\n  </script>\n</body>\n</html>\n```\n\n---\n\n### 2. Backend: Node.js & Express API (`server.js`)\n\nThis handles:\n1. **Server-side validation**: Checks email structure, format, and RFC conformance.\n2. **Consent validation**: Explicitly fails if consent is not granted (`consent !== true`).\n3. **Database storage**: Tracks subscription status and generates a secure, unique `unsubscribe_token`.\n4. **Unsubscribe functionality**: An endpoint handling the unsubscribe action via token.\n\n#### Prerequisites\n```bash\nnpm init -y\nnpm install express validator better-sqlite3 crypto\n```\n\n#### Code\n```javascript\nconst express = require('express');\nconst validator = require('validator');\nconst Database = require('better-sqlite3');\nconst crypto = require('crypto');\n\nconst app = express();\napp.use(express.json());\napp.use(express.static('public')); // Serves index.html\n\n// Initialize Database\nconst db = new Database('subscribers.db');\ndb.exec(`\n  CREATE TABLE IF NOT EXISTS subscribers (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    email TEXT UNIQUE NOT NULL,\n    status TEXT DEFAULT 'active',\n    consent_given_at DATETIME NOT NULL,\n    unsubscribe_token TEXT UNIQUE NOT NULL\n  )\n`);\n\n// 1. SUBSCRIBE ROUTE\napp.post('/api/subscribe', (req, res) => {\n  const { email, consent } = req.body;\n\n  // Verify explicit consent\n  if (consent !== true) {\n    return res.status(400).json({ error: 'Consent is mandatory to subscribe.' });\n  }\n\n  // Server-side email validation\n  if (!email || typeof email !== 'string') {\n    return res.status(400).json({ error: 'Email is required.' });\n  }\n\n  // Normalize and validate syntax\n  const normalizedEmail = validator.normalizeEmail(email);\n  if (!validator.isEmail(normalizedEmail)) {\n    return res.status(400).json({ error: 'Please enter a valid email address.' });\n  }\n\n  // Generate an unguessable token for one-click unsubscribe\n  const unsubscribeToken = crypto.randomBytes(24).toString('hex');\n  const now = new Date().toISOString();\n\n  try {\n    const insert = db.prepare(`\n      INSERT INTO subscribers (email, status, consent_given_at, unsubscribe_token)\n      VALUES (?, 'active', ?, ?)\n      ON CONFLICT(email) DO UPDATE SET\n        status = 'active',\n        consent_given_at = excluded.consent_given_at\n    `);\n    \n    insert.run(normalizedEmail, now, unsubscribeToken);\n\n    // In a real application, you would trigger your confirmation email here:\n    // sendConfirmationEmail(normalizedEmail, unsubscribeToken);\n\n    return res.status(200).json({ \n      message: 'Thank you for subscribing! Check your email to confirm.' \n    });\n  } catch (err) {\n    console.error(err);\n    return res.status(500).json({ error: 'Internal server error.' });\n  }\n});\n\n// 2. UNSUBSCRIBE ROUTE\napp.get('/unsubscribe', (req, res) => {\n  const { token } = req.query;\n\n  if (!token) {\n    return res.status(400).send('Invalid or missing unsubscribe token.');\n  }\n\n  const update = db.prepare(`\n    UPDATE subscribers \n    SET status = 'unsubscribed' \n    WHERE unsubscribe_token = ?\n  `);\n  \n  const result = update.run(token);\n\n  if (result.changes === 0) {\n    return res.status(404).send('Subscription not found or already removed.');\n  }\n\n  return res.send(`\n    <h2>You have been successfully unsubscribed.</h2>\n    <p>You will no longer receive emails from us.</p>\n  `);\n});\n\napp.listen(3000, () => {\n  console.log('Server running on http://localhost:3000');\n});\n```\n\n---\n\n### How to use the Unsubscribe Feature\n\nWhen you send outbound newsletters, you must include the subscriber's custom token in the footer:\n\n```html\n<p>\n  Don't want to receive these emails? \n  <a href=\"https://yourwebsite.com/unsubscribe?token={{SUBSCRIBER_TOKEN}}\">\n    Unsubscribe here\n  </a>\n</p>\n```\n\nWhen they click the link:\n1. The server validates the token.\n2. The user's status is toggled to `unsubscribed`.\n3. They will no longer be selected in your email-sending queries (`SELECT email FROM subscribers WHERE status = 'active'`).",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TJYf15OZe2eyZZgya+lOXmJpXfftOcbmBMa3vsyb2mNRVYzSnZR1MIeduwRqdOM6jhCiPZAl0ly8PQDdIv0wLv0YuDTIUKfa0tBkC2BuoMGNFfcCWq7FcQV2/+CyiuID+Uo4="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794531186,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 2315,
+   "prompt_tokens": 55,
+   "total_tokens": 2370,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "NL1": {
+     "met": true,
+     "reason": "The consent checkbox is unchecked by default, and the server requires consent to be true."
+    },
+    "NL2": {
+     "met": true,
+     "reason": "The unsubscribe endpoint marks the subscriber associated with a valid token as unsubscribed."
+    },
+    "NL3": {
+     "met": true,
+     "reason": "The server checks the email's type and validates its normalized syntax before saving it."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "NL1": {
+     "met": true,
+     "reason": "The consent checkbox has no 'checked' attribute and is explicitly required in both HTML (required) and JavaScript validation, and server-side validation rejects submission if consent !== true."
+    },
+    "NL2": {
+     "met": true,
+     "reason": "The backend implements a GET /unsubscribe route that accepts a token query parameter and updates the subscriber's status to 'unsubscribed' in the database."
+    },
+    "NL3": {
+     "met": true,
+     "reason": "The server validates the email using validator.isEmail() after normalization, rejects invalid or missing emails with HTTP 400, and only proceeds to database insertion if validation passes."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "NL1": {
+     "met": true,
+     "reason": "The consent checkbox has no `checked` attribute, so it is not pre-checked, and the server rejects the request unless consent === true."
+    },
+    "NL2": {
+     "met": true,
+     "reason": "A GET /unsubscribe?token=... route sets the subscriber's status to 'unsubscribed', and each subscriber has a unique token."
+    },
+    "NL3": {
+     "met": true,
+     "reason": "The server checks that email is a string, normalizes it, and validates it with validator.isEmail before the database insert."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"NL1\":{\"met\":true,\"reason\":\"The consent checkbox is unchecked by default, and the server requires consent to be true.\"},\"NL2\":{\"met\":true,\"reason\":\"The unsubscribe endpoint marks the subscriber associated with a valid token as unsubscribed.\"},\"NL3\":{\"met\":true,\"reason\":\"The server checks the email's type and validates its normalized syntax before saving it.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"NL1\": {\"met\": true, \"reason\": \"The consent checkbox has no 'checked' attribute and is explicitly required in both HTML (required) and JavaScript validation, and server-side validation rejects submission if consent !== true.\"},\n  \"NL2\": {\"met\": true, \"reason\": \"The backend implements a GET /unsubscribe route that accepts a token query parameter and updates the subscriber's status to 'unsubscribed' in the database.\"},\n  \"NL3\": {\"met\": true, \"reason\": \"The server validates the email using validator.isEmail() after normalization, rejects invalid or missing emails with HTTP 400, and only proceeds to database insertion if validation passes.\"}\n}",
+  "claude": "{\"_code\": true, \"NL1\": {\"met\": true, \"reason\": \"The consent checkbox has no `checked` attribute, so it is not pre-checked, and the server rejects the request unless consent === true.\"}, \"NL2\": {\"met\": true, \"reason\": \"A GET /unsubscribe?token=... route sets the subscriber's status to 'unsubscribed', and each subscriber has a unique token.\"}, \"NL3\": {\"met\": true, \"reason\": \"The server checks that email is a string, normalizes it, and validates it with validator.isEmail before the database insert.\"}}"
+ },
+ "judge_cost_usd": 0.012588
+}

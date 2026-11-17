@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:29:27+00:00",
+ "app": "library",
+ "app_hash": "5aabb8080384",
+ "model": "llama",
+ "condition": "ABL-LB5",
+ "rep": 0,
+ "requirement_order": [
+  "LB1",
+  "LB3",
+  "LB2",
+  "LB4"
+ ],
+ "passed": {
+  "LB1": true,
+  "LB2": true,
+  "LB3": true,
+  "LB4": false,
+  "LB5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for a small lending library: books are borrowed and returned,\nand late returns are fined.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None: ...\n\n    def add_book(self, book_id: str) -> None: ...\n\n    def borrow(self, user: str, book_id: str, day: date) -> None: ...\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"Return a book; returns the fine charged for this return.\"\"\"\n\n    def unpaid_fines(self, user: str) -> float: ...\n\n    def pay(self, user: str) -> None:\n        \"\"\"Pay all fines of the user.\"\"\"\n```\n\n## Requirements\n1. Borrowing a book that is currently borrowed raises ValueError.\n2. A book returned after its due date (borrow day plus loan_days) is fined daily_fine for each day of delay.\n3. Returning a book that the user has not borrowed raises ValueError.\n4. Saturdays and Sundays are not counted as days of delay.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        \"\"\"\n        Initialize the library with the number of loan days and daily fine.\n\n        Args:\n        loan_days (int): The number of days a book can be borrowed. Defaults to 14.\n        daily_fine (float): The fine per day for late returns. Defaults to 0.5.\n        \"\"\"\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self.books = {}  # Dictionary to store borrowed books\n        self.fines = {}  # Dictionary to store user fines\n\n    def add_book(self, book_id: str) -> None:\n        \"\"\"\n        Add a book to the library.\n\n        Args:\n        book_id (str): The ID of the book to add.\n        \"\"\"\n        if book_id not in self.books:\n            self.books[book_id] = None\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        \"\"\"\n        Borrow a book from the library.\n\n        Args:\n        user (str): The user borrowing the book.\n        book_id (str): The ID of the book to borrow.\n        day (date): The day the book is borrowed.\n\n        Raises:\n        ValueError: If the book is already borrowed.\n        \"\"\"\n        if book_id in self.books and self.books[book_id] is not None:\n            raise ValueError(\"Book is already borrowed\")\n        self.books[book_id] = (user, day)\n        if user not in self.fines:\n            self.fines[user] = 0.0\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"\n        Return a book to the library.\n\n        Args:\n        user (str): The user returning the book.\n        book_id (str): The ID of the book to return.\n        day (date): The day the book is returned.\n\n        Returns:\n        float: The fine charged for this return.\n\n        Raises:\n        ValueError: If the user has not borrowed the book.\n        \"\"\"\n        if book_id not in self.books or self.books[book_id] is None or self.books[book_id][0] != user:\n            raise ValueError(\"User has not borrowed this book\")\n        borrowed_day = self.books[book_id][1]\n        due_day = borrowed_day + timedelta(days=self.loan_days)\n        if day > due_day:\n            delay = (day - due_day).days\n            # Subtract weekends from delay\n            delay -= sum((day - timedelta(days=i)).weekday() >= 5 for i in range(1, delay + 1))\n            fine = max(0, delay) * self.daily_fine\n            self.fines[user] += fine\n        else:\n            fine = 0.0\n        self.books[book_id] = None\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        \"\"\"\n        Get the unpaid fines for a user.\n\n        Args:\n        user (str): The user to get the unpaid fines for.\n\n        Returns:\n        float: The unpaid fines for the user.\n        \"\"\"\n        return self.fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"\n        Pay all fines for a user.\n\n        Args:\n        user (str): The user to pay fines for.\n        \"\"\"\n        if user in self.fines:\n            self.fines[user] = 0.0\n\n# Example usage:\nif __name__ == \"__main__\":\n    library = Library()\n    library.add_book(\"book1\")\n    library.borrow(\"user1\", \"book1\", date(2024, 9, 1))\n    fine = library.return_book(\"user1\", \"book1\", date(2024, 9, 20))\n    print(f\"Fine: {fine}\")\n    print(f\"Unpaid fines: {library.unpaid_fines('user1')}\")\n    library.pay(\"user1\")\n    print(f\"Unpaid fines after payment: {library.unpaid_fines('user1')}\")\n```",
+ "code": "from datetime import date, timedelta\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        \"\"\"\n        Initialize the library with the number of loan days and daily fine.\n\n        Args:\n        loan_days (int): The number of days a book can be borrowed. Defaults to 14.\n        daily_fine (float): The fine per day for late returns. Defaults to 0.5.\n        \"\"\"\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self.books = {}  # Dictionary to store borrowed books\n        self.fines = {}  # Dictionary to store user fines\n\n    def add_book(self, book_id: str) -> None:\n        \"\"\"\n        Add a book to the library.\n\n        Args:\n        book_id (str): The ID of the book to add.\n        \"\"\"\n        if book_id not in self.books:\n            self.books[book_id] = None\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        \"\"\"\n        Borrow a book from the library.\n\n        Args:\n        user (str): The user borrowing the book.\n        book_id (str): The ID of the book to borrow.\n        day (date): The day the book is borrowed.\n\n        Raises:\n        ValueError: If the book is already borrowed.\n        \"\"\"\n        if book_id in self.books and self.books[book_id] is not None:\n            raise ValueError(\"Book is already borrowed\")\n        self.books[book_id] = (user, day)\n        if user not in self.fines:\n            self.fines[user] = 0.0\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"\n        Return a book to the library.\n\n        Args:\n        user (str): The user returning the book.\n        book_id (str): The ID of the book to return.\n        day (date): The day the book is returned.\n\n        Returns:\n        float: The fine charged for this return.\n\n        Raises:\n        ValueError: If the user has not borrowed the book.\n        \"\"\"\n        if book_id not in self.books or self.books[book_id] is None or self.books[book_id][0] != user:\n            raise ValueError(\"User has not borrowed this book\")\n        borrowed_day = self.books[book_id][1]\n        due_day = borrowed_day + timedelta(days=self.loan_days)\n        if day > due_day:\n            delay = (day - due_day).days\n            # Subtract weekends from delay\n            delay -= sum((day - timedelta(days=i)).weekday() >= 5 for i in range(1, delay + 1))\n            fine = max(0, delay) * self.daily_fine\n            self.fines[user] += fine\n        else:\n            fine = 0.0\n        self.books[book_id] = None\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        \"\"\"\n        Get the unpaid fines for a user.\n\n        Args:\n        user (str): The user to get the unpaid fines for.\n\n        Returns:\n        float: The unpaid fines for the user.\n        \"\"\"\n        return self.fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"\n        Pay all fines for a user.\n\n        Args:\n        user (str): The user to pay fines for.\n        \"\"\"\n        if user in self.fines:\n            self.fines[user] = 0.0\n\n# Example usage:\nif __name__ == \"__main__\":\n    library = Library()\n    library.add_book(\"book1\")\n    library.borrow(\"user1\", \"book1\", date(2024, 9, 1))\n    fine = library.return_book(\"user1\", \"book1\", date(2024, 9, 20))\n    print(f\"Fine: {fine}\")\n    print(f\"Unpaid fines: {library.unpaid_fines('user1')}\")\n    library.pay(\"user1\")\n    print(f\"Unpaid fines after payment: {library.unpaid_fines('user1')}\")\n",
+ "input_tokens": 286,
+ "output_tokens": 890,
+ "cost_usd": 0.00031340000000000003,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 9.94,
+ "raw_api_response": {
+  "id": "gen-1794896951-Vcmh47JktNcNrlHoKswX",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\nclass Library:\n    def __init__(self, loan_days: int = 14, daily_fine: float = 0.5) -> None:\n        \"\"\"\n        Initialize the library with the number of loan days and daily fine.\n\n        Args:\n        loan_days (int): The number of days a book can be borrowed. Defaults to 14.\n        daily_fine (float): The fine per day for late returns. Defaults to 0.5.\n        \"\"\"\n        self.loan_days = loan_days\n        self.daily_fine = daily_fine\n        self.books = {}  # Dictionary to store borrowed books\n        self.fines = {}  # Dictionary to store user fines\n\n    def add_book(self, book_id: str) -> None:\n        \"\"\"\n        Add a book to the library.\n\n        Args:\n        book_id (str): The ID of the book to add.\n        \"\"\"\n        if book_id not in self.books:\n            self.books[book_id] = None\n\n    def borrow(self, user: str, book_id: str, day: date) -> None:\n        \"\"\"\n        Borrow a book from the library.\n\n        Args:\n        user (str): The user borrowing the book.\n        book_id (str): The ID of the book to borrow.\n        day (date): The day the book is borrowed.\n\n        Raises:\n        ValueError: If the book is already borrowed.\n        \"\"\"\n        if book_id in self.books and self.books[book_id] is not None:\n            raise ValueError(\"Book is already borrowed\")\n        self.books[book_id] = (user, day)\n        if user not in self.fines:\n            self.fines[user] = 0.0\n\n    def return_book(self, user: str, book_id: str, day: date) -> float:\n        \"\"\"\n        Return a book to the library.\n\n        Args:\n        user (str): The user returning the book.\n        book_id (str): The ID of the book to return.\n        day (date): The day the book is returned.\n\n        Returns:\n        float: The fine charged for this return.\n\n        Raises:\n        ValueError: If the user has not borrowed the book.\n        \"\"\"\n        if book_id not in self.books or self.books[book_id] is None or self.books[book_id][0] != user:\n            raise ValueError(\"User has not borrowed this book\")\n        borrowed_day = self.books[book_id][1]\n        due_day = borrowed_day + timedelta(days=self.loan_days)\n        if day > due_day:\n            delay = (day - due_day).days\n            # Subtract weekends from delay\n            delay -= sum((day - timedelta(days=i)).weekday() >= 5 for i in range(1, delay + 1))\n            fine = max(0, delay) * self.daily_fine\n            self.fines[user] += fine\n        else:\n            fine = 0.0\n        self.books[book_id] = None\n        return fine\n\n    def unpaid_fines(self, user: str) -> float:\n        \"\"\"\n        Get the unpaid fines for a user.\n\n        Args:\n        user (str): The user to get the unpaid fines for.\n\n        Returns:\n        float: The unpaid fines for the user.\n        \"\"\"\n        return self.fines.get(user, 0.0)\n\n    def pay(self, user: str) -> None:\n        \"\"\"\n        Pay all fines for a user.\n\n        Args:\n        user (str): The user to pay fines for.\n        \"\"\"\n        if user in self.fines:\n            self.fines[user] = 0.0\n\n# Example usage:\nif __name__ == \"__main__\":\n    library = Library()\n    library.add_book(\"book1\")\n    library.borrow(\"user1\", \"book1\", date(2024, 9, 1))\n    fine = library.return_book(\"user1\", \"book1\", date(2024, 9, 20))\n    print(f\"Fine: {fine}\")\n    print(f\"Unpaid fines: {library.unpaid_fines('user1')}\")\n    library.pay(\"user1\")\n    print(f\"Unpaid fines after payment: {library.unpaid_fines('user1')}\")\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794896951,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 890,
+   "prompt_tokens": 286,
+   "total_tokens": 1176,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00050792,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00050792,
+    "upstream_inference_prompt_cost": 6.292e-05,
+    "upstream_inference_completions_cost": 0.000445
+   }
+  },
+  "provider": "Parasail"
+ }
+}

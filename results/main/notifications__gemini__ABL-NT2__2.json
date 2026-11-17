@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:58:42+00:00",
+ "app": "notifications",
+ "app_hash": "3c8e19143fe2",
+ "model": "gemini",
+ "condition": "ABL-NT2",
+ "rep": 2,
+ "requirement_order": [
+  "NT1",
+  "NT3",
+  "NT4",
+  "NT5"
+ ],
+ "passed": {
+  "NT1": true,
+  "NT2": true,
+  "NT3": true,
+  "NT4": true,
+  "NT5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that delivers notifications to users over several channels,\nrespecting user preferences and night-time quiet hours.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import datetime, time\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)) -> None: ...\n\n    def add_user(self, user: str) -> None: ...\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None: ...\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n```\n\n## Requirements\n1. Calling set_channel with a channel that is not in CHANNELS raises ValueError.\n2. Quiet hours work also when they span midnight (e.g. from 22:00 to 7:00).\n3. During quiet hours, email is still delivered; only sms and push are muted.\n4. A newly added user has only the email channel enabled; sms and push are disabled by default.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "Here is the complete implementation of the `Notifier` module:\n\n```python\nfrom datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(\n        self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)\n    ) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._users: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"Register a user with default notification settings (email only).\"\"\"\n        self._users[user] = {\n            \"email\": True,\n            \"sms\": False,\n            \"push\": False,\n        }\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"Enable or disable a specific notification channel for a user.\"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}. Must be one of {self.CHANNELS}\")\n        if user not in self._users:\n            self.add_user(user)\n        self._users[user][channel] = enabled\n\n    def _is_quiet_hour(self, t: time) -> bool:\n        \"\"\"Check if a given time falls within the quiet hours window.\"\"\"\n        if self.quiet_start < self.quiet_end:\n            # Quiet window does not cross midnight (e.g., 01:00 to 05:00)\n            return self.quiet_start <= t < self.quiet_end\n        elif self.quiet_start > self.quiet_end:\n            # Quiet window spans midnight (e.g., 22:00 to 07:00)\n            return t >= self.quiet_start or t < self.quiet_end\n        else:\n            # Start and end are equal: quiet window is either empty or full day;\n            # typically treated as a 0-duration window.\n            return False\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        if user not in self._users:\n            self.add_user(user)\n\n        delivered = []\n        is_quiet = self._is_quiet_hour(at.time())\n        user_channels = self._users[user]\n\n        for channel in self.CHANNELS:\n            if not user_channels.get(channel, False):\n                continue\n            # During quiet hours, only email is delivered; sms and push are muted\n            if is_quiet and channel != \"email\":\n                continue\n            delivered.append(channel)\n\n        return delivered\n```",
+ "code": "from datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(\n        self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)\n    ) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._users: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"Register a user with default notification settings (email only).\"\"\"\n        self._users[user] = {\n            \"email\": True,\n            \"sms\": False,\n            \"push\": False,\n        }\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"Enable or disable a specific notification channel for a user.\"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}. Must be one of {self.CHANNELS}\")\n        if user not in self._users:\n            self.add_user(user)\n        self._users[user][channel] = enabled\n\n    def _is_quiet_hour(self, t: time) -> bool:\n        \"\"\"Check if a given time falls within the quiet hours window.\"\"\"\n        if self.quiet_start < self.quiet_end:\n            # Quiet window does not cross midnight (e.g., 01:00 to 05:00)\n            return self.quiet_start <= t < self.quiet_end\n        elif self.quiet_start > self.quiet_end:\n            # Quiet window spans midnight (e.g., 22:00 to 07:00)\n            return t >= self.quiet_start or t < self.quiet_end\n        else:\n            # Start and end are equal: quiet window is either empty or full day;\n            # typically treated as a 0-duration window.\n            return False\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        if user not in self._users:\n            self.add_user(user)\n\n        delivered = []\n        is_quiet = self._is_quiet_hour(at.time())\n        user_channels = self._users[user]\n\n        for channel in self.CHANNELS:\n            if not user_channels.get(channel, False):\n                continue\n            # During quiet hours, only email is delivered; sms and push are muted\n            if is_quiet and channel != \"email\":\n                continue\n            delivered.append(channel)\n\n        return delivered\n",
+ "input_tokens": 312,
+ "output_tokens": 661,
+ "cost_usd": 0.00271275,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.69,
+ "raw_api_response": {
+  "id": "aDn1avrPMpa0vdIPhJWPkA0",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the complete implementation of the `Notifier` module:\n\n```python\nfrom datetime import datetime, time\n\n\nclass Notifier:\n    CHANNELS = (\"email\", \"sms\", \"push\")\n\n    def __init__(\n        self, quiet_start: time = time(22, 0), quiet_end: time = time(7, 0)\n    ) -> None:\n        self.quiet_start = quiet_start\n        self.quiet_end = quiet_end\n        self._users: dict[str, dict[str, bool]] = {}\n\n    def add_user(self, user: str) -> None:\n        \"\"\"Register a user with default notification settings (email only).\"\"\"\n        self._users[user] = {\n            \"email\": True,\n            \"sms\": False,\n            \"push\": False,\n        }\n\n    def set_channel(self, user: str, channel: str, enabled: bool) -> None:\n        \"\"\"Enable or disable a specific notification channel for a user.\"\"\"\n        if channel not in self.CHANNELS:\n            raise ValueError(f\"Invalid channel: {channel}. Must be one of {self.CHANNELS}\")\n        if user not in self._users:\n            self.add_user(user)\n        self._users[user][channel] = enabled\n\n    def _is_quiet_hour(self, t: time) -> bool:\n        \"\"\"Check if a given time falls within the quiet hours window.\"\"\"\n        if self.quiet_start < self.quiet_end:\n            # Quiet window does not cross midnight (e.g., 01:00 to 05:00)\n            return self.quiet_start <= t < self.quiet_end\n        elif self.quiet_start > self.quiet_end:\n            # Quiet window spans midnight (e.g., 22:00 to 07:00)\n            return t >= self.quiet_start or t < self.quiet_end\n        else:\n            # Start and end are equal: quiet window is either empty or full day;\n            # typically treated as a 0-duration window.\n            return False\n\n    def send(self, user: str, message: str, at: datetime) -> list[str]:\n        \"\"\"Send a message; returns the channels it was delivered to, in CHANNELS order.\"\"\"\n        if user not in self._users:\n            self.add_user(user)\n\n        delivered = []\n        is_quiet = self._is_quiet_hour(at.time())\n        user_channels = self._users[user]\n\n        for channel in self.CHANNELS:\n            if not user_channels.get(channel, False):\n                continue\n            # During quiet hours, only email is delivered; sms and push are muted\n            if is_quiet and channel != \"email\":\n                continue\n            delivered.append(channel)\n\n        return delivered\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TeY3aZ18VfN7JQ1XWIivdaDRLsIUd2tWxi1O4Y75xlZ1ITJN7OUq9Xx7QFf0uK7HDK2z7jE8X6RsOQmvqtApN2YjFE9v0M4ZqrE2UeMhyLrvVy8O5oYH8kQUrb8I7M0NGjfs="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794455918,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 661,
+   "prompt_tokens": 312,
+   "total_tokens": 973,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

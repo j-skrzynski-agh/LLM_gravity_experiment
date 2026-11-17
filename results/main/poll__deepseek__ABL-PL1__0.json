@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:14:24+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "deepseek",
+ "condition": "ABL-PL1",
+ "rep": 0,
+ "requirement_order": [
+  "PL2",
+  "PL4",
+  "PL3",
+  "PL5"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": true,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. Each voter can vote only once; a second vote by the same voter raises ValueError.\n2. In case of a tie, the tied option that was added last wins.\n3. The winner is the option with the most votes.\n4. winner() returns None until at least 3 votes have been cast.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options = []          # options in the order they were added\n        self._votes = {}            # voter -> option\n        self._counts = {}           # option -> vote count\n\n    def add_option(self, option: str) -> None:\n        if option not in self._counts:\n            self._options.append(option)\n            self._counts[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if voter in self._votes:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n        if option not in self._counts:\n            raise ValueError(f\"Unknown option: '{option}'\")\n        self._votes[voter] = option\n        self._counts[option] += 1\n\n    def winner(self) -> str | None:\n        if len(self._votes) < 3:\n            return None\n\n        best_option = None\n        best_count = -1\n        # Iterate in insertion order; ties resolved by last added winning,\n        # so use >= to let later options override on equal count.\n        for option in self._options:\n            count = self._counts[option]\n            if count >= best_count:\n                best_count = count\n                best_option = option\n\n        return best_option\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options = []          # options in the order they were added\n        self._votes = {}            # voter -> option\n        self._counts = {}           # option -> vote count\n\n    def add_option(self, option: str) -> None:\n        if option not in self._counts:\n            self._options.append(option)\n            self._counts[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if voter in self._votes:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n        if option not in self._counts:\n            raise ValueError(f\"Unknown option: '{option}'\")\n        self._votes[voter] = option\n        self._counts[option] += 1\n\n    def winner(self) -> str | None:\n        if len(self._votes) < 3:\n            return None\n\n        best_option = None\n        best_count = -1\n        # Iterate in insertion order; ties resolved by last added winning,\n        # so use >= to let later options override on equal count.\n        for option in self._options:\n            count = self._counts[option]\n            if count >= best_count:\n                best_count = count\n                best_option = option\n\n        return best_option\n",
+ "input_tokens": 185,
+ "output_tokens": 304,
+ "cost_usd": 0.0004203,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 1.87,
+ "raw_api_response": {
+  "id": "4ba3c603-15c1-4205-86d6-b9edfc4ef0c2",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options = []          # options in the order they were added\n        self._votes = {}            # voter -> option\n        self._counts = {}           # option -> vote count\n\n    def add_option(self, option: str) -> None:\n        if option not in self._counts:\n            self._options.append(option)\n            self._counts[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if voter in self._votes:\n            raise ValueError(f\"Voter '{voter}' has already voted.\")\n        if option not in self._counts:\n            raise ValueError(f\"Unknown option: '{option}'\")\n        self._votes[voter] = option\n        self._counts[option] += 1\n\n    def winner(self) -> str | None:\n        if len(self._votes) < 3:\n            return None\n\n        best_option = None\n        best_count = -1\n        # Iterate in insertion order; ties resolved by last added winning,\n        # so use >= to let later options override on equal count.\n        for option in self._options:\n            count = self._counts[option]\n            if count >= best_count:\n                best_count = count\n                best_option = option\n\n        return best_option\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794453257,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 304,
+   "prompt_tokens": 185,
+   "total_tokens": 489,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 185
+  }
+ }
+}

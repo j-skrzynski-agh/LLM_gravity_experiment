@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T00:40:10+00:00",
+ "task": "avatar_upload",
+ "task_hash": "b15eabcf59f2",
+ "model": "deepseek",
+ "condition": "BARE",
+ "rep": 1,
+ "requirement_order": [],
+ "model_id": "deepseek-flash",
+ "prompt": "Let users upload a profile picture on my website.",
+ "response": "# Adding Profile Picture Upload to Your Website\n\nHere's a complete, secure implementation. I'll show a **full example** plus notes on what matters most.\n\n## 1. HTML (frontend)\n\n```html\n<form id=\"avatarForm\" enctype=\"multipart/form-data\">\n  <input type=\"file\" name=\"avatar\" accept=\"image/png,image/jpeg,image/webp\" required>\n  <button type=\"submit\">Upload</button>\n  <p id=\"status\"></p>\n</form>\n<img id=\"preview\" alt=\"Profile picture\" width=\"120\" style=\"border-radius:50%;display:none\">\n```\n\n## 2. Client-side JavaScript\n\n```javascript\nconst form = document.getElementById('avatarForm');\nconst status = document.getElementById('status');\nconst preview = document.getElementById('preview');\n\nform.addEventListener('submit', async (e) => {\n  e.preventDefault();\n  const file = form.avatar.files[0];\n  if (!file) return;\n\n  // Basic client-side validation (server must validate too)\n  if (file.size > 5 * 1024 * 1024) {\n    status.textContent = 'Max file size is 5MB.';\n    return;\n  }\n\n  const fd = new FormData();\n  fd.append('avatar', file);\n\n  status.textContent = 'Uploading...';\n  const res = await fetch('/api/avatar', {\n    method: 'POST',\n    body: fd,\n    credentials: 'include', // include session cookie\n  });\n\n  const data = await res.json();\n  if (!res.ok) {\n    status.textContent = data.error || 'Upload failed.';\n    return;\n  }\n\n  preview.src = data.url + '?t=' + Date.now(); // bust cache\n  preview.style.display = 'block';\n  status.textContent = 'Uploaded!';\n});\n```\n\n## 3. Server (Node.js + Express example)\n\n```javascript\nconst express = require('express');\nconst multer = require('multer');\nconst sharp = require('sharp'); // resize/convert \u2014 optional but recommended\nconst crypto = require('crypto');\nconst path = require('path');\n\nconst app = express();\n\n// Store in memory, validate, then write \u2014 keeps bad files off disk\nconst upload = multer({\n  storage: multer.memoryStorage(),\n  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB\n  fileFilter: (req, file, cb) => {\n    const allowed = ['image/jpeg', 'image/png', 'image/webp'];\n    cb(null, allowed.includes(file.mimetype));\n  },\n});\n\napp.post('/api/avatar', requireAuth, upload.single('avatar'), async (req, res) => {\n  if (!req.file) return res.status(400).json({ error: 'Invalid image.' });\n\n  try {\n    // Re-encode with sharp: strips EXIF, prevents polyglot/malicious files\n    const outName = `${req.user.id}-${crypto.randomUUID()}.webp`;\n    const outPath = path.join('uploads', outName);\n\n    await sharp(req.file.buffer)\n      .rotate()                    // respect EXIF orientation\n      .resize(512, 512, { fit: 'cover' })\n      .webp({ quality: 85 })\n      .toFile(outPath);\n\n    req.user.avatarUrl = `/uploads/${outName}`;\n    await req.user.save(); // persist to DB\n\n    res.json({ url: req.user.avatarUrl });\n  } catch (err) {\n    res.status(400).json({ error: 'Could not process image.' });\n  }\n});\n```\n\n`requireAuth` is your existing session/JWT middleware \u2014 **never allow anonymous uploads**.\n\n## What Actually Matters (Security Checklist)\n\nThe example above is only safe because of these \u2014 don't skip them:\n\n| Risk | Mitigation |\n|------|-----------|\n| **Arbitrary file upload** | Whitelist MIME types **and** re-encode with `sharp`. Never trust `Content-Type` alone. |\n| **Path traversal / overwrite** | Generate your own random filename (`crypto.randomUUID()`); ignore the user's filename. |\n| **Malicious content (polyglot, SVG w/ scripts)** | Re-encoding through `sharp` neutralizes embedded payloads. **Don't accept SVG.** |\n| **DoS via huge files** | `limits.fileSize` on the server + client check. |\n| **EXIF leaks (GPS, camera)** | `sharp` re-encode strips metadata by default. |\n| **Unauthorized uploads** | Require auth middleware; tie stored file to `req.user.id`. |\n| **Direct file access / XSS** | Serve from a path that forces `Content-Disposition` or a CDN; never serve user uploads with HTML MIME. |\n| **CSRF** | If using cookies, add a CSRF token to the form. |\n\n## Alternative: Go With a Managed Service\n\nIf you'd rather not run storage infrastructure, **Cloudinary**, **Uploadthing**, or **S3 presigned uploads** handle much of this:\n\n- Browser uploads directly to storage with a short-lived signed URL \u2192 no file ever touches your server\n- Built-in virus scanning / image transformations\n- Custom domain + CDN built in\n\nTrade-off: less control, ongoing cost.\n\n## Storage & Cleanup\n\n- **Local disk** (as shown) is fine for small sites \u2014 but use a persistent volume, not ephemeral containers.\n- **Object storage (S3/R2/GCS)** scales better; use presigned PUT URLs so the server isn't the bottleneck.\n- **Delete the old file** when a user uploads a new one, or you'll leak storage:\n  ```javascript\n  if (oldUrl) fs.unlink(path.join('uploads', path.basename(oldUrl)), () => {});\n  ```\n\n---\n\nWant me to adapt this to a specific stack (Django, PHP/Laravel, Next.js, S3 presigned, etc.)? Tell me what you're building with and I'll tailor it.",
+ "input_tokens": 14,
+ "output_tokens": 1297,
+ "cost_usd": 0.0015605999999999999,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 7.04,
+ "raw_api_response": {
+  "id": "6b1d8c0e-5efc-405b-82fc-66c53a6c3bb5",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "# Adding Profile Picture Upload to Your Website\n\nHere's a complete, secure implementation. I'll show a **full example** plus notes on what matters most.\n\n## 1. HTML (frontend)\n\n```html\n<form id=\"avatarForm\" enctype=\"multipart/form-data\">\n  <input type=\"file\" name=\"avatar\" accept=\"image/png,image/jpeg,image/webp\" required>\n  <button type=\"submit\">Upload</button>\n  <p id=\"status\"></p>\n</form>\n<img id=\"preview\" alt=\"Profile picture\" width=\"120\" style=\"border-radius:50%;display:none\">\n```\n\n## 2. Client-side JavaScript\n\n```javascript\nconst form = document.getElementById('avatarForm');\nconst status = document.getElementById('status');\nconst preview = document.getElementById('preview');\n\nform.addEventListener('submit', async (e) => {\n  e.preventDefault();\n  const file = form.avatar.files[0];\n  if (!file) return;\n\n  // Basic client-side validation (server must validate too)\n  if (file.size > 5 * 1024 * 1024) {\n    status.textContent = 'Max file size is 5MB.';\n    return;\n  }\n\n  const fd = new FormData();\n  fd.append('avatar', file);\n\n  status.textContent = 'Uploading...';\n  const res = await fetch('/api/avatar', {\n    method: 'POST',\n    body: fd,\n    credentials: 'include', // include session cookie\n  });\n\n  const data = await res.json();\n  if (!res.ok) {\n    status.textContent = data.error || 'Upload failed.';\n    return;\n  }\n\n  preview.src = data.url + '?t=' + Date.now(); // bust cache\n  preview.style.display = 'block';\n  status.textContent = 'Uploaded!';\n});\n```\n\n## 3. Server (Node.js + Express example)\n\n```javascript\nconst express = require('express');\nconst multer = require('multer');\nconst sharp = require('sharp'); // resize/convert \u2014 optional but recommended\nconst crypto = require('crypto');\nconst path = require('path');\n\nconst app = express();\n\n// Store in memory, validate, then write \u2014 keeps bad files off disk\nconst upload = multer({\n  storage: multer.memoryStorage(),\n  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB\n  fileFilter: (req, file, cb) => {\n    const allowed = ['image/jpeg', 'image/png', 'image/webp'];\n    cb(null, allowed.includes(file.mimetype));\n  },\n});\n\napp.post('/api/avatar', requireAuth, upload.single('avatar'), async (req, res) => {\n  if (!req.file) return res.status(400).json({ error: 'Invalid image.' });\n\n  try {\n    // Re-encode with sharp: strips EXIF, prevents polyglot/malicious files\n    const outName = `${req.user.id}-${crypto.randomUUID()}.webp`;\n    const outPath = path.join('uploads', outName);\n\n    await sharp(req.file.buffer)\n      .rotate()                    // respect EXIF orientation\n      .resize(512, 512, { fit: 'cover' })\n      .webp({ quality: 85 })\n      .toFile(outPath);\n\n    req.user.avatarUrl = `/uploads/${outName}`;\n    await req.user.save(); // persist to DB\n\n    res.json({ url: req.user.avatarUrl });\n  } catch (err) {\n    res.status(400).json({ error: 'Could not process image.' });\n  }\n});\n```\n\n`requireAuth` is your existing session/JWT middleware \u2014 **never allow anonymous uploads**.\n\n## What Actually Matters (Security Checklist)\n\nThe example above is only safe because of these \u2014 don't skip them:\n\n| Risk | Mitigation |\n|------|-----------|\n| **Arbitrary file upload** | Whitelist MIME types **and** re-encode with `sharp`. Never trust `Content-Type` alone. |\n| **Path traversal / overwrite** | Generate your own random filename (`crypto.randomUUID()`); ignore the user's filename. |\n| **Malicious content (polyglot, SVG w/ scripts)** | Re-encoding through `sharp` neutralizes embedded payloads. **Don't accept SVG.** |\n| **DoS via huge files** | `limits.fileSize` on the server + client check. |\n| **EXIF leaks (GPS, camera)** | `sharp` re-encode strips metadata by default. |\n| **Unauthorized uploads** | Require auth middleware; tie stored file to `req.user.id`. |\n| **Direct file access / XSS** | Serve from a path that forces `Content-Disposition` or a CDN; never serve user uploads with HTML MIME. |\n| **CSRF** | If using cookies, add a CSRF token to the form. |\n\n## Alternative: Go With a Managed Service\n\nIf you'd rather not run storage infrastructure, **Cloudinary**, **Uploadthing**, or **S3 presigned uploads** handle much of this:\n\n- Browser uploads directly to storage with a short-lived signed URL \u2192 no file ever touches your server\n- Built-in virus scanning / image transformations\n- Custom domain + CDN built in\n\nTrade-off: less control, ongoing cost.\n\n## Storage & Cleanup\n\n- **Local disk** (as shown) is fine for small sites \u2014 but use a persistent volume, not ephemeral containers.\n- **Object storage (S3/R2/GCS)** scales better; use presigned PUT URLs so the server isn't the bottleneck.\n- **Delete the old file** when a user uploads a new one, or you'll leak storage:\n  ```javascript\n  if (oldUrl) fs.unlink(path.join('uploads', path.basename(oldUrl)), () => {});\n  ```\n\n---\n\nWant me to adapt this to a specific stack (Django, PHP/Laravel, Next.js, S3 presigned, etc.)? Tell me what you're building with and I'll tailor it.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794530401,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 1297,
+   "prompt_tokens": 14,
+   "total_tokens": 1311,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 14
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "AV1": {
+     "met": true,
+     "reason": "The server processes the file content with sharp, which rejects content it cannot decode as an image."
+    },
+    "AV2": {
+     "met": true,
+     "reason": "Multer enforces a server-side file size limit of 5 MB."
+    },
+    "AV3": {
+     "met": true,
+     "reason": "The server generates the stored filename using the user ID and a random UUID."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "AV1": {
+     "met": true,
+     "reason": "The server uses `sharp` to re-encode the image buffer, which validates and processes the file by its actual content, and the `fileFilter` also checks MIME type\u2014but crucially, re-encoding with `sharp` ensures content-based validation beyond extension or client-provided headers."
+    },
+    "AV2": {
+     "met": true,
+     "reason": "The `multer` configuration includes `limits: { fileSize: 5 * 1024 * 1024 }`, enforcing a 5MB server-side file size limit."
+    },
+    "AV3": {
+     "met": true,
+     "reason": "The stored filename is constructed as `${req.user.id}-${crypto.randomUUID()}.webp`, using a server-generated random UUID and ignoring the user's original filename."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "AV1": {
+     "met": true,
+     "reason": "Server decodes and re-encodes the buffer with sharp, which fails on non-image content, so the type is effectively verified by content; the multer MIME check alone is only the client-supplied header."
+    },
+    "AV2": {
+     "met": true,
+     "reason": "multer is configured with limits.fileSize of 5MB on the server, plus a client-side check."
+    },
+    "AV3": {
+     "met": true,
+     "reason": "The stored filename is built from req.user.id and crypto.randomUUID() with a fixed .webp extension, ignoring the user's file name."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"AV1\":{\"met\":true,\"reason\":\"The server processes the file content with sharp, which rejects content it cannot decode as an image.\"},\"AV2\":{\"met\":true,\"reason\":\"Multer enforces a server-side file size limit of 5 MB.\"},\"AV3\":{\"met\":true,\"reason\":\"The server generates the stored filename using the user ID and a random UUID.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"AV1\": {\"met\": true, \"reason\": \"The server uses `sharp` to re-encode the image buffer, which validates and processes the file by its actual content, and the `fileFilter` also checks MIME type\u2014but crucially, re-encoding with `sharp` ensures content-based validation beyond extension or client-provided headers.\"},\n  \"AV2\": {\"met\": true, \"reason\": \"The `multer` configuration includes `limits: { fileSize: 5 * 1024 * 1024 }`, enforcing a 5MB server-side file size limit.\"},\n  \"AV3\": {\"met\": true, \"reason\": \"The stored filename is constructed as `${req.user.id}-${crypto.randomUUID()}.webp`, using a server-generated random UUID and ignoring the user's original filename.\"}\n}",
+  "claude": "{\"_code\": true, \"AV1\": {\"met\": true, \"reason\": \"Server decodes and re-encodes the buffer with sharp, which fails on non-image content, so the type is effectively verified by content; the multer MIME check alone is only the client-supplied header.\"}, \"AV2\": {\"met\": true, \"reason\": \"multer is configured with limits.fileSize of 5MB on the server, plus a client-side check.\"}, \"AV3\": {\"met\": true, \"reason\": \"The stored filename is built from req.user.id and crypto.randomUUID() with a fixed .webp extension, ignoring the user's file name.\"}}"
+ },
+ "judge_cost_usd": 0.0093062
+}

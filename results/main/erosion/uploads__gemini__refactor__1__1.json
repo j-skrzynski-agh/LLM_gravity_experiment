@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:39:46+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "gemini",
+ "variant": "refactor",
+ "rep": 1,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "uploads__gemini__FULL__1.json",
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": true,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        if monthly_limit_mib < 0:\n            raise ValueError(\"Monthly limit cannot be negative.\")\n        self.monthly_limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # Structure: {month: {filename: size_bytes}}\n        self._history: dict[str, dict[str, int]] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like '2026-01'.\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than 0.\")\n\n        month_files = self._history.setdefault(month, {})\n\n        # If file was already uploaded in this month, it does not count again.\n        if name in month_files:\n            return\n\n        current_used = sum(month_files.values())\n        if current_used + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\n                f\"Upload of {size_bytes} bytes exceeds the monthly limit of \"\n                f\"{self.monthly_limit_bytes} bytes for {month}.\"\n            )\n\n        month_files[name] = size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deleting a file does not give back quota in the current month,\n        so the recorded quota usage remains unchanged.\n        \"\"\"\n        pass\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return sum(self._history.get(month, {}).values())\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the refactored module. \n\n### Improvements made:\n- Used `collections.defaultdict` to eliminate boilerplate dictionary initialization (`setdefault`).\n- Tracked running monthly totals alongside tracked filenames, avoiding repeated $O(N)$ `sum()` computations on every upload and check.\n- Used a named constant `BYTES_PER_MIB` for clarity.\n- Retained the exact class and method signatures, error handling, and behavioral semantics.\n\n```python\nfrom collections import defaultdict\n\nBYTES_PER_MIB = 1024 * 1024\n\n\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        if monthly_limit_mib < 0:\n            raise ValueError(\"Monthly limit cannot be negative.\")\n        self.monthly_limit_bytes = int(monthly_limit_mib * BYTES_PER_MIB)\n        self._uploaded_files: defaultdict[str, set[str]] = defaultdict(set)\n        self._used_bytes: defaultdict[str, int] = defaultdict(int)\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like '2026-01'.\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than 0.\")\n\n        if name in self._uploaded_files[month]:\n            return\n\n        if self._used_bytes[month] + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\n                f\"Upload of {size_bytes} bytes exceeds the monthly limit of \"\n                f\"{self.monthly_limit_bytes} bytes for {month}.\"\n            )\n\n        self._uploaded_files[month].add(name)\n        self._used_bytes[month] += size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deleting a file does not give back quota in the current month,\n        so the recorded quota usage remains unchanged.\n        \"\"\"\n        pass\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes.get(month, 0)\n```",
+ "code": "from collections import defaultdict\n\nBYTES_PER_MIB = 1024 * 1024\n\n\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        if monthly_limit_mib < 0:\n            raise ValueError(\"Monthly limit cannot be negative.\")\n        self.monthly_limit_bytes = int(monthly_limit_mib * BYTES_PER_MIB)\n        self._uploaded_files: defaultdict[str, set[str]] = defaultdict(set)\n        self._used_bytes: defaultdict[str, int] = defaultdict(int)\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like '2026-01'.\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than 0.\")\n\n        if name in self._uploaded_files[month]:\n            return\n\n        if self._used_bytes[month] + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\n                f\"Upload of {size_bytes} bytes exceeds the monthly limit of \"\n                f\"{self.monthly_limit_bytes} bytes for {month}.\"\n            )\n\n        self._uploaded_files[month].add(name)\n        self._used_bytes[month] += size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deleting a file does not give back quota in the current month,\n        so the recorded quota usage remains unchanged.\n        \"\"\"\n        pass\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes.get(month, 0)\n",
+ "input_tokens": 483,
+ "output_tokens": 510,
+ "cost_usd": 0.00227475,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 4.37,
+ "raw_api_response": {
+  "id": "eq38aouxIYizxN8Pi8q6mAw",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the refactored module. \n\n### Improvements made:\n- Used `collections.defaultdict` to eliminate boilerplate dictionary initialization (`setdefault`).\n- Tracked running monthly totals alongside tracked filenames, avoiding repeated $O(N)$ `sum()` computations on every upload and check.\n- Used a named constant `BYTES_PER_MIB` for clarity.\n- Retained the exact class and method signatures, error handling, and behavioral semantics.\n\n```python\nfrom collections import defaultdict\n\nBYTES_PER_MIB = 1024 * 1024\n\n\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        if monthly_limit_mib < 0:\n            raise ValueError(\"Monthly limit cannot be negative.\")\n        self.monthly_limit_bytes = int(monthly_limit_mib * BYTES_PER_MIB)\n        self._uploaded_files: defaultdict[str, set[str]] = defaultdict(set)\n        self._used_bytes: defaultdict[str, int] = defaultdict(int)\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like '2026-01'.\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than 0.\")\n\n        if name in self._uploaded_files[month]:\n            return\n\n        if self._used_bytes[month] + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\n                f\"Upload of {size_bytes} bytes exceeds the monthly limit of \"\n                f\"{self.monthly_limit_bytes} bytes for {month}.\"\n            )\n\n        self._uploaded_files[month].add(name)\n        self._used_bytes[month] += size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"\n        Deleting a file does not give back quota in the current month,\n        so the recorded quota usage remains unchanged.\n        \"\"\"\n        pass\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes.get(month, 0)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EpIBCo8BAWkUfROdf4xkDrqkrR5a6cHuKM2JhBgaKg6yGHWg/2OcLlilv3pHasm3dwi6BxfZpkPYzIPOYIFaPUvA/AwxIp35uWIHIy0Vw5PCSk/ydAm/7gjunzJVdRnyR09xPUPt0Yn7Ji8/bFfbK3qdn4cFq2xgbJqqVMmluoQ3BBMo8RNqmOvWnh5FGMGzEPmRUsQ="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794944383,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 510,
+   "prompt_tokens": 483,
+   "total_tokens": 993,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

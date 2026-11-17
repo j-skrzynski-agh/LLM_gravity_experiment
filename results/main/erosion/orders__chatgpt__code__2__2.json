@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T01:07:42+00:00",
+ "app": "orders",
+ "app_hash": "1e42c11531a4",
+ "model": "chatgpt",
+ "variant": "code",
+ "rep": 2,
+ "step": 2,
+ "change": "Add an optional keyword parameter `note: str = \"\"` at the end of the parameters of place_order, and include the note in the confirmation text.",
+ "start_file": "orders__chatgpt__FULL__2.json",
+ "passed": {
+  "EH1": true,
+  "EH2": true,
+  "EH3": true,
+  "EH4": true,
+  "EH5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nimport logging\nimport uuid\n\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        self.stock = stock\n\n    def place_order(\n        self, user: str, item: str, quantity: int, is_admin: bool = False\n    ) -> tuple[int, str]:\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n            return 200, f\"Order confirmed. Reservation ID: {reservation_id}\"\n        except Exception as exc:\n            reference = uuid.uuid4().hex\n            logger.exception(\"Unexpected order error; reference: %s\", reference)\n\n            message = f\"An unexpected error occurred. Reference: {reference}\"\n            if is_admin:\n                message += f\" ({type(exc).__name__}: {exc})\"\n            return 500, message\n\n    def cancel_order(self, reservation_id: int) -> tuple[int, str]:\n        self.stock.release(reservation_id)\n        return 200, f\"Order cancelled. Reservation ID: {reservation_id}\"\n```\n\n## Change request\nAdd an optional keyword parameter `note: str = \"\"` at the end of the parameters of place_order, and include the note in the confirmation text.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nimport logging\nimport uuid\n\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        self.stock = stock\n\n    def place_order(\n        self,\n        user: str,\n        item: str,\n        quantity: int,\n        is_admin: bool = False,\n        note: str = \"\",\n    ) -> tuple[int, str]:\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n            message = f\"Order confirmed. Reservation ID: {reservation_id}\"\n            if note:\n                message += f\". Note: {note}\"\n            return 200, message\n        except Exception as exc:\n            reference = uuid.uuid4().hex\n            logger.exception(\"Unexpected order error; reference: %s\", reference)\n\n            message = f\"An unexpected error occurred. Reference: {reference}\"\n            if is_admin:\n                message += f\" ({type(exc).__name__}: {exc})\"\n            return 500, message\n\n    def cancel_order(self, reservation_id: int) -> tuple[int, str]:\n        self.stock.release(reservation_id)\n        return 200, f\"Order cancelled. Reservation ID: {reservation_id}\"\n```",
+ "code": "import logging\nimport uuid\n\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        self.stock = stock\n\n    def place_order(\n        self,\n        user: str,\n        item: str,\n        quantity: int,\n        is_admin: bool = False,\n        note: str = \"\",\n    ) -> tuple[int, str]:\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n            message = f\"Order confirmed. Reservation ID: {reservation_id}\"\n            if note:\n                message += f\". Note: {note}\"\n            return 200, message\n        except Exception as exc:\n            reference = uuid.uuid4().hex\n            logger.exception(\"Unexpected order error; reference: %s\", reference)\n\n            message = f\"An unexpected error occurred. Reference: {reference}\"\n            if is_admin:\n                message += f\" ({type(exc).__name__}: {exc})\"\n            return 500, message\n\n    def cancel_order(self, reservation_id: int) -> tuple[int, str]:\n        self.stock.release(reservation_id)\n        return 200, f\"Order cancelled. Reservation ID: {reservation_id}\"\n",
+ "input_tokens": 293,
+ "output_tokens": 350,
+ "cost_usd": 0.002043,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.23,
+ "raw_api_response": {
+  "id": "chatcmpl-Eja3HFbLsT3WbrSu6D3V2k0RUCDos",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport logging\nimport uuid\n\n\nlogger = logging.getLogger(__name__)\n\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        self.stock = stock\n\n    def place_order(\n        self,\n        user: str,\n        item: str,\n        quantity: int,\n        is_admin: bool = False,\n        note: str = \"\",\n    ) -> tuple[int, str]:\n        try:\n            reservation_id = self.stock.reserve(item, quantity)\n            message = f\"Order confirmed. Reservation ID: {reservation_id}\"\n            if note:\n                message += f\". Note: {note}\"\n            return 200, message\n        except Exception as exc:\n            reference = uuid.uuid4().hex\n            logger.exception(\"Unexpected order error; reference: %s\", reference)\n\n            message = f\"An unexpected error occurred. Reference: {reference}\"\n            if is_admin:\n                message += f\" ({type(exc).__name__}: {exc})\"\n            return 500, message\n\n    def cancel_order(self, reservation_id: int) -> tuple[int, str]:\n        self.stock.release(reservation_id)\n        return 200, f\"Order cancelled. Reservation ID: {reservation_id}\"\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532051,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 350,
+   "prompt_tokens": 293,
+   "total_tokens": 643,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 91,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

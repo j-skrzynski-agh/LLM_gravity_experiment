@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:33:58+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 0,
+ "step": 3,
+ "change": "Add a method `tickets_of(self, customer: str) -> list[int]` that returns the ids of the customer's tickets.",
+ "start_file": "helpdesk__deepseek__FULL__0.json",
+ "passed": {
+  "HD1": true,
+  "HD2": true,
+  "HD3": true,
+  "HD4": true,
+  "HD5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom collections import defaultdict, deque\nfrom typing import Optional\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers = {}  # name -> vip status\n        self.ticket_counter = 0\n        self.tickets = {}  # ticket_id -> ticket info dict\n        # Queues: vip -> priority -> deque of ticket_ids\n        self.queues = {\n            True: {p: deque() for p in self.PRIORITIES},\n            False: {p: deque() for p in self.PRIORITIES},\n        }\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\", description: str = \"\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n        if customer not in self.customers:\n            raise ValueError(f\"Unknown customer: {customer}\")\n\n        self.ticket_counter += 1\n        ticket_id = self.ticket_counter\n        is_vip = self.customers[customer]\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": is_vip,\n            \"status\": \"open\",\n            \"description\": description,\n        }\n        self.queues[is_vip][priority].append(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        for vip in (True, False):\n            for priority in reversed(self.PRIORITIES):\n                queue = self.queues[vip][priority]\n                if queue:\n                    ticket_id = queue.popleft()\n                    self.tickets[ticket_id][\"status\"] = \"in_progress\"\n                    return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        self.tickets[ticket_id][\"status\"] = \"closed\"\n        self.closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        if ticket_id in self.closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket id: {ticket_id}\")\n        ticket = self.tickets[ticket_id]\n        if ticket[\"status\"] == \"open\":\n            return\n        ticket[\"status\"] = \"open\"\n        self.queues[ticket[\"vip\"]][ticket[\"priority\"]].append(ticket_id)\n\n    def queue_length(self) -> int:\n        return sum(\n            len(self.queues[vip][priority])\n            for vip in (True, False)\n            for priority in self.PRIORITIES\n        )\n\n    def ticket(self, ticket_id: int) -> dict:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        return self.tickets[ticket_id]\n```\n\n## Change request\nAdd a method `tickets_of(self, customer: str) -> list[int]` that returns the ids of the customer's tickets.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom collections import defaultdict, deque\nfrom typing import Optional\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers = {}  # name -> vip status\n        self.ticket_counter = 0\n        self.tickets = {}  # ticket_id -> ticket info dict\n        # Queues: vip -> priority -> deque of ticket_ids\n        self.queues = {\n            True: {p: deque() for p in self.PRIORITIES},\n            False: {p: deque() for p in self.PRIORITIES},\n        }\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\", description: str = \"\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n        if customer not in self.customers:\n            raise ValueError(f\"Unknown customer: {customer}\")\n\n        self.ticket_counter += 1\n        ticket_id = self.ticket_counter\n        is_vip = self.customers[customer]\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": is_vip,\n            \"status\": \"open\",\n            \"description\": description,\n        }\n        self.queues[is_vip][priority].append(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        for vip in (True, False):\n            for priority in reversed(self.PRIORITIES):\n                queue = self.queues[vip][priority]\n                if queue:\n                    ticket_id = queue.popleft()\n                    self.tickets[ticket_id][\"status\"] = \"in_progress\"\n                    return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        self.tickets[ticket_id][\"status\"] = \"closed\"\n        self.closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        if ticket_id in self.closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket id: {ticket_id}\")\n        ticket = self.tickets[ticket_id]\n        if ticket[\"status\"] == \"open\":\n            return\n        ticket[\"status\"] = \"open\"\n        self.queues[ticket[\"vip\"]][ticket[\"priority\"]].append(ticket_id)\n\n    def queue_length(self) -> int:\n        return sum(\n            len(self.queues[vip][priority])\n            for vip in (True, False)\n            for priority in self.PRIORITIES\n        )\n\n    def ticket(self, ticket_id: int) -> dict:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        return self.tickets[ticket_id]\n\n    def tickets_of(self, customer: str) -> list[int]:\n        return [\n            ticket_id\n            for ticket_id, info in self.tickets.items()\n            if info[\"customer\"] == customer\n        ]\n```",
+ "code": "from collections import defaultdict, deque\nfrom typing import Optional\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers = {}  # name -> vip status\n        self.ticket_counter = 0\n        self.tickets = {}  # ticket_id -> ticket info dict\n        # Queues: vip -> priority -> deque of ticket_ids\n        self.queues = {\n            True: {p: deque() for p in self.PRIORITIES},\n            False: {p: deque() for p in self.PRIORITIES},\n        }\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\", description: str = \"\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n        if customer not in self.customers:\n            raise ValueError(f\"Unknown customer: {customer}\")\n\n        self.ticket_counter += 1\n        ticket_id = self.ticket_counter\n        is_vip = self.customers[customer]\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": is_vip,\n            \"status\": \"open\",\n            \"description\": description,\n        }\n        self.queues[is_vip][priority].append(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        for vip in (True, False):\n            for priority in reversed(self.PRIORITIES):\n                queue = self.queues[vip][priority]\n                if queue:\n                    ticket_id = queue.popleft()\n                    self.tickets[ticket_id][\"status\"] = \"in_progress\"\n                    return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        self.tickets[ticket_id][\"status\"] = \"closed\"\n        self.closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        if ticket_id in self.closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket id: {ticket_id}\")\n        ticket = self.tickets[ticket_id]\n        if ticket[\"status\"] == \"open\":\n            return\n        ticket[\"status\"] = \"open\"\n        self.queues[ticket[\"vip\"]][ticket[\"priority\"]].append(ticket_id)\n\n    def queue_length(self) -> int:\n        return sum(\n            len(self.queues[vip][priority])\n            for vip in (True, False)\n            for priority in self.PRIORITIES\n        )\n\n    def ticket(self, ticket_id: int) -> dict:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        return self.tickets[ticket_id]\n\n    def tickets_of(self, customer: str) -> list[int]:\n        return [\n            ticket_id\n            for ticket_id, info in self.tickets.items()\n            if info[\"customer\"] == customer\n        ]\n",
+ "input_tokens": 787,
+ "output_tokens": 765,
+ "cost_usd": 0.0011541,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 3.18,
+ "raw_api_response": {
+  "id": "6861d87c-4d6b-49b9-b262-186bc7564a70",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom collections import defaultdict, deque\nfrom typing import Optional\n\n\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        self.customers = {}  # name -> vip status\n        self.ticket_counter = 0\n        self.tickets = {}  # ticket_id -> ticket info dict\n        # Queues: vip -> priority -> deque of ticket_ids\n        self.queues = {\n            True: {p: deque() for p in self.PRIORITIES},\n            False: {p: deque() for p in self.PRIORITIES},\n        }\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\", description: str = \"\") -> int:\n        if not title:\n            raise ValueError(\"Ticket title cannot be empty\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(f\"Invalid priority: {priority}\")\n        if customer not in self.customers:\n            raise ValueError(f\"Unknown customer: {customer}\")\n\n        self.ticket_counter += 1\n        ticket_id = self.ticket_counter\n        is_vip = self.customers[customer]\n        self.tickets[ticket_id] = {\n            \"customer\": customer,\n            \"title\": title,\n            \"priority\": priority,\n            \"vip\": is_vip,\n            \"status\": \"open\",\n            \"description\": description,\n        }\n        self.queues[is_vip][priority].append(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        for vip in (True, False):\n            for priority in reversed(self.PRIORITIES):\n                queue = self.queues[vip][priority]\n                if queue:\n                    ticket_id = queue.popleft()\n                    self.tickets[ticket_id][\"status\"] = \"in_progress\"\n                    return ticket_id\n        return None\n\n    def close(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        self.tickets[ticket_id][\"status\"] = \"closed\"\n        self.closed_tickets.add(ticket_id)\n\n    def reopen(self, ticket_id: int) -> None:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        if ticket_id in self.closed_tickets:\n            raise ValueError(f\"Cannot reopen closed ticket id: {ticket_id}\")\n        ticket = self.tickets[ticket_id]\n        if ticket[\"status\"] == \"open\":\n            return\n        ticket[\"status\"] = \"open\"\n        self.queues[ticket[\"vip\"]][ticket[\"priority\"]].append(ticket_id)\n\n    def queue_length(self) -> int:\n        return sum(\n            len(self.queues[vip][priority])\n            for vip in (True, False)\n            for priority in self.PRIORITIES\n        )\n\n    def ticket(self, ticket_id: int) -> dict:\n        if ticket_id not in self.tickets:\n            raise ValueError(f\"Unknown ticket id: {ticket_id}\")\n        return self.tickets[ticket_id]\n\n    def tickets_of(self, customer: str) -> list[int]:\n        return [\n            ticket_id\n            for ticket_id, info in self.tickets.items()\n            if info[\"customer\"] == customer\n        ]\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794526428,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 765,
+   "prompt_tokens": 787,
+   "total_tokens": 1552,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 787
+  }
+ }
+}

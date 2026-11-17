@@ -1,0 +1,37 @@
+{
+ "experiment": "mock",
+ "run_id": "20261112-011350-6c93",
+ "timestamp": "2026-11-12T01:23:29+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "mock",
+ "condition": "ABL-UQ1",
+ "rep": 0,
+ "requirement_order": [
+  "UQ5",
+  "UQ3",
+  "UQ2",
+  "UQ4"
+ ],
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": true,
+  "UQ5": true
+ },
+ "crashed": false,
+ "model_id": "reference",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module that enforces a monthly upload quota for a file-sharing service.\n\n## API (implement exactly these names and signatures)\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None: ...\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n\n    def delete(self, name: str, month: str) -> None: ...\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n```\n\n## Requirements\n1. Uploading again a file with the same name in the same month does not count towards the limit a second time.\n2. The limit is expressed in MiB, where 1 MiB is 1024 * 1024 bytes.\n3. An upload that would exceed the monthly limit raises ValueError, and the file is not counted.\n4. Deleting a file does not give back quota in the current month.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\n\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania UQ1\u2013UQ5.\"\"\"\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.limit = monthly_limit_mib * 1024 * 1024\n        self._used = {}           # month -> bytes\n        self._counted = {}        # month -> set of names already counted\n        self._files = {}\n\n    def upload(self, name, size_bytes, month):\n        if size_bytes <= 0:\n            raise ValueError(\"empty file\")\n        counted = self._counted.setdefault(month, set())\n        if name not in counted:\n            if self._used.get(month, 0) + size_bytes > self.limit:\n                raise ValueError(\"monthly limit exceeded\")\n            self._used[month] = self._used.get(month, 0) + size_bytes\n            counted.add(name)\n        self._files[name] = size_bytes\n\n    def delete(self, name, month):\n        self._files.pop(name, None)\n\n    def used_bytes(self, month):\n        return self._used.get(month, 0)\n```",
+ "code": "\"\"\"Implementacja wzorcowa: spe\u0142nia wszystkie wymagania UQ1\u2013UQ5.\"\"\"\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.limit = monthly_limit_mib * 1024 * 1024\n        self._used = {}           # month -> bytes\n        self._counted = {}        # month -> set of names already counted\n        self._files = {}\n\n    def upload(self, name, size_bytes, month):\n        if size_bytes <= 0:\n            raise ValueError(\"empty file\")\n        counted = self._counted.setdefault(month, set())\n        if name not in counted:\n            if self._used.get(month, 0) + size_bytes > self.limit:\n                raise ValueError(\"monthly limit exceeded\")\n            self._used[month] = self._used.get(month, 0) + size_bytes\n            counted.add(name)\n        self._files[name] = size_bytes\n\n    def delete(self, name, month):\n        self._files.pop(name, None)\n\n    def used_bytes(self, month):\n        return self._used.get(month, 0)\n",
+ "input_tokens": 253,
+ "output_tokens": 241,
+ "cost_usd": 0.0,
+ "stop_reason": "stop",
+ "truncated": false,
+ "seconds": 0.0,
+ "raw_api_response": {
+  "mock": true
+ }
+}

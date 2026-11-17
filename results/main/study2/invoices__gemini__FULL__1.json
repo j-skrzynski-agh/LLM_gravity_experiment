@@ -1,0 +1,126 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:02:33+00:00",
+ "task": "invoices",
+ "task_hash": "2f9ae38c8c1c",
+ "model": "gemini",
+ "condition": "FULL",
+ "rep": 1,
+ "requirement_order": [
+  "IN3",
+  "IN2",
+  "IN1"
+ ],
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Write code that creates invoices for my company in Poland, with consecutive invoice numbers.\n\nRequirements:\n- An issued invoice cannot be edited or deleted; changes are made with a correcting invoice.\n- Two invoices created at the same time cannot get the same number.\n- Invoice numbers are assigned in sequence and never repeat within a series.",
+ "response": "To comply with Polish accounting regulations (Ustawa o VAT) and your concurrency requirements, we need a robust approach. \n\nKey technical requirements addressed below:\n1. **Concurrency & Monotonicity:** Standard database autoincrement can skip numbers if a transaction rolls back (which is illegal for Polish invoices). We use a dedicated `invoice_counters` table with an atomic `SELECT ... FOR UPDATE` lock to guarantee consecutive, gapless numbers.\n2. **Immutability:** Implemented via database triggers/rules that forbid `UPDATE` and `DELETE` on issued invoices.\n3. **Correcting Invoices (*Faktura Koryguj\u0105ca*):** Handled as a first-class citizen linked back to the original invoice.\n\nHere is a production-ready solution using **Node.js (TypeScript)**, **PostgreSQL**, and **Prisma ORM** (or raw SQL).\n\n---\n\n### 1. Database Schema & Immutability Rules (PostgreSQL)\n\nRun this SQL migration in your database. The trigger enforces immutability at the engine level.\n\n```sql\n-- 1. Counter table for gapless sequence per series/period\nCREATE TABLE invoice_counters (\n    series VARCHAR(50) NOT NULL,\n    year INT NOT NULL,\n    month INT NOT NULL,\n    last_number INT NOT NULL DEFAULT 0,\n    PRIMARY KEY (series, year, month)\n);\n\n-- 2. Invoices table\nCREATE TYPE invoice_type AS ENUM ('REGULAR', 'CORRECTION');\n\nCREATE TABLE invoices (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    invoice_number VARCHAR(100) NOT NULL UNIQUE,\n    series VARCHAR(50) NOT NULL,\n    sequence_number INT NOT NULL,\n    year INT NOT NULL,\n    month INT NOT NULL,\n    issue_date DATE NOT NULL DEFAULT CURRENT_DATE,\n    type invoice_type NOT NULL DEFAULT 'REGULAR',\n    \n    -- Correcting Invoice Relations\n    corrected_invoice_id UUID REFERENCES invoices(id),\n    correction_reason TEXT,\n    \n    -- Polish Tax Requirements\n    seller_nip VARCHAR(10) NOT NULL,\n    buyer_nip VARCHAR(10),\n    buyer_name TEXT NOT NULL,\n    net_amount NUMERIC(12, 2) NOT NULL,\n    vat_amount NUMERIC(12, 2) NOT NULL,\n    gross_amount NUMERIC(12, 2) NOT NULL,\n    \n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    \n    -- Ensure uniqueness in sequence per period and series\n    CONSTRAINT unique_series_sequence UNIQUE (series, year, month, sequence_number)\n);\n\n-- 3. IMMUTABILITY ENFORCEMENT: Disallow UPDATE and DELETE\nCREATE OR REPLACE FUNCTION prevent_invoice_modification()\nRETURNS TRIGGER AS $$\nBEGIN\n    RAISE EXCEPTION 'Polish Tax Law Violation: Invoices are immutable and cannot be updated or deleted. Issue a correcting invoice instead.';\nEND;\n$$ LANGUAGE plpgsql;\n\nCREATE TRIGGER trg_protect_invoices\nBEFORE UPDATE OR DELETE ON invoices\nFOR EACH ROW EXECUTE FUNCTION prevent_invoice_modification();\n```\n\n---\n\n### 2. Application Logic (TypeScript / Node.js)\n\nUsing `pg` (node-postgres) to demonstrate atomic transaction handling.\n\n```typescript\nimport { Pool, PoolClient } from 'pg';\n\nconst pool = new Pool({ connectionString: process.env.DATABASE_URL });\n\ninterface InvoiceItem {\n  buyerName: string;\n  buyerNip?: string;\n  netAmount: number;\n  vatRate: number; // e.g., 0.23 for 23%\n}\n\ninterface CorrectionPayload {\n  originalInvoiceId: string;\n  reason: string;\n  netDelta: number; // e.g. -100.00 if price decreased\n  vatDelta: number;\n}\n\nexport class InvoiceService {\n  /**\n   * Generates next consecutive number atomically within a transaction.\n   * Format: FV/{SEQUENCE}/{MONTH}/{YEAR} (e.g., FV/1/05/2024)\n   */\n  private async getNextInvoiceNumber(\n    client: PoolClient,\n    series: string,\n    year: number,\n    month: number\n  ): Promise<{ sequenceNumber: number; formattedNumber: string }> {\n    // 1. Lock the counter row for this series/month/year.\n    // If it doesn't exist, insert it atomically.\n    await client.query(\n      `INSERT INTO invoice_counters (series, year, month, last_number)\n       VALUES ($1, $2, $3, 0)\n       ON CONFLICT (series, year, month) DO NOTHING`,\n      [series, year, month]\n    );\n\n    // 2. Select with FOR UPDATE to prevent race conditions from concurrent calls\n    const res = await client.query(\n      `SELECT last_number \n       FROM invoice_counters \n       WHERE series = $1 AND year = $2 AND month = $3 \n       FOR UPDATE`,\n      [series, year, month]\n    );\n\n    const nextSeq = res.rows[0].last_number + 1;\n\n    // 3. Increment counter\n    await client.query(\n      `UPDATE invoice_counters \n       SET last_number = $1 \n       WHERE series = $2 AND year = $3 AND month = $4`,\n      [nextSeq, series, year, month]\n    );\n\n    const formattedNumber = `${series}/${nextSeq}/${String(month).padStart(2, '0')}/${year}`;\n    return { sequenceNumber: nextSeq, formattedNumber };\n  }\n\n  /**\n   * Issues a standard VAT Invoice\n   */\n  async issueInvoice(data: InvoiceItem, series = 'FV') {\n    const client = await pool.connect();\n\n    try {\n      await client.query('BEGIN'); // Start Transaction\n\n      const now = new Date();\n      const year = now.getFullYear();\n      const month = now.getMonth() + 1;\n\n      // Atomic sequential generation\n      const { sequenceNumber, formattedNumber } = await this.getNextInvoiceNumber(\n        client,\n        series,\n        year,\n        month\n      );\n\n      const vatAmount = Number((data.netAmount * data.vatRate).toFixed(2));\n      const grossAmount = data.netAmount + vatAmount;\n\n      const insertQuery = `\n        INSERT INTO invoices (\n          invoice_number, series, sequence_number, year, month,\n          seller_nip, buyer_nip, buyer_name, net_amount, vat_amount, gross_amount, type\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'REGULAR')\n        RETURNING *;\n      `;\n\n      const result = await client.query(insertQuery, [\n        formattedNumber,\n        series,\n        sequenceNumber,\n        year,\n        month,\n        '1234567890', // Your Company's NIP\n        data.buyerNip,\n        data.buyerName,\n        data.netAmount,\n        vatAmount,\n        grossAmount,\n      ]);\n\n      await client.query('COMMIT'); // Commit Transaction\n      return result.rows[0];\n    } catch (error) {\n      await client.query('ROLLBACK');\n      throw error;\n    } finally {\n      client.release();\n    }\n  }\n\n  /**\n   * Issues a Correcting Invoice (Faktura Koryguj\u0105ca)\n   * Instead of modifying an old invoice, creates a new one referencing it.\n   */\n  async issueCorrection(data: CorrectionPayload, series = 'FK') {\n    const client = await pool.connect();\n\n    try {\n      await client.query('BEGIN');\n\n      // Fetch original\n      const origRes = await client.query(\n        'SELECT * FROM invoices WHERE id = $1',\n        [data.originalInvoiceId]\n      );\n      if (origRes.rows.length === 0) {\n        throw new Error('Original invoice not found.');\n      }\n      const original = origRes.rows[0];\n\n      const now = new Date();\n      const year = now.getFullYear();\n      const month = now.getMonth() + 1;\n\n      const { sequenceNumber, formattedNumber } = await this.getNextInvoiceNumber(\n        client,\n        series,\n        year,\n        month\n      );\n\n      const grossDelta = data.netDelta + data.vatDelta;\n\n      const insertQuery = `\n        INSERT INTO invoices (\n          invoice_number, series, sequence_number, year, month,\n          seller_nip, buyer_nip, buyer_name, net_amount, vat_amount, gross_amount,\n          type, corrected_invoice_id, correction_reason\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'CORRECTION', $12, $13)\n        RETURNING *;\n      `;\n\n      const result = await client.query(insertQuery, [\n        formattedNumber,\n        series,\n        sequenceNumber,\n        year,\n        month,\n        original.seller_nip,\n        original.buyer_nip,\n        original.buyer_name,\n        data.netDelta,\n        data.vatDelta,\n        grossDelta,\n        original.id,\n        data.reason,\n      ]);\n\n      await client.query('COMMIT');\n      return result.rows[0];\n    } catch (error) {\n      await client.query('ROLLBACK');\n      throw error;\n    } finally {\n      client.release();\n    }\n  }\n}\n```\n\n---\n\n### How this satisfies your requirements:\n\n1. **Race Condition Safety (`SELECT ... FOR UPDATE`):** When two invoices are generated at the exact same millisecond, the database halts the second thread until the first commits its sequential number. Collisions are physically impossible.\n2. **Gapless Numbering:** If a transaction fails mid-flight, the counter is rolled back along with the invoice, ensuring no missed numbers.\n3. **Database-Level Immutability:** Any direct `UPDATE` or `DELETE` attempt executed via application code, an admin dashboard, or raw SQL will immediately throw an error via the PostgreSQL trigger: `Polish Tax Law Violation: Invoices are immutable...`.\n4. **Audit Trail (Correcting Invoices):** Changes must be made via `issueCorrection()`, which generates a distinct series (`FK/...`), logs the rationale, records net/VAT deltas, and maintains a foreign key back to the base invoice.",
+ "input_tokens": 69,
+ "output_tokens": 2418,
+ "cost_usd": 0.00911925,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 17.33,
+ "raw_api_response": {
+  "id": "lWH2asTtL_iU3boPz_WAyA4",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "To comply with Polish accounting regulations (Ustawa o VAT) and your concurrency requirements, we need a robust approach. \n\nKey technical requirements addressed below:\n1. **Concurrency & Monotonicity:** Standard database autoincrement can skip numbers if a transaction rolls back (which is illegal for Polish invoices). We use a dedicated `invoice_counters` table with an atomic `SELECT ... FOR UPDATE` lock to guarantee consecutive, gapless numbers.\n2. **Immutability:** Implemented via database triggers/rules that forbid `UPDATE` and `DELETE` on issued invoices.\n3. **Correcting Invoices (*Faktura Koryguj\u0105ca*):** Handled as a first-class citizen linked back to the original invoice.\n\nHere is a production-ready solution using **Node.js (TypeScript)**, **PostgreSQL**, and **Prisma ORM** (or raw SQL).\n\n---\n\n### 1. Database Schema & Immutability Rules (PostgreSQL)\n\nRun this SQL migration in your database. The trigger enforces immutability at the engine level.\n\n```sql\n-- 1. Counter table for gapless sequence per series/period\nCREATE TABLE invoice_counters (\n    series VARCHAR(50) NOT NULL,\n    year INT NOT NULL,\n    month INT NOT NULL,\n    last_number INT NOT NULL DEFAULT 0,\n    PRIMARY KEY (series, year, month)\n);\n\n-- 2. Invoices table\nCREATE TYPE invoice_type AS ENUM ('REGULAR', 'CORRECTION');\n\nCREATE TABLE invoices (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    invoice_number VARCHAR(100) NOT NULL UNIQUE,\n    series VARCHAR(50) NOT NULL,\n    sequence_number INT NOT NULL,\n    year INT NOT NULL,\n    month INT NOT NULL,\n    issue_date DATE NOT NULL DEFAULT CURRENT_DATE,\n    type invoice_type NOT NULL DEFAULT 'REGULAR',\n    \n    -- Correcting Invoice Relations\n    corrected_invoice_id UUID REFERENCES invoices(id),\n    correction_reason TEXT,\n    \n    -- Polish Tax Requirements\n    seller_nip VARCHAR(10) NOT NULL,\n    buyer_nip VARCHAR(10),\n    buyer_name TEXT NOT NULL,\n    net_amount NUMERIC(12, 2) NOT NULL,\n    vat_amount NUMERIC(12, 2) NOT NULL,\n    gross_amount NUMERIC(12, 2) NOT NULL,\n    \n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    \n    -- Ensure uniqueness in sequence per period and series\n    CONSTRAINT unique_series_sequence UNIQUE (series, year, month, sequence_number)\n);\n\n-- 3. IMMUTABILITY ENFORCEMENT: Disallow UPDATE and DELETE\nCREATE OR REPLACE FUNCTION prevent_invoice_modification()\nRETURNS TRIGGER AS $$\nBEGIN\n    RAISE EXCEPTION 'Polish Tax Law Violation: Invoices are immutable and cannot be updated or deleted. Issue a correcting invoice instead.';\nEND;\n$$ LANGUAGE plpgsql;\n\nCREATE TRIGGER trg_protect_invoices\nBEFORE UPDATE OR DELETE ON invoices\nFOR EACH ROW EXECUTE FUNCTION prevent_invoice_modification();\n```\n\n---\n\n### 2. Application Logic (TypeScript / Node.js)\n\nUsing `pg` (node-postgres) to demonstrate atomic transaction handling.\n\n```typescript\nimport { Pool, PoolClient } from 'pg';\n\nconst pool = new Pool({ connectionString: process.env.DATABASE_URL });\n\ninterface InvoiceItem {\n  buyerName: string;\n  buyerNip?: string;\n  netAmount: number;\n  vatRate: number; // e.g., 0.23 for 23%\n}\n\ninterface CorrectionPayload {\n  originalInvoiceId: string;\n  reason: string;\n  netDelta: number; // e.g. -100.00 if price decreased\n  vatDelta: number;\n}\n\nexport class InvoiceService {\n  /**\n   * Generates next consecutive number atomically within a transaction.\n   * Format: FV/{SEQUENCE}/{MONTH}/{YEAR} (e.g., FV/1/05/2024)\n   */\n  private async getNextInvoiceNumber(\n    client: PoolClient,\n    series: string,\n    year: number,\n    month: number\n  ): Promise<{ sequenceNumber: number; formattedNumber: string }> {\n    // 1. Lock the counter row for this series/month/year.\n    // If it doesn't exist, insert it atomically.\n    await client.query(\n      `INSERT INTO invoice_counters (series, year, month, last_number)\n       VALUES ($1, $2, $3, 0)\n       ON CONFLICT (series, year, month) DO NOTHING`,\n      [series, year, month]\n    );\n\n    // 2. Select with FOR UPDATE to prevent race conditions from concurrent calls\n    const res = await client.query(\n      `SELECT last_number \n       FROM invoice_counters \n       WHERE series = $1 AND year = $2 AND month = $3 \n       FOR UPDATE`,\n      [series, year, month]\n    );\n\n    const nextSeq = res.rows[0].last_number + 1;\n\n    // 3. Increment counter\n    await client.query(\n      `UPDATE invoice_counters \n       SET last_number = $1 \n       WHERE series = $2 AND year = $3 AND month = $4`,\n      [nextSeq, series, year, month]\n    );\n\n    const formattedNumber = `${series}/${nextSeq}/${String(month).padStart(2, '0')}/${year}`;\n    return { sequenceNumber: nextSeq, formattedNumber };\n  }\n\n  /**\n   * Issues a standard VAT Invoice\n   */\n  async issueInvoice(data: InvoiceItem, series = 'FV') {\n    const client = await pool.connect();\n\n    try {\n      await client.query('BEGIN'); // Start Transaction\n\n      const now = new Date();\n      const year = now.getFullYear();\n      const month = now.getMonth() + 1;\n\n      // Atomic sequential generation\n      const { sequenceNumber, formattedNumber } = await this.getNextInvoiceNumber(\n        client,\n        series,\n        year,\n        month\n      );\n\n      const vatAmount = Number((data.netAmount * data.vatRate).toFixed(2));\n      const grossAmount = data.netAmount + vatAmount;\n\n      const insertQuery = `\n        INSERT INTO invoices (\n          invoice_number, series, sequence_number, year, month,\n          seller_nip, buyer_nip, buyer_name, net_amount, vat_amount, gross_amount, type\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'REGULAR')\n        RETURNING *;\n      `;\n\n      const result = await client.query(insertQuery, [\n        formattedNumber,\n        series,\n        sequenceNumber,\n        year,\n        month,\n        '1234567890', // Your Company's NIP\n        data.buyerNip,\n        data.buyerName,\n        data.netAmount,\n        vatAmount,\n        grossAmount,\n      ]);\n\n      await client.query('COMMIT'); // Commit Transaction\n      return result.rows[0];\n    } catch (error) {\n      await client.query('ROLLBACK');\n      throw error;\n    } finally {\n      client.release();\n    }\n  }\n\n  /**\n   * Issues a Correcting Invoice (Faktura Koryguj\u0105ca)\n   * Instead of modifying an old invoice, creates a new one referencing it.\n   */\n  async issueCorrection(data: CorrectionPayload, series = 'FK') {\n    const client = await pool.connect();\n\n    try {\n      await client.query('BEGIN');\n\n      // Fetch original\n      const origRes = await client.query(\n        'SELECT * FROM invoices WHERE id = $1',\n        [data.originalInvoiceId]\n      );\n      if (origRes.rows.length === 0) {\n        throw new Error('Original invoice not found.');\n      }\n      const original = origRes.rows[0];\n\n      const now = new Date();\n      const year = now.getFullYear();\n      const month = now.getMonth() + 1;\n\n      const { sequenceNumber, formattedNumber } = await this.getNextInvoiceNumber(\n        client,\n        series,\n        year,\n        month\n      );\n\n      const grossDelta = data.netDelta + data.vatDelta;\n\n      const insertQuery = `\n        INSERT INTO invoices (\n          invoice_number, series, sequence_number, year, month,\n          seller_nip, buyer_nip, buyer_name, net_amount, vat_amount, gross_amount,\n          type, corrected_invoice_id, correction_reason\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'CORRECTION', $12, $13)\n        RETURNING *;\n      `;\n\n      const result = await client.query(insertQuery, [\n        formattedNumber,\n        series,\n        sequenceNumber,\n        year,\n        month,\n        original.seller_nip,\n        original.buyer_nip,\n        original.buyer_name,\n        data.netDelta,\n        data.vatDelta,\n        grossDelta,\n        original.id,\n        data.reason,\n      ]);\n\n      await client.query('COMMIT');\n      return result.rows[0];\n    } catch (error) {\n      await client.query('ROLLBACK');\n      throw error;\n    } finally {\n      client.release();\n    }\n  }\n}\n```\n\n---\n\n### How this satisfies your requirements:\n\n1. **Race Condition Safety (`SELECT ... FOR UPDATE`):** When two invoices are generated at the exact same millisecond, the database halts the second thread until the first commits its sequential number. Collisions are physically impossible.\n2. **Gapless Numbering:** If a transaction fails mid-flight, the counter is rolled back along with the invoice, ensuring no missed numbers.\n3. **Database-Level Immutability:** Any direct `UPDATE` or `DELETE` attempt executed via application code, an admin dashboard, or raw SQL will immediately throw an error via the PostgreSQL trigger: `Polish Tax Law Violation: Invoices are immutable...`.\n4. **Audit Trail (Correcting Invoices):** Changes must be made via `issueCorrection()`, which generates a distinct series (`FK/...`), logs the rationale, records net/VAT deltas, and maintains a foreign key back to the base invoice.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TvhDZHUOgJepuKrlnCLLVmxl3V1Es5pNf4ynK2Dx5QzwooQES/odJDx/wtug7wPvBybVxCBhcfwhkLR/nb3PkEFDbntYXGShKQfY1XXujQ8Sls6lzPmlUUYq2Z5fUevwioeQ="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794531750,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 2418,
+   "prompt_tokens": 69,
+   "total_tokens": 2487,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "IN1": {
+     "met": false,
+     "reason": "The sequence resets each month and year within the same series, so it is not consecutive across the series."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "Transactional counter locking and a unique invoice-number constraint prevent concurrent invoices from receiving the same number."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "A database trigger blocks updates and deletes, and the code creates correcting invoices linked to the originals."
+    }
+   },
+   "has_code": true
+  },
+  "qwen": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "The code uses a dedicated invoice_counters table with atomic SELECT ... FOR UPDATE and UPDATE to increment and assign consecutive sequence numbers per series/year/month, ensuring no repeats within a series."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "The code uses PostgreSQL's SELECT ... FOR UPDATE within a transaction to serialize concurrent access to the counter row, preventing two simultaneous requests from receiving the same number."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "The code enforces immutability via a PostgreSQL trigger that raises an exception on any UPDATE or DELETE attempt on the invoices table, and provides an issueCorrection method to create a linked correcting invoice instead."
+    }
+   },
+   "has_code": true
+  },
+  "claude": {
+   "reqs": {
+    "IN1": {
+     "met": true,
+     "reason": "Numbers come from a per-series/year/month counter incremented in the same transaction as the invoice insert, with a unique constraint on invoice_number and (series, year, month, sequence_number), so numbers are sequential and never repeat."
+    },
+    "IN2": {
+     "met": true,
+     "reason": "The counter row is locked with SELECT ... FOR UPDATE inside a transaction (after an INSERT ON CONFLICT DO NOTHING), so concurrent requests are serialized and cannot receive the same number."
+    },
+    "IN3": {
+     "met": true,
+     "reason": "A BEFORE UPDATE OR DELETE trigger raises an exception on invoices, and issueCorrection creates a new linked correction invoice instead of modifying the original."
+    }
+   },
+   "has_code": true
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":true,\"IN1\":{\"met\":false,\"reason\":\"The sequence resets each month and year within the same series, so it is not consecutive across the series.\"},\"IN2\":{\"met\":true,\"reason\":\"Transactional counter locking and a unique invoice-number constraint prevent concurrent invoices from receiving the same number.\"},\"IN3\":{\"met\":true,\"reason\":\"A database trigger blocks updates and deletes, and the code creates correcting invoices linked to the originals.\"}}",
+  "qwen": "{\n  \"_code\": true,\n  \"IN1\": {\"met\": true, \"reason\": \"The code uses a dedicated invoice_counters table with atomic SELECT ... FOR UPDATE and UPDATE to increment and assign consecutive sequence numbers per series/year/month, ensuring no repeats within a series.\"},\n  \"IN2\": {\"met\": true, \"reason\": \"The code uses PostgreSQL's SELECT ... FOR UPDATE within a transaction to serialize concurrent access to the counter row, preventing two simultaneous requests from receiving the same number.\"},\n  \"IN3\": {\"met\": true, \"reason\": \"The code enforces immutability via a PostgreSQL trigger that raises an exception on any UPDATE or DELETE attempt on the invoices table, and provides an issueCorrection method to create a linked correcting invoice instead.\"}\n}",
+  "claude": "{\"_code\": true, \"IN1\": {\"met\": true, \"reason\": \"Numbers come from a per-series/year/month counter incremented in the same transaction as the invoice insert, with a unique constraint on invoice_number and (series, year, month, sequence_number), so numbers are sequential and never repeat.\"}, \"IN2\": {\"met\": true, \"reason\": \"The counter row is locked with SELECT ... FOR UPDATE inside a transaction (after an INSERT ON CONFLICT DO NOTHING), so concurrent requests are serialized and cannot receive the same number.\"}, \"IN3\": {\"met\": true, \"reason\": \"A BEFORE UPDATE OR DELETE trigger raises an exception on invoices, and issueCorrection creates a new linked correction invoice instead of modifying the original.\"}}"
+ },
+ "judge_cost_usd": 0.0151354
+}

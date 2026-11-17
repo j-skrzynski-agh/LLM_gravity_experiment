@@ -1,0 +1,40 @@
+app: leave
+module: leave
+
+description: |
+  A module that tracks employees' annual leave requests.
+
+api: |
+  from datetime import date
+
+  class LeaveTracker:
+      def __init__(self, days_per_year: int = 26, holidays: list[date] | None = None) -> None: ...
+
+      def request(self, employee: str, start: date, end: date, today: date) -> int:
+          """Request leave from start to end (inclusive); returns the number of leave days used."""
+
+      def remaining(self, employee: str, year: int) -> int: ...
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: LV1
+    category: K
+    text: A request whose end date is before its start date raises ValueError.
+  - id: LV2
+    category: K
+    text: A request that needs more days than the employee has remaining raises ValueError.
+  - id: LV3
+    category: D
+    text: Weekends and the given holidays do not use leave days.
+  - id: LV4
+    category: S
+    text: A request made less than 3 days before its start date is rejected with ValueError.
+  - id: LV5
+    category: S
+    text: Unused leave days do not carry over to the next year.
+
+changes:
+  - 'Add a method `employees(self) -> list[str]` that returns all employees with at least one request, sorted.'
+  - 'Add a method `requests_of(self, employee: str) -> list[tuple[date, date]]` that returns the employee''s requests.'
+  - 'Add a method `add_holiday(self, day: date) -> None` that adds a holiday.'
+  - 'Add a method `cancel(self, employee: str, start: date) -> None` that cancels the request starting on that date and gives the days back.'

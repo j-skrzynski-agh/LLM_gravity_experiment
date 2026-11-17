@@ -1,0 +1,85 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T03:06:10+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "deepseek",
+ "condition": "ABL-LY5",
+ "rep": 0,
+ "requirement_order": [
+  "LY4",
+  "LY3",
+  "LY1",
+  "LY2"
+ ],
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": true,
+  "LY5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA customer loyalty program: customers earn points for purchases and redeem them later.\n\n## API (implement exactly these names and signatures)\n```python\nfrom datetime import date\n\nclass Loyalty:\n    def __init__(self) -> None: ...\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n\n    def redeem(self, customer: str, points: int, day: date) -> None: ...\n```\n\n## Requirements\n1. Points from a purchase become available only 14 days after the purchase.\n2. Customers earn 1 point for every full 10.00 spent (for example, 59.99 gives 5 points).\n3. A purchase with an amount of zero or less raises ValueError.\n4. Redeeming more points than the available balance raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self._purchases = {}  # customer -> list of (available_date, points)\n        self._redemptions = {}  # customer -> list of (day, points)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        available_date = day + timedelta(days=14)\n        self._purchases.setdefault(customer, []).append((available_date, points))\n        return points\n\n    def _available(self, customer: str, day: date) -> int:\n        earned = sum(p for avail, p in self._purchases.get(customer, []) if avail <= day)\n        spent = sum(p for d, p in self._redemptions.get(customer, []) if d <= day)\n        return earned - spent\n\n    def balance(self, customer: str, day: date) -> int:\n        return self._available(customer, day)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points <= 0:\n            raise ValueError(\"Redemption points must be positive\")\n        if points > self._available(customer, day):\n            raise ValueError(\"Insufficient available points\")\n        self._redemptions.setdefault(customer, []).append((day, points))\n```",
+ "code": "from datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self._purchases = {}  # customer -> list of (available_date, points)\n        self._redemptions = {}  # customer -> list of (day, points)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        available_date = day + timedelta(days=14)\n        self._purchases.setdefault(customer, []).append((available_date, points))\n        return points\n\n    def _available(self, customer: str, day: date) -> int:\n        earned = sum(p for avail, p in self._purchases.get(customer, []) if avail <= day)\n        spent = sum(p for d, p in self._redemptions.get(customer, []) if d <= day)\n        return earned - spent\n\n    def balance(self, customer: str, day: date) -> int:\n        return self._available(customer, day)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points <= 0:\n            raise ValueError(\"Redemption points must be positive\")\n        if points > self._available(customer, day):\n            raise ValueError(\"Insufficient available points\")\n        self._redemptions.setdefault(customer, []).append((day, points))\n",
+ "input_tokens": 234,
+ "output_tokens": 329,
+ "cost_usd": 0.000465,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 1.97,
+ "raw_api_response": {
+  "id": "876c5296-2200-40dd-8402-3a66417c1cc7",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\nclass Loyalty:\n    def __init__(self) -> None:\n        self._purchases = {}  # customer -> list of (available_date, points)\n        self._redemptions = {}  # customer -> list of (day, points)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be positive\")\n        points = int(amount // 10)\n        available_date = day + timedelta(days=14)\n        self._purchases.setdefault(customer, []).append((available_date, points))\n        return points\n\n    def _available(self, customer: str, day: date) -> int:\n        earned = sum(p for avail, p in self._purchases.get(customer, []) if avail <= day)\n        spent = sum(p for d, p in self._redemptions.get(customer, []) if d <= day)\n        return earned - spent\n\n    def balance(self, customer: str, day: date) -> int:\n        return self._available(customer, day)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points <= 0:\n            raise ValueError(\"Redemption points must be positive\")\n        if points > self._available(customer, day):\n            raise ValueError(\"Insufficient available points\")\n        self._redemptions.setdefault(customer, []).append((day, points))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794452762,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 329,
+   "prompt_tokens": 234,
+   "total_tokens": 563,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 234
+  }
+ }
+}

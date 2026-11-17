@@ -1,0 +1,87 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:52:16+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "deepseek",
+ "condition": "ABL-ES6",
+ "rep": 0,
+ "requirement_order": [
+  "ES5",
+  "ES4",
+  "ES1",
+  "ES3",
+  "ES2"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": true,
+  "ES4": true,
+  "ES5": true,
+  "ES6": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. When an amount cannot be split into equal cents, the leftover cents are borne by the payer: every other participant owes exactly the amount rounded down to the cent.\n2. settle_up() proposes at most (number of members - 1) payments.\n3. Adding an expense whose payer or any participant is not a group member raises ValueError.\n4. Adding an expense with an amount that is zero or negative raises ValueError.\n5. If participants are not given, the expense is split equally among all group members.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        # Preserve order while allowing fast lookup\n        self._members: list[str] = list(dict.fromkeys(members))\n        self._member_set = set(self._members)\n        self._net: dict[str, float] = {m: 0.0 for m in self._members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if payer not in self._member_set:\n            raise ValueError(f\"Unknown payer: {payer!r}\")\n        if amount <= 0:\n            raise ValueError(\"Amount must be positive\")\n        if participants is None:\n            participants = list(self._members)\n        if not participants:\n            raise ValueError(\"Participants list must be non-empty\")\n        for p in participants:\n            if p not in self._member_set:\n                raise ValueError(f\"Unknown participant: {p!r}\")\n\n        # Deduplicate participants while preserving order\n        participants = list(dict.fromkeys(participants))\n\n        n = len(participants)\n        total_cents = round(amount * 100)\n        # Each non-payer (or every participant if payer not among them)\n        # owes floor(total / n).\n        base_cents = total_cents // n\n        # The payer bears leftover cents only for their own share; if the\n        # payer is not a participant, they are just the funder.\n        # We compute each participant's share in cents:\n        #   - if the participant is the payer: share = total - base*(n-1)\n        #     (in case payer is one of participants)\n        #   - otherwise: share = base\n        # If payer is not among participants, all participants owe base,\n        # and the leftover is borne by the payer (who is not participating,\n        # effectively covering the remainder out of pocket).\n        if payer in participants:\n            payer_share = total_cents - base_cents * (n - 1)\n        else:\n            payer_share = 0\n\n        # Use integer cents for exactness, convert to float at the end\n        for p in participants:\n            if p == payer:\n                share = payer_share\n            else:\n                share = base_cents\n            # Participant owes `share`, payer paid it.\n            self._net[p] -= share / 100.0\n            self._net[payer] += share / 100.0\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(self._net[m], 2) for m in self._members}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        # Work in cents for exactness\n        cents = {m: round(self._net[m] * 100) for m in self._members}\n\n        debtors = [[m, -c] for m, c in cents.items() if c < 0]\n        creditors = [[m, c] for m, c in cents.items() if c > 0]\n\n        # Sort for determinism\n        debtors.sort(key=lambda x: (-x[1], x[0]))\n        creditors.sort(key=lambda x: (-x[1], x[0]))\n\n        payments: list[tuple[str, str, float]] = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            d_name, d_amt = debtors[i]\n            c_name, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            payments.append((d_name, c_name, pay / 100.0))\n            debtors[i][1] -= pay\n            creditors[j][1] -= pay\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n\n        return payments\n```",
+ "code": "class Group:\n    def __init__(self, members: list[str]) -> None:\n        # Preserve order while allowing fast lookup\n        self._members: list[str] = list(dict.fromkeys(members))\n        self._member_set = set(self._members)\n        self._net: dict[str, float] = {m: 0.0 for m in self._members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if payer not in self._member_set:\n            raise ValueError(f\"Unknown payer: {payer!r}\")\n        if amount <= 0:\n            raise ValueError(\"Amount must be positive\")\n        if participants is None:\n            participants = list(self._members)\n        if not participants:\n            raise ValueError(\"Participants list must be non-empty\")\n        for p in participants:\n            if p not in self._member_set:\n                raise ValueError(f\"Unknown participant: {p!r}\")\n\n        # Deduplicate participants while preserving order\n        participants = list(dict.fromkeys(participants))\n\n        n = len(participants)\n        total_cents = round(amount * 100)\n        # Each non-payer (or every participant if payer not among them)\n        # owes floor(total / n).\n        base_cents = total_cents // n\n        # The payer bears leftover cents only for their own share; if the\n        # payer is not a participant, they are just the funder.\n        # We compute each participant's share in cents:\n        #   - if the participant is the payer: share = total - base*(n-1)\n        #     (in case payer is one of participants)\n        #   - otherwise: share = base\n        # If payer is not among participants, all participants owe base,\n        # and the leftover is borne by the payer (who is not participating,\n        # effectively covering the remainder out of pocket).\n        if payer in participants:\n            payer_share = total_cents - base_cents * (n - 1)\n        else:\n            payer_share = 0\n\n        # Use integer cents for exactness, convert to float at the end\n        for p in participants:\n            if p == payer:\n                share = payer_share\n            else:\n                share = base_cents\n            # Participant owes `share`, payer paid it.\n            self._net[p] -= share / 100.0\n            self._net[payer] += share / 100.0\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(self._net[m], 2) for m in self._members}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        # Work in cents for exactness\n        cents = {m: round(self._net[m] * 100) for m in self._members}\n\n        debtors = [[m, -c] for m, c in cents.items() if c < 0]\n        creditors = [[m, c] for m, c in cents.items() if c > 0]\n\n        # Sort for determinism\n        debtors.sort(key=lambda x: (-x[1], x[0]))\n        creditors.sort(key=lambda x: (-x[1], x[0]))\n\n        payments: list[tuple[str, str, float]] = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            d_name, d_amt = debtors[i]\n            c_name, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            payments.append((d_name, c_name, pay / 100.0))\n            debtors[i][1] -= pay\n            creditors[j][1] -= pay\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n\n        return payments\n",
+ "input_tokens": 327,
+ "output_tokens": 852,
+ "cost_usd": 0.0011205,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 4.04,
+ "raw_api_response": {
+  "id": "d402f74c-f9f6-449e-bc83-cb890fd405ca",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        # Preserve order while allowing fast lookup\n        self._members: list[str] = list(dict.fromkeys(members))\n        self._member_set = set(self._members)\n        self._net: dict[str, float] = {m: 0.0 for m in self._members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if payer not in self._member_set:\n            raise ValueError(f\"Unknown payer: {payer!r}\")\n        if amount <= 0:\n            raise ValueError(\"Amount must be positive\")\n        if participants is None:\n            participants = list(self._members)\n        if not participants:\n            raise ValueError(\"Participants list must be non-empty\")\n        for p in participants:\n            if p not in self._member_set:\n                raise ValueError(f\"Unknown participant: {p!r}\")\n\n        # Deduplicate participants while preserving order\n        participants = list(dict.fromkeys(participants))\n\n        n = len(participants)\n        total_cents = round(amount * 100)\n        # Each non-payer (or every participant if payer not among them)\n        # owes floor(total / n).\n        base_cents = total_cents // n\n        # The payer bears leftover cents only for their own share; if the\n        # payer is not a participant, they are just the funder.\n        # We compute each participant's share in cents:\n        #   - if the participant is the payer: share = total - base*(n-1)\n        #     (in case payer is one of participants)\n        #   - otherwise: share = base\n        # If payer is not among participants, all participants owe base,\n        # and the leftover is borne by the payer (who is not participating,\n        # effectively covering the remainder out of pocket).\n        if payer in participants:\n            payer_share = total_cents - base_cents * (n - 1)\n        else:\n            payer_share = 0\n\n        # Use integer cents for exactness, convert to float at the end\n        for p in participants:\n            if p == payer:\n                share = payer_share\n            else:\n                share = base_cents\n            # Participant owes `share`, payer paid it.\n            self._net[p] -= share / 100.0\n            self._net[payer] += share / 100.0\n\n    def balances(self) -> dict[str, float]:\n        return {m: round(self._net[m], 2) for m in self._members}\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        # Work in cents for exactness\n        cents = {m: round(self._net[m] * 100) for m in self._members}\n\n        debtors = [[m, -c] for m, c in cents.items() if c < 0]\n        creditors = [[m, c] for m, c in cents.items() if c > 0]\n\n        # Sort for determinism\n        debtors.sort(key=lambda x: (-x[1], x[0]))\n        creditors.sort(key=lambda x: (-x[1], x[0]))\n\n        payments: list[tuple[str, str, float]] = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            d_name, d_amt = debtors[i]\n            c_name, c_amt = creditors[j]\n            pay = min(d_amt, c_amt)\n            payments.append((d_name, c_name, pay / 100.0))\n            debtors[i][1] -= pay\n            creditors[j][1] -= pay\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n\n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794451925,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 852,
+   "prompt_tokens": 327,
+   "total_tokens": 1179,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 128,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 128,
+   "prompt_cache_miss_tokens": 199
+  }
+ }
+}

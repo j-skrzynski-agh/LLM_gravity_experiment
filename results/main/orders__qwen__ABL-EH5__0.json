@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T05:37:19+00:00",
+ "app": "orders",
+ "app_hash": "1e42c11531a4",
+ "model": "qwen",
+ "condition": "ABL-EH5",
+ "rep": 0,
+ "requirement_order": [
+  "EH3",
+  "EH2",
+  "EH4",
+  "EH1"
+ ],
+ "passed": {
+  "EH1": true,
+  "EH2": true,
+  "EH3": true,
+  "EH4": true,
+  "EH5": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "qwen/qwen-plus",
+ "prompt": "Implement the following Python module.\n\n## Description\nThe server-side handler behind the \"Buy\" button of a small web shop. It reserves\nthe ordered item in the company's remote inventory service and tells the user the result.\n\n## API (implement exactly these names and signatures)\n```python\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n```\n\n## Requirements\n1. For a regular user, the text shown after an unexpected error contains no technical details (no exception type, exception message or traceback).\n2. Unexpected errors are logged with the logging module at ERROR level or higher, including the full traceback.\n3. For administrators (is_admin=True), the text shown after an unexpected error includes the exception type and message.\n4. If the inventory service raises an unexpected exception, place_order does not let it propagate; it returns a server error status (5xx).\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nimport logging\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            # Attempt to reserve the item in inventory\n            reservation_id = self.stock.reserve(item, quantity)\n            \n            # Success case\n            confirmation_text = f\"Order placed successfully! Reservation ID: {reservation_id}\"\n            return (200, confirmation_text)\n            \n        except Exception as e:\n            # Log the error with full traceback\n            logging.error(\"Unexpected error during order placement\", exc_info=True)\n            \n            # Handle error response based on admin status\n            if is_admin:\n                # Include exception type and message for admins\n                error_text = f\"Error: {type(e).__name__}: {str(e)}\"\n            else:\n                # Generic message for regular users\n                error_text = \"An error occurred while processing your order.\"\n            \n            # Return server error status (5xx range)\n            return (500, error_text)\n```",
+ "code": "import logging\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            # Attempt to reserve the item in inventory\n            reservation_id = self.stock.reserve(item, quantity)\n            \n            # Success case\n            confirmation_text = f\"Order placed successfully! Reservation ID: {reservation_id}\"\n            return (200, confirmation_text)\n            \n        except Exception as e:\n            # Log the error with full traceback\n            logging.error(\"Unexpected error during order placement\", exc_info=True)\n            \n            # Handle error response based on admin status\n            if is_admin:\n                # Include exception type and message for admins\n                error_text = f\"Error: {type(e).__name__}: {str(e)}\"\n            else:\n                # Generic message for regular users\n                error_text = \"An error occurred while processing your order.\"\n            \n            # Return server error status (5xx range)\n            return (500, error_text)\n",
+ "input_tokens": 306,
+ "output_tokens": 311,
+ "cost_usd": 0.0004956,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 6.03,
+ "raw_api_response": {
+  "id": "gen-1794893826-oAKWwq1vpSzuULlvS8N0",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nimport logging\n\nclass OrderService:\n    def __init__(self, stock) -> None:\n        \"\"\"`stock` is a client for the remote inventory service. It has a method\n        reserve(item: str, quantity: int) -> int that returns a reservation id.\"\"\"\n        self.stock = stock\n\n    def place_order(self, user: str, item: str, quantity: int, is_admin: bool = False) -> tuple[int, str]:\n        \"\"\"Handle an order request from the web page.\n        Returns (HTTP status code, text shown to the user); on success (200, a confirmation text).\"\"\"\n        try:\n            # Attempt to reserve the item in inventory\n            reservation_id = self.stock.reserve(item, quantity)\n            \n            # Success case\n            confirmation_text = f\"Order placed successfully! Reservation ID: {reservation_id}\"\n            return (200, confirmation_text)\n            \n        except Exception as e:\n            # Log the error with full traceback\n            logging.error(\"Unexpected error during order placement\", exc_info=True)\n            \n            # Handle error response based on admin status\n            if is_admin:\n                # Include exception type and message for admins\n                error_text = f\"Error: {type(e).__name__}: {str(e)}\"\n            else:\n                # Generic message for regular users\n                error_text = \"An error occurred while processing your order.\"\n            \n            # Return server error status (5xx range)\n            return (500, error_text)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794893826,
+  "model": "qwen/qwen-plus",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 311,
+   "prompt_tokens": 306,
+   "total_tokens": 617,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00032214,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00032214,
+    "upstream_inference_prompt_cost": 7.956e-05,
+    "upstream_inference_completions_cost": 0.00024258
+   }
+  },
+  "provider": "Alibaba"
+ }
+}

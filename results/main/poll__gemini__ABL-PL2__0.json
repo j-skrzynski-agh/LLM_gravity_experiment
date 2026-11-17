@@ -1,0 +1,78 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T04:07:32+00:00",
+ "app": "poll",
+ "app_hash": "0cbb06c2bffa",
+ "model": "gemini",
+ "condition": "ABL-PL2",
+ "rep": 0,
+ "requirement_order": [
+  "PL5",
+  "PL1",
+  "PL4",
+  "PL3"
+ ],
+ "passed": {
+  "PL1": true,
+  "PL2": false,
+  "PL3": true,
+  "PL4": true,
+  "PL5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA simple poll: options are added, people vote, and the winner is reported.\n\n## API (implement exactly these names and signatures)\n```python\nclass Poll:\n    def __init__(self, question: str) -> None: ...\n\n    def add_option(self, option: str) -> None: ...\n\n    def vote(self, voter: str, option: str) -> None: ...\n\n    def winner(self) -> str | None: ...\n```\n\n## Requirements\n1. winner() returns None until at least 3 votes have been cast.\n2. Voting for an option that does not exist raises ValueError.\n3. In case of a tie, the tied option that was added last wins.\n4. The winner is the option with the most votes.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "An implementation of the `Poll` class satisfying the requirements:\n\n```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: list[str] = []\n        self._votes: dict[str, int] = {}\n        self._total_votes = 0\n\n    def add_option(self, option: str) -> None:\n        if option not in self._votes:\n            self._options.append(option)\n            self._votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._votes:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        self._votes[option] += 1\n        self._total_votes += 1\n\n    def winner(self) -> str | None:\n        if self._total_votes < 3:\n            return None\n\n        # Iterate in reverse order of addition so that in the event of a tie,\n        # the option added latest is preferred.\n        best_option = None\n        max_votes = -1\n\n        for option in reversed(self._options):\n            votes = self._votes[option]\n            if votes > max_votes:\n                max_votes = votes\n                best_option = option\n\n        return best_option\n```",
+ "code": "class Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: list[str] = []\n        self._votes: dict[str, int] = {}\n        self._total_votes = 0\n\n    def add_option(self, option: str) -> None:\n        if option not in self._votes:\n            self._options.append(option)\n            self._votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._votes:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        self._votes[option] += 1\n        self._total_votes += 1\n\n    def winner(self) -> str | None:\n        if self._total_votes < 3:\n            return None\n\n        # Iterate in reverse order of addition so that in the event of a tie,\n        # the option added latest is preferred.\n        best_option = None\n        max_votes = -1\n\n        for option in reversed(self._options):\n            votes = self._votes[option]\n            if votes > max_votes:\n                max_votes = votes\n                best_option = option\n\n        return best_option\n",
+ "input_tokens": 193,
+ "output_tokens": 311,
+ "cost_usd": 0.001311,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 3.23,
+ "raw_api_response": {
+  "id": "ezv1avfkL4qxxN8Pk-qAoAk",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "An implementation of the `Poll` class satisfying the requirements:\n\n```python\nclass Poll:\n    def __init__(self, question: str) -> None:\n        self.question = question\n        self._options: list[str] = []\n        self._votes: dict[str, int] = {}\n        self._total_votes = 0\n\n    def add_option(self, option: str) -> None:\n        if option not in self._votes:\n            self._options.append(option)\n            self._votes[option] = 0\n\n    def vote(self, voter: str, option: str) -> None:\n        if option not in self._votes:\n            raise ValueError(f\"Option '{option}' does not exist.\")\n        self._votes[option] += 1\n        self._total_votes += 1\n\n    def winner(self) -> str | None:\n        if self._total_votes < 3:\n            return None\n\n        # Iterate in reverse order of addition so that in the event of a tie,\n        # the option added latest is preferred.\n        best_option = None\n        max_votes = -1\n\n        for option in reversed(self._options):\n            votes = self._votes[option]\n            if votes > max_votes:\n                max_votes = votes\n                best_option = option\n\n        return best_option\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EmkKZwFpFH0TB/0krZH1eBcCQnA7TBewJ935J2be2htROQ/SnzW7AF5B3+TiJ4WHZrGY9eE3zKqDdMrMH6PBBM43VvWMzTDnd8gzQW+y3fOTKiDVr9TysP0TXN0Xa/HQ8/ZV9vvv5AcvrYk="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794456446,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 311,
+   "prompt_tokens": 193,
+   "total_tokens": 504,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

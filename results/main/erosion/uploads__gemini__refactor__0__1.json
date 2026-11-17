@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-193327-b66f",
+ "timestamp": "2026-11-17T19:39:36+00:00",
+ "app": "uploads",
+ "app_hash": "35b380bfab0b",
+ "model": "gemini",
+ "variant": "refactor",
+ "rep": 0,
+ "step": 1,
+ "change": "Refactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.",
+ "start_file": "uploads__gemini__FULL__0.json",
+ "passed": {
+  "UQ1": true,
+  "UQ2": true,
+  "UQ3": true,
+  "UQ4": true,
+  "UQ5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = int(monthly_limit_mib * 1024 * 1024)\n        # Tracks current files uploaded per month: month -> {name: size_bytes}\n        self._files: dict[str, dict[str, int]] = {}\n        # Tracks total uploaded bytes towards quota per month: month -> int\n        self._used_bytes: dict[str, int] = {}\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than 0 bytes.\")\n\n        month_files = self._files.setdefault(month, {})\n        current_used = self._used_bytes.get(month, 0)\n\n        # If a file with the same name was already uploaded in this month,\n        # it does not count towards the quota again.\n        if name in month_files:\n            return\n\n        if current_used + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota limit.\")\n\n        month_files[name] = size_bytes\n        self._used_bytes[month] = current_used + size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"Deleting a file does not give back quota in the month.\"\"\"\n        month_files = self._files.get(month)\n        if month_files and name in month_files:\n            del month_files[name]\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes.get(month, 0)\n```\n\n## Change request\nRefactor this module to make it cleaner, simpler and more idiomatic Python. Keep the public API (class name, method names and signatures) unchanged.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the refactored module. It uses `collections.defaultdict` and sets (since only file existence is tracked, not the individual file sizes), streamlining state management and eliminating redundant dictionary operations while preserving the exact behavior and API.\n\n```python\nfrom collections import defaultdict\n\nBYTES_PER_MIB = 1024 * 1024\n\n\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = int(monthly_limit_mib * BYTES_PER_MIB)\n        # Tracks current active files per month: month -> set of file names\n        self._files: defaultdict[str, set[str]] = defaultdict(set)\n        # Tracks total uploaded bytes towards quota per month: month -> int\n        self._used_bytes: defaultdict[str, int] = defaultdict(int)\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than 0 bytes.\")\n\n        month_files = self._files[month]\n        # If a file with the same name was already uploaded in this month,\n        # it does not count towards the quota again.\n        if name in month_files:\n            return\n\n        if self._used_bytes[month] + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota limit.\")\n\n        month_files.add(name)\n        self._used_bytes[month] += size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"Deleting a file does not give back quota in the month.\"\"\"\n        if month in self._files:\n            self._files[month].discard(name)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes.get(month, 0)\n```",
+ "code": "from collections import defaultdict\n\nBYTES_PER_MIB = 1024 * 1024\n\n\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = int(monthly_limit_mib * BYTES_PER_MIB)\n        # Tracks current active files per month: month -> set of file names\n        self._files: defaultdict[str, set[str]] = defaultdict(set)\n        # Tracks total uploaded bytes towards quota per month: month -> int\n        self._used_bytes: defaultdict[str, int] = defaultdict(int)\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than 0 bytes.\")\n\n        month_files = self._files[month]\n        # If a file with the same name was already uploaded in this month,\n        # it does not count towards the quota again.\n        if name in month_files:\n            return\n\n        if self._used_bytes[month] + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota limit.\")\n\n        month_files.add(name)\n        self._used_bytes[month] += size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"Deleting a file does not give back quota in the month.\"\"\"\n        if month in self._files:\n            self._files[month].discard(name)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes.get(month, 0)\n",
+ "input_tokens": 514,
+ "output_tokens": 1647,
+ "cost_usd": 0.00656175,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 12.26,
+ "raw_api_response": {
+  "id": "Z638aoOCFruV3boPl6yHoAg",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the refactored module. It uses `collections.defaultdict` and sets (since only file existence is tracked, not the individual file sizes), streamlining state management and eliminating redundant dictionary operations while preserving the exact behavior and API.\n\n```python\nfrom collections import defaultdict\n\nBYTES_PER_MIB = 1024 * 1024\n\n\nclass UploadQuota:\n    def __init__(self, monthly_limit_mib: float) -> None:\n        self.monthly_limit_bytes = int(monthly_limit_mib * BYTES_PER_MIB)\n        # Tracks current active files per month: month -> set of file names\n        self._files: defaultdict[str, set[str]] = defaultdict(set)\n        # Tracks total uploaded bytes towards quota per month: month -> int\n        self._used_bytes: defaultdict[str, int] = defaultdict(int)\n\n    def upload(self, name: str, size_bytes: int, month: str) -> None:\n        \"\"\"month is a string like \"2026-01\".\"\"\"\n        if size_bytes <= 0:\n            raise ValueError(\"File size must be greater than 0 bytes.\")\n\n        month_files = self._files[month]\n        # If a file with the same name was already uploaded in this month,\n        # it does not count towards the quota again.\n        if name in month_files:\n            return\n\n        if self._used_bytes[month] + size_bytes > self.monthly_limit_bytes:\n            raise ValueError(\"Upload would exceed monthly quota limit.\")\n\n        month_files.add(name)\n        self._used_bytes[month] += size_bytes\n\n    def delete(self, name: str, month: str) -> None:\n        \"\"\"Deleting a file does not give back quota in the month.\"\"\"\n        if month in self._files:\n            self._files[month].discard(name)\n\n    def used_bytes(self, month: str) -> int:\n        \"\"\"How many bytes count towards the quota in the given month.\"\"\"\n        return self._used_bytes.get(month, 0)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "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"
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794944372,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 475,
+   "prompt_tokens": 514,
+   "total_tokens": 2161,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

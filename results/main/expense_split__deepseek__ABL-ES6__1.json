@@ -1,0 +1,87 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-023730-298a",
+ "timestamp": "2026-11-12T02:52:27+00:00",
+ "app": "expense_split",
+ "app_hash": "b87629b931d9",
+ "model": "deepseek",
+ "condition": "ABL-ES6",
+ "rep": 1,
+ "requirement_order": [
+  "ES4",
+  "ES2",
+  "ES1",
+  "ES5",
+  "ES3"
+ ],
+ "passed": {
+  "ES1": true,
+  "ES2": true,
+  "ES3": true,
+  "ES4": true,
+  "ES5": true,
+  "ES6": false
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Implement the following Python module.\n\n## Description\nA module for splitting shared expenses within a group of friends.\nMembers record who paid for what; the module computes how much each member\nis owed or owes, and proposes payments to settle up.\n\n## API (implement exactly these names and signatures)\n```python\nclass Group:\n    def __init__(self, members: list[str]) -> None: ...\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        \"\"\"Record that `payer` paid `amount` on behalf of `participants`.\"\"\"\n\n    def balances(self) -> dict[str, float]:\n        \"\"\"Net balance per member. Positive = the member is owed money,\n        negative = the member owes money.\"\"\"\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        \"\"\"Payments that settle the group, as (debtor, creditor, amount).\"\"\"\n```\n\n## Requirements\n1. settle_up() proposes at most (number of members - 1) payments.\n2. If participants are not given, the expense is split equally among all group members.\n3. Adding an expense whose payer or any participant is not a group member raises ValueError.\n4. When an amount cannot be split into equal cents, the leftover cents are borne by the payer: every other participant owes exactly the amount rounded down to the cent.\n5. Adding an expense with an amount that is zero or negative raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        if not members:\n            raise ValueError(\"Group must have at least one member\")\n        self.members = list(members)\n        if len(set(self.members)) != len(self.members):\n            raise ValueError(\"Members must be unique\")\n        self._member_set = set(self.members)\n        self._balances: dict[str, float] = {m: 0.0 for m in self.members}\n        # Track balances in integer cents to avoid floating point issues.\n        self._cents: dict[str, int] = {m: 0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if payer not in self._member_set:\n            raise ValueError(f\"Payer {payer!r} is not a group member\")\n        if amount <= 0:\n            raise ValueError(\"Amount must be positive\")\n\n        if participants is None:\n            participants = list(self.members)\n        else:\n            participants = list(participants)\n\n        if not participants:\n            raise ValueError(\"Participants list must not be empty\")\n        for p in participants:\n            if p not in self._member_set:\n                raise ValueError(f\"Participant {p!r} is not a group member\")\n\n        # Convert amount to integer cents.\n        total_cents = int(round(amount * 100))\n        if total_cents <= 0:\n            raise ValueError(\"Amount must be positive\")\n\n        n = len(participants)\n        base, remainder = divmod(total_cents, n)\n\n        # Payer paid the full amount.\n        self._cents[payer] += total_cents\n\n        # Each participant (including payer) owes their share.\n        # Rule 4: leftover cents borne by the payer; others owe rounded-down amount.\n        for p in participants:\n            if p == payer:\n                # Payer's own share includes the remainder.\n                share = base + remainder\n            else:\n                # If payer is not a participant, remainder is simply unallocated\n                # via shares \u2014 but the payer still paid the remainder \"extra\",\n                # effectively crediting them. Rule 4 only specifies leftover cents\n                # are borne by the payer, so non-payer participants owe base.\n                share = base + (remainder if payer not in participants else 0)\n            self._cents[p] -= share\n\n        # Recompute float balances from cents.\n        for m in self.members:\n            self._balances[m] = self._cents[m] / 100.0\n\n    def balances(self) -> dict[str, float]:\n        return dict(self._balances)\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = []\n        creditors = []\n        for m in self.members:\n            c = self._cents[m]\n            if c < 0:\n                debtors.append([m, -c])\n            elif c > 0:\n                creditors.append([m, c])\n\n        debtors.sort(key=lambda x: x[1], reverse=True)\n        creditors.sort(key=lambda x: x[1], reverse=True)\n\n        payments: list[tuple[str, str, float]] = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            debtor, owe = debtors[i]\n            creditor, due = creditors[j]\n            pay = min(owe, due)\n            if pay > 0:\n                payments.append((debtor, creditor, pay / 100.0))\n            debtors[i][1] -= pay\n            creditors[j][1] -= pay\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n\n        # At most (members - 1) payments are produced by this greedy matching.\n        return payments\n```",
+ "code": "class Group:\n    def __init__(self, members: list[str]) -> None:\n        if not members:\n            raise ValueError(\"Group must have at least one member\")\n        self.members = list(members)\n        if len(set(self.members)) != len(self.members):\n            raise ValueError(\"Members must be unique\")\n        self._member_set = set(self.members)\n        self._balances: dict[str, float] = {m: 0.0 for m in self.members}\n        # Track balances in integer cents to avoid floating point issues.\n        self._cents: dict[str, int] = {m: 0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if payer not in self._member_set:\n            raise ValueError(f\"Payer {payer!r} is not a group member\")\n        if amount <= 0:\n            raise ValueError(\"Amount must be positive\")\n\n        if participants is None:\n            participants = list(self.members)\n        else:\n            participants = list(participants)\n\n        if not participants:\n            raise ValueError(\"Participants list must not be empty\")\n        for p in participants:\n            if p not in self._member_set:\n                raise ValueError(f\"Participant {p!r} is not a group member\")\n\n        # Convert amount to integer cents.\n        total_cents = int(round(amount * 100))\n        if total_cents <= 0:\n            raise ValueError(\"Amount must be positive\")\n\n        n = len(participants)\n        base, remainder = divmod(total_cents, n)\n\n        # Payer paid the full amount.\n        self._cents[payer] += total_cents\n\n        # Each participant (including payer) owes their share.\n        # Rule 4: leftover cents borne by the payer; others owe rounded-down amount.\n        for p in participants:\n            if p == payer:\n                # Payer's own share includes the remainder.\n                share = base + remainder\n            else:\n                # If payer is not a participant, remainder is simply unallocated\n                # via shares \u2014 but the payer still paid the remainder \"extra\",\n                # effectively crediting them. Rule 4 only specifies leftover cents\n                # are borne by the payer, so non-payer participants owe base.\n                share = base + (remainder if payer not in participants else 0)\n            self._cents[p] -= share\n\n        # Recompute float balances from cents.\n        for m in self.members:\n            self._balances[m] = self._cents[m] / 100.0\n\n    def balances(self) -> dict[str, float]:\n        return dict(self._balances)\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = []\n        creditors = []\n        for m in self.members:\n            c = self._cents[m]\n            if c < 0:\n                debtors.append([m, -c])\n            elif c > 0:\n                creditors.append([m, c])\n\n        debtors.sort(key=lambda x: x[1], reverse=True)\n        creditors.sort(key=lambda x: x[1], reverse=True)\n\n        payments: list[tuple[str, str, float]] = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            debtor, owe = debtors[i]\n            creditor, due = creditors[j]\n            pay = min(owe, due)\n            if pay > 0:\n                payments.append((debtor, creditor, pay / 100.0))\n            debtors[i][1] -= pay\n            creditors[j][1] -= pay\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n\n        # At most (members - 1) payments are produced by this greedy matching.\n        return payments\n",
+ "input_tokens": 327,
+ "output_tokens": 846,
+ "cost_usd": 0.0011133,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 4.16,
+ "raw_api_response": {
+  "id": "b536a972-bcce-4e29-a2ad-56510bcab5be",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nclass Group:\n    def __init__(self, members: list[str]) -> None:\n        if not members:\n            raise ValueError(\"Group must have at least one member\")\n        self.members = list(members)\n        if len(set(self.members)) != len(self.members):\n            raise ValueError(\"Members must be unique\")\n        self._member_set = set(self.members)\n        self._balances: dict[str, float] = {m: 0.0 for m in self.members}\n        # Track balances in integer cents to avoid floating point issues.\n        self._cents: dict[str, int] = {m: 0 for m in self.members}\n\n    def add_expense(self, payer: str, amount: float,\n                    participants: list[str] | None = None) -> None:\n        if payer not in self._member_set:\n            raise ValueError(f\"Payer {payer!r} is not a group member\")\n        if amount <= 0:\n            raise ValueError(\"Amount must be positive\")\n\n        if participants is None:\n            participants = list(self.members)\n        else:\n            participants = list(participants)\n\n        if not participants:\n            raise ValueError(\"Participants list must not be empty\")\n        for p in participants:\n            if p not in self._member_set:\n                raise ValueError(f\"Participant {p!r} is not a group member\")\n\n        # Convert amount to integer cents.\n        total_cents = int(round(amount * 100))\n        if total_cents <= 0:\n            raise ValueError(\"Amount must be positive\")\n\n        n = len(participants)\n        base, remainder = divmod(total_cents, n)\n\n        # Payer paid the full amount.\n        self._cents[payer] += total_cents\n\n        # Each participant (including payer) owes their share.\n        # Rule 4: leftover cents borne by the payer; others owe rounded-down amount.\n        for p in participants:\n            if p == payer:\n                # Payer's own share includes the remainder.\n                share = base + remainder\n            else:\n                # If payer is not a participant, remainder is simply unallocated\n                # via shares \u2014 but the payer still paid the remainder \"extra\",\n                # effectively crediting them. Rule 4 only specifies leftover cents\n                # are borne by the payer, so non-payer participants owe base.\n                share = base + (remainder if payer not in participants else 0)\n            self._cents[p] -= share\n\n        # Recompute float balances from cents.\n        for m in self.members:\n            self._balances[m] = self._cents[m] / 100.0\n\n    def balances(self) -> dict[str, float]:\n        return dict(self._balances)\n\n    def settle_up(self) -> list[tuple[str, str, float]]:\n        debtors = []\n        creditors = []\n        for m in self.members:\n            c = self._cents[m]\n            if c < 0:\n                debtors.append([m, -c])\n            elif c > 0:\n                creditors.append([m, c])\n\n        debtors.sort(key=lambda x: x[1], reverse=True)\n        creditors.sort(key=lambda x: x[1], reverse=True)\n\n        payments: list[tuple[str, str, float]] = []\n        i = j = 0\n        while i < len(debtors) and j < len(creditors):\n            debtor, owe = debtors[i]\n            creditor, due = creditors[j]\n            pay = min(owe, due)\n            if pay > 0:\n                payments.append((debtor, creditor, pay / 100.0))\n            debtors[i][1] -= pay\n            creditors[j][1] -= pay\n            if debtors[i][1] == 0:\n                i += 1\n            if creditors[j][1] == 0:\n                j += 1\n\n        # At most (members - 1) payments are produced by this greedy matching.\n        return payments\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794451936,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 846,
+   "prompt_tokens": 327,
+   "total_tokens": 1173,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 327
+  }
+ }
+}

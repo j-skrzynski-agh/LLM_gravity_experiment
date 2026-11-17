@@ -1,0 +1,43 @@
+app: loyalty
+module: loyalty
+
+description: |
+  A customer loyalty program: customers earn points for purchases and redeem them later.
+
+api: |
+  from datetime import date
+
+  class Loyalty:
+      def __init__(self) -> None: ...
+
+      def purchase(self, customer: str, amount: float, day: date) -> int:
+          """Record a purchase; returns the number of points earned."""
+
+      def balance(self, customer: str, day: date) -> int:
+          """Points the customer can spend on the given day."""
+
+      def redeem(self, customer: str, points: int, day: date) -> None: ...
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: LY1
+    category: K
+    text: A purchase with an amount of zero or less raises ValueError.
+  - id: LY2
+    category: K
+    text: Redeeming more points than the available balance raises ValueError.
+  - id: LY3
+    category: D
+    text: Customers earn 1 point for every full 10.00 spent (for example, 59.99 gives 5 points).
+  - id: LY4
+    category: S
+    text: Points from a purchase become available only 14 days after the purchase.
+  - id: LY5
+    category: S
+    text: Points can be redeemed only in multiples of 100; other amounts raise ValueError.
+
+changes:
+  - 'Add a method `customers(self) -> list[str]` that returns all customers, sorted.'
+  - 'Add a method `history(self, customer: str) -> list[tuple[date, float]]` that returns the customer''s purchases.'
+  - 'Add a method `total_spent(self, customer: str) -> float` that returns the total amount the customer has spent.'
+  - 'Add a method `pending(self, customer: str, day: date) -> int` that returns points earned but not yet available on that day.'

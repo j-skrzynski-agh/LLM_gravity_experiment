@@ -1,0 +1,129 @@
+{
+ "experiment": "main_2",
+ "run_id": "20261113-002813-0051",
+ "timestamp": "2026-11-13T01:23:09+00:00",
+ "task": "ksef_invoices",
+ "task_hash": "acc3500e3319",
+ "model": "chatgpt",
+ "condition": "BARE",
+ "rep": 2,
+ "requirement_order": [],
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Write me a program for my accounting office that downloads purchase invoices from KSeF (the Polish national e-invoicing system) for our clients and lets me search and filter them by date, supplier and amount.",
+ "response": "I can build this as a web app with a separate invoice view for each client, KSeF synchronization, and filters for date, supplier and amount.\n\nBefore I write it, please confirm:\n\n1. **KSeF access:** Do you have a KSeF token for each client, or will the office authenticate using a certificate and delegated permissions?\n2. **Where should it run?** On one office computer, or on a server for multiple employees?\n3. **KSeF environment:** Should it initially connect to the test environment or production?\n\nIf you\u2019re unsure, I can start with a local Python web app, SQLite storage and the KSeF test environment.",
+ "input_tokens": 49,
+ "output_tokens": 301,
+ "cost_usd": 0.001554,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.68,
+ "raw_api_response": {
+  "id": "chatcmpl-EjaIHkaWQMgusLweIpLQM8yzSjBxp",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "I can build this as a web app with a separate invoice view for each client, KSeF synchronization, and filters for date, supplier and amount.\n\nBefore I write it, please confirm:\n\n1. **KSeF access:** Do you have a KSeF token for each client, or will the office authenticate using a certificate and delegated permissions?\n2. **Where should it run?** On one office computer, or on a server for multiple employees?\n3. **KSeF environment:** Should it initially connect to the test environment or production?\n\nIf you\u2019re unsure, I can start with a local Python web app, SQLite storage and the KSeF test environment.",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794532981,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 301,
+   "prompt_tokens": 49,
+   "total_tokens": 350,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 155,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ },
+ "verdicts": {
+  "chatgpt": {
+   "reqs": {
+    "KS1": {
+     "met": false,
+     "reason": "No invoice storage, search, or filtering is implemented."
+    },
+    "KS2": {
+     "met": false,
+     "reason": "No KSeF API requests or retry handling are implemented."
+    },
+    "KS3": {
+     "met": false,
+     "reason": "No synchronization or deduplication is implemented."
+    }
+   },
+   "has_code": false
+  },
+  "qwen": {
+   "reqs": {
+    "KS1": {
+     "met": false,
+     "reason": "No code is provided, so there is no implementation of local search and filtering."
+    },
+    "KS2": {
+     "met": false,
+     "reason": "No code is provided, so there is no implementation of rate limit handling or Retry-After logic."
+    },
+    "KS3": {
+     "met": false,
+     "reason": "No code is provided, so there is no implementation of incremental synchronization."
+    }
+   },
+   "has_code": false
+  },
+  "claude": {
+   "reqs": {
+    "KS1": {
+     "met": false,
+     "reason": "No code was delivered; the answer only asks clarifying questions."
+    },
+    "KS2": {
+     "met": false,
+     "reason": "No code was delivered, so there is no handling of HTTP 429 or the Retry-After header."
+    },
+    "KS3": {
+     "met": false,
+     "reason": "No code was delivered, so there is no incremental synchronization."
+    }
+   },
+   "has_code": false
+  }
+ },
+ "judge_responses": {
+  "chatgpt": "{\"_code\":false,\"KS1\":{\"met\":false,\"reason\":\"No invoice storage, search, or filtering is implemented.\"},\"KS2\":{\"met\":false,\"reason\":\"No KSeF API requests or retry handling are implemented.\"},\"KS3\":{\"met\":false,\"reason\":\"No synchronization or deduplication is implemented.\"}}",
+  "qwen": "{\"_code\": false, \"KS1\": {\"met\": false, \"reason\": \"No code is provided, so there is no implementation of local search and filtering.\"}, \"KS2\": {\"met\": false, \"reason\": \"No code is provided, so there is no implementation of rate limit handling or Retry-After logic.\"}, \"KS3\": {\"met\": false, \"reason\": \"No code is provided, so there is no implementation of incremental synchronization.\"}}",
+  "claude": "{\"_code\": false, \"KS1\": {\"met\": false, \"reason\": \"No code was delivered; the answer only asks clarifying questions.\"}, \"KS2\": {\"met\": false, \"reason\": \"No code was delivered, so there is no handling of HTTP 429 or the Retry-After header.\"}, \"KS3\": {\"met\": false, \"reason\": \"No code was delivered, so there is no incremental synchronization.\"}}"
+ },
+ "judge_cost_usd": 0.003588
+}

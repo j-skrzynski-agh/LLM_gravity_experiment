@@ -1,0 +1,75 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T00:18:30+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "gemini",
+ "variant": "code",
+ "rep": 1,
+ "step": 2,
+ "change": "Add a method `history(self, customer: str) -> list[tuple[date, float]]` that returns the customer's purchases.",
+ "start_file": "loyalty__gemini__FULL__1.json",
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": true,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gemini-3.8-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Maps customer -> list of tuples: (available_date, points_earned)\n        self._earnings: dict[str, list[tuple[date, int]]] = defaultdict(list)\n        # Maps customer -> total points redeemed so far\n        self._redeemed: dict[str, int] = defaultdict(int)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n\n        points = int(amount // 10)\n        available_date = day + timedelta(days=14)\n        self._earnings[customer].append((available_date, points))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        earned_to_date = sum(\n            pts for avail_day, pts in self._earnings[customer] if avail_day <= day\n        )\n        return earned_to_date - self._redeemed[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer on the given day.\"\"\"\n        if points <= 0 or points % 100 != 0:\n            raise ValueError(\"Redemption points must be a positive multiple of 100.\")\n\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Insufficient points balance for redemption.\")\n\n        self._redeemed[customer] += points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return all customers, sorted.\"\"\"\n        return sorted(self._earnings.keys())\n```\n\n## Change request\nAdd a method `history(self, customer: str) -> list[tuple[date, float]]` that returns the customer's purchases.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "Here is the complete updated module with the requested `history` method added:\n\n```python\nfrom datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Maps customer -> list of tuples: (available_date, points_earned)\n        self._earnings: dict[str, list[tuple[date, int]]] = defaultdict(list)\n        # Maps customer -> total points redeemed so far\n        self._redeemed: dict[str, int] = defaultdict(int)\n        # Maps customer -> list of tuples: (purchase_date, amount)\n        self._purchases: dict[str, list[tuple[date, float]]] = defaultdict(list)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n\n        points = int(amount // 10)\n        available_date = day + timedelta(days=14)\n        self._earnings[customer].append((available_date, points))\n        self._purchases[customer].append((day, amount))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        earned_to_date = sum(\n            pts for avail_day, pts in self._earnings[customer] if avail_day <= day\n        )\n        return earned_to_date - self._redeemed[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer on the given day.\"\"\"\n        if points <= 0 or points % 100 != 0:\n            raise ValueError(\"Redemption points must be a positive multiple of 100.\")\n\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Insufficient points balance for redemption.\")\n\n        self._redeemed[customer] += points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return all customers, sorted.\"\"\"\n        return sorted(self._earnings.keys())\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        \"\"\"Return the customer's purchase history as a list of (date, amount) tuples.\"\"\"\n        return list(self._purchases[customer])\n```",
+ "code": "from datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Maps customer -> list of tuples: (available_date, points_earned)\n        self._earnings: dict[str, list[tuple[date, int]]] = defaultdict(list)\n        # Maps customer -> total points redeemed so far\n        self._redeemed: dict[str, int] = defaultdict(int)\n        # Maps customer -> list of tuples: (purchase_date, amount)\n        self._purchases: dict[str, list[tuple[date, float]]] = defaultdict(list)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n\n        points = int(amount // 10)\n        available_date = day + timedelta(days=14)\n        self._earnings[customer].append((available_date, points))\n        self._purchases[customer].append((day, amount))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        earned_to_date = sum(\n            pts for avail_day, pts in self._earnings[customer] if avail_day <= day\n        )\n        return earned_to_date - self._redeemed[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer on the given day.\"\"\"\n        if points <= 0 or points % 100 != 0:\n            raise ValueError(\"Redemption points must be a positive multiple of 100.\")\n\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Insufficient points balance for redemption.\")\n\n        self._redeemed[customer] += points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return all customers, sorted.\"\"\"\n        return sorted(self._earnings.keys())\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        \"\"\"Return the customer's purchase history as a list of (date, amount) tuples.\"\"\"\n        return list(self._purchases[customer])\n",
+ "input_tokens": 506,
+ "output_tokens": 773,
+ "cost_usd": 0.00327825,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 5.94,
+ "raw_api_response": {
+  "id": "SVf2avDJOY3_nsEPh4-Z8Qg",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "Here is the complete updated module with the requested `history` method added:\n\n```python\nfrom datetime import date, timedelta\nfrom collections import defaultdict\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Maps customer -> list of tuples: (available_date, points_earned)\n        self._earnings: dict[str, list[tuple[date, int]]] = defaultdict(list)\n        # Maps customer -> total points redeemed so far\n        self._redeemed: dict[str, int] = defaultdict(int)\n        # Maps customer -> list of tuples: (purchase_date, amount)\n        self._purchases: dict[str, list[tuple[date, float]]] = defaultdict(list)\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        \"\"\"Record a purchase; returns the number of points earned.\"\"\"\n        if amount <= 0:\n            raise ValueError(\"Purchase amount must be greater than zero.\")\n\n        points = int(amount // 10)\n        available_date = day + timedelta(days=14)\n        self._earnings[customer].append((available_date, points))\n        self._purchases[customer].append((day, amount))\n        return points\n\n    def balance(self, customer: str, day: date) -> int:\n        \"\"\"Points the customer can spend on the given day.\"\"\"\n        earned_to_date = sum(\n            pts for avail_day, pts in self._earnings[customer] if avail_day <= day\n        )\n        return earned_to_date - self._redeemed[customer]\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        \"\"\"Redeem points for a customer on the given day.\"\"\"\n        if points <= 0 or points % 100 != 0:\n            raise ValueError(\"Redemption points must be a positive multiple of 100.\")\n\n        current_balance = self.balance(customer, day)\n        if points > current_balance:\n            raise ValueError(\"Insufficient points balance for redemption.\")\n\n        self._redeemed[customer] += points\n\n    def customers(self) -> list[str]:\n        \"\"\"Return all customers, sorted.\"\"\"\n        return sorted(self._earnings.keys())\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        \"\"\"Return the customer's purchase history as a list of (date, amount) tuples.\"\"\"\n        return list(self._purchases[customer])\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "extra_content": {
+      "google": {
+       "thought_signature": "EsAGCr0GAWkUfRN1tJOfkgFNIn/sAvc9s4kYBxyF1iAVXD6UiMstNHPuTq+zJMvzqt7k4kjqBWuLIfZlmR6E31+0+CtWHuJ8mXoldH3FFY49//LtOpdVnnaHU80Q3MSGdJqDEAGjSYy5BnAQmyAr2iAn7SYq1Xlc1umPUSS7HLTaqqc6hPGmxVkF/BQmGJ4VmMxpcJkuq/Iu2SGjkuQYrcEEyf95Ia8yFgsCE8HQJvDArUfH0SOPI2mbxvTUT+ejU9iMrphWbzfEYIFC6lJpKcBtR8ObybmnJwuiX6chwZRUgyIep3Ad3w9U/vYF0ic01WOgp9G4hiuWpUR1+71HoPkyoV+0benN0At4QttpVrRD6rAcLf4+LqXXlFPtfT1e1trYoD4Uyel4PYQXVkfkAbDnh6TuSzoAxIo5owUYI8yOpU6NvM8ODA65aqdnv2Nkwkj19WUdQr+iIhrMnoEF4S41U2h0K8ht8bS9zHUozQ83Q6C84Q6lcKAnmyB1tW49Fj003bGPbxSx7hjiP8fa3ljmnDF2w+46dByjY0WVnxbKpnOdqiYA9x0m1AkIPTImXbgm2VZ7ajSCeEJo0Yg1988Yfre9znwehGp48sx4BYzrp6r9h4pHgq23leNCIwfz+fn1teTpE8YI9do8UcN84uMQzLc2T1/nnaXOEHaYsZKlI5Kv9APpG3hisIrgyKbbORup2vItWprd0UmbI+3lHxQeUE3+423LtJhI0qYkpJrKe2no+Hp2x1C5f8cPF8aL1SiE+nWLAYVJ8ftlQXk1TPJADg+yuLxNurH5N7nz0uhfbOLDJqodgH3qeQ8TvY6sQH54Zce6L5hmi2q0WzNmG7ZpeYiRIpoYfq5AKJ5JWO7DBcPgwRAMxScb1AsYBsUMNk1nJP63Vb0EZNRiNb1Ytjq77jNGyjnsBI/D/FozR5HUVJBXroWm3LrtCSzTKe2toBdqpmj1lD3fenba/MIrpiMR40Cq1ScS7gbczPEBDtCNfH1+m3b3bBsAFt+Wp2L5Wn07z5ceNPiy4PxMUhdU2aQMate1L/EYVxkbaT/heTIjHrunZzQOsikt2rrxV0lVh6QIkKBhnb2QXw2DF0qgEz+qxg=="
+      }
+     }
+    }
+   }
+  ],
+  "created": 1794529103,
+  "model": "gemini-3.8-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 563,
+   "prompt_tokens": 506,
+   "total_tokens": 1279,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": null
+  }
+ }
+}

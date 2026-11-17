@@ -1,0 +1,96 @@
+{
+ "experiment": "main",
+ "run_id": "20261117-042522-155e",
+ "timestamp": "2026-11-17T06:16:52+00:00",
+ "app": "helpdesk",
+ "app_hash": "160675807e05",
+ "model": "llama",
+ "condition": "ABL-HD3",
+ "rep": 2,
+ "requirement_order": [
+  "HD4",
+  "HD5",
+  "HD2",
+  "HD1"
+ ],
+ "passed": {
+  "HD1": true,
+  "HD2": false,
+  "HD3": false,
+  "HD4": true,
+  "HD5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "meta-llama/llama-3.3-70b-instruct",
+ "prompt": "Implement the following Python module.\n\n## Description\nA ticket queue for a customer helpdesk: customers open tickets, agents take\nthe next ticket to handle, and tickets get closed.\n\n## API (implement exactly these names and signatures)\n```python\nclass Helpdesk:\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None: ...\n\n    def add_customer(self, name: str, vip: bool = False) -> None: ...\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n\n    def next_ticket(self) -> int | None:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n\n    def close(self, ticket_id: int) -> None: ...\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n```\n\n## Requirements\n1. Tickets of VIP customers are handled before all other tickets, even critical tickets of other customers.\n2. A closed ticket cannot be reopened; calling reopen() on a closed ticket raises ValueError.\n3. Tickets with the same priority are handled in the order in which they were opened.\n4. Opening a ticket with an empty title raises ValueError.\n\nReturn the complete implementation of the module as a single Python code block.",
+ "response": "```python\nfrom typing import Optional\nfrom dataclasses import dataclass\nfrom collections import deque\n\nclass Helpdesk:\n    \"\"\"A ticket queue for a customer helpdesk.\"\"\"\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        \"\"\"Initialize the helpdesk.\"\"\"\n        self.customers = {}\n        self.tickets = {}\n        self.queue = deque()\n        self.ticket_id_counter = 0\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        \"\"\"Add a customer to the helpdesk.\"\"\"\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n        if not title:\n            raise ValueError(\"Title cannot be empty\")\n        if customer not in self.customers:\n            raise ValueError(\"Customer not found\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(\"Invalid priority\")\n        \n        self.ticket_id_counter += 1\n        ticket_id = self.ticket_id_counter\n        self.tickets[ticket_id] = Ticket(customer, title, priority, self.customers[customer])\n        self._enqueue_ticket(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n        if not self.queue:\n            return None\n        return self.queue.popleft()\n\n    def close(self, ticket_id: int) -> None:\n        \"\"\"Close a ticket.\"\"\"\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n        self.closed_tickets.add(ticket_id)\n        del self.tickets[ticket_id]\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n        if ticket_id in self.closed_tickets:\n            raise ValueError(\"Cannot reopen a closed ticket\")\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n        self._enqueue_ticket(ticket_id)\n\n    def _enqueue_ticket(self, ticket_id: int) -> None:\n        \"\"\"Enqueue a ticket based on its priority and VIP status.\"\"\"\n        ticket = self.tickets[ticket_id]\n        for i, existing_ticket_id in enumerate(self.queue):\n            existing_ticket = self.tickets[existing_ticket_id]\n            if (ticket.vip and not existing_ticket.vip) or \\\n               (ticket.vip == existing_ticket.vip and self._compare_priorities(ticket.priority, existing_ticket.priority) < 0) or \\\n               (ticket.vip == existing_ticket.vip and ticket.priority == existing_ticket.priority and ticket.opened_at < existing_ticket.opened_at):\n                self.queue.insert(i, ticket_id)\n                return\n        self.queue.append(ticket_id)\n\n    def _compare_priorities(self, priority1: str, priority2: str) -> int:\n        \"\"\"Compare two priorities.\"\"\"\n        if priority1 == priority2:\n            return 0\n        if self.PRIORITIES.index(priority1) < self.PRIORITIES.index(priority2):\n            return -1\n        return 1\n\n\n@dataclass\nclass Ticket:\n    \"\"\"A ticket.\"\"\"\n    customer: str\n    title: str\n    priority: str\n    vip: bool\n    opened_at: int = 0\n\n    def __post_init__(self) -> None:\n        \"\"\"Initialize the opened_at timestamp.\"\"\"\n        self.opened_at = id(self)\n```",
+ "code": "from typing import Optional\nfrom dataclasses import dataclass\nfrom collections import deque\n\nclass Helpdesk:\n    \"\"\"A ticket queue for a customer helpdesk.\"\"\"\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        \"\"\"Initialize the helpdesk.\"\"\"\n        self.customers = {}\n        self.tickets = {}\n        self.queue = deque()\n        self.ticket_id_counter = 0\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        \"\"\"Add a customer to the helpdesk.\"\"\"\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n        if not title:\n            raise ValueError(\"Title cannot be empty\")\n        if customer not in self.customers:\n            raise ValueError(\"Customer not found\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(\"Invalid priority\")\n        \n        self.ticket_id_counter += 1\n        ticket_id = self.ticket_id_counter\n        self.tickets[ticket_id] = Ticket(customer, title, priority, self.customers[customer])\n        self._enqueue_ticket(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n        if not self.queue:\n            return None\n        return self.queue.popleft()\n\n    def close(self, ticket_id: int) -> None:\n        \"\"\"Close a ticket.\"\"\"\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n        self.closed_tickets.add(ticket_id)\n        del self.tickets[ticket_id]\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n        if ticket_id in self.closed_tickets:\n            raise ValueError(\"Cannot reopen a closed ticket\")\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n        self._enqueue_ticket(ticket_id)\n\n    def _enqueue_ticket(self, ticket_id: int) -> None:\n        \"\"\"Enqueue a ticket based on its priority and VIP status.\"\"\"\n        ticket = self.tickets[ticket_id]\n        for i, existing_ticket_id in enumerate(self.queue):\n            existing_ticket = self.tickets[existing_ticket_id]\n            if (ticket.vip and not existing_ticket.vip) or \\\n               (ticket.vip == existing_ticket.vip and self._compare_priorities(ticket.priority, existing_ticket.priority) < 0) or \\\n               (ticket.vip == existing_ticket.vip and ticket.priority == existing_ticket.priority and ticket.opened_at < existing_ticket.opened_at):\n                self.queue.insert(i, ticket_id)\n                return\n        self.queue.append(ticket_id)\n\n    def _compare_priorities(self, priority1: str, priority2: str) -> int:\n        \"\"\"Compare two priorities.\"\"\"\n        if priority1 == priority2:\n            return 0\n        if self.PRIORITIES.index(priority1) < self.PRIORITIES.index(priority2):\n            return -1\n        return 1\n\n\n@dataclass\nclass Ticket:\n    \"\"\"A ticket.\"\"\"\n    customer: str\n    title: str\n    priority: str\n    vip: bool\n    opened_at: int = 0\n\n    def __post_init__(self) -> None:\n        \"\"\"Initialize the opened_at timestamp.\"\"\"\n        self.opened_at = id(self)\n",
+ "input_tokens": 325,
+ "output_tokens": 743,
+ "cost_usd": 0.00027026,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": null,
+ "api_params": {
+  "max_tokens": 16000
+ },
+ "seconds": 13.57,
+ "raw_api_response": {
+  "id": "gen-1794896192-y6TOnMvaCTiCyhVtbpWr",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom typing import Optional\nfrom dataclasses import dataclass\nfrom collections import deque\n\nclass Helpdesk:\n    \"\"\"A ticket queue for a customer helpdesk.\"\"\"\n    PRIORITIES = (\"normal\", \"high\", \"critical\")\n\n    def __init__(self) -> None:\n        \"\"\"Initialize the helpdesk.\"\"\"\n        self.customers = {}\n        self.tickets = {}\n        self.queue = deque()\n        self.ticket_id_counter = 0\n        self.closed_tickets = set()\n\n    def add_customer(self, name: str, vip: bool = False) -> None:\n        \"\"\"Add a customer to the helpdesk.\"\"\"\n        self.customers[name] = vip\n\n    def open_ticket(self, customer: str, title: str, priority: str = \"normal\") -> int:\n        \"\"\"Open a ticket; returns its id.\"\"\"\n        if not title:\n            raise ValueError(\"Title cannot be empty\")\n        if customer not in self.customers:\n            raise ValueError(\"Customer not found\")\n        if priority not in self.PRIORITIES:\n            raise ValueError(\"Invalid priority\")\n        \n        self.ticket_id_counter += 1\n        ticket_id = self.ticket_id_counter\n        self.tickets[ticket_id] = Ticket(customer, title, priority, self.customers[customer])\n        self._enqueue_ticket(ticket_id)\n        return ticket_id\n\n    def next_ticket(self) -> Optional[int]:\n        \"\"\"Take the ticket that should be handled next out of the queue; None if the queue is empty.\"\"\"\n        if not self.queue:\n            return None\n        return self.queue.popleft()\n\n    def close(self, ticket_id: int) -> None:\n        \"\"\"Close a ticket.\"\"\"\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n        self.closed_tickets.add(ticket_id)\n        del self.tickets[ticket_id]\n\n    def reopen(self, ticket_id: int) -> None:\n        \"\"\"Put a ticket back into the queue.\"\"\"\n        if ticket_id in self.closed_tickets:\n            raise ValueError(\"Cannot reopen a closed ticket\")\n        if ticket_id not in self.tickets:\n            raise ValueError(\"Ticket not found\")\n        self._enqueue_ticket(ticket_id)\n\n    def _enqueue_ticket(self, ticket_id: int) -> None:\n        \"\"\"Enqueue a ticket based on its priority and VIP status.\"\"\"\n        ticket = self.tickets[ticket_id]\n        for i, existing_ticket_id in enumerate(self.queue):\n            existing_ticket = self.tickets[existing_ticket_id]\n            if (ticket.vip and not existing_ticket.vip) or \\\n               (ticket.vip == existing_ticket.vip and self._compare_priorities(ticket.priority, existing_ticket.priority) < 0) or \\\n               (ticket.vip == existing_ticket.vip and ticket.priority == existing_ticket.priority and ticket.opened_at < existing_ticket.opened_at):\n                self.queue.insert(i, ticket_id)\n                return\n        self.queue.append(ticket_id)\n\n    def _compare_priorities(self, priority1: str, priority2: str) -> int:\n        \"\"\"Compare two priorities.\"\"\"\n        if priority1 == priority2:\n            return 0\n        if self.PRIORITIES.index(priority1) < self.PRIORITIES.index(priority2):\n            return -1\n        return 1\n\n\n@dataclass\nclass Ticket:\n    \"\"\"A ticket.\"\"\"\n    customer: str\n    title: str\n    priority: str\n    vip: bool\n    opened_at: int = 0\n\n    def __post_init__(self) -> None:\n        \"\"\"Initialize the opened_at timestamp.\"\"\"\n        self.opened_at = id(self)\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null,
+     "reasoning": null
+    },
+    "native_finish_reason": "stop"
+   }
+  ],
+  "created": 1794896192,
+  "model": "meta-llama/llama-3.3-70b-instruct",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.31.0-tp2-260b81aa",
+  "usage": {
+   "completion_tokens": 743,
+   "prompt_tokens": 325,
+   "total_tokens": 1068,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": null,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": null,
+    "text_tokens": null,
+    "image_tokens": 0
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 16,
+    "image_tokens": null,
+    "text_tokens": null,
+    "video_tokens": 0
+   },
+   "cost": 0.00044976,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 0.00044976,
+    "upstream_inference_prompt_cost": 6.34e-05,
+    "upstream_inference_completions_cost": 0.00038636
+   }
+  },
+  "provider": "AkashML"
+ }
+}

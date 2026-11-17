@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-12T23:40:26+00:00",
+ "app": "loyalty",
+ "app_hash": "e375158c572c",
+ "model": "deepseek",
+ "variant": "code",
+ "rep": 1,
+ "step": 3,
+ "change": "Add a method `total_spent(self, customer: str) -> float` that returns the total amount the customer has spent.",
+ "start_file": "loyalty__deepseek__FULL__1.json",
+ "passed": {
+  "LY1": true,
+  "LY2": true,
+  "LY3": true,
+  "LY4": true,
+  "LY5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "deepseek-flash",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Per-customer list of (available_from_day, points, purchase_day, amount)\n        self._purchases = {}\n        # Per-customer list of (day, points) redemptions\n        self._redemptions = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount is None:\n            raise ValueError(\"amount must be a number\")\n        if amount <= 0:\n            raise ValueError(\"purchase amount must be positive\")\n\n        # 1 point per full 10.00 spent\n        points = int(amount // 10)\n        available_from = day + timedelta(days=14)\n\n        self._purchases.setdefault(customer, []).append(\n            (available_from, points, day, amount)\n        )\n        return points\n\n    def _earned_by(self, customer: str, day: date) -> int:\n        total = 0\n        for available_from, pts, _purchase_day, _amount in self._purchases.get(\n            customer, ()\n        ):\n            if available_from <= day:\n                total += pts\n        return total\n\n    def _redeemed_by(self, customer: str, day: date) -> int:\n        total = 0\n        for red_day, pts in self._redemptions.get(customer, ()):\n            if red_day <= day:\n                total += pts\n        return total\n\n    def balance(self, customer: str, day: date) -> int:\n        return self._earned_by(customer, day) - self._redeemed_by(customer, day)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points is None or not isinstance(points, int):\n            raise ValueError(\"points must be an integer\")\n        if points <= 0:\n            raise ValueError(\"points must be positive\")\n        if points % 100 != 0:\n            raise ValueError(\"points must be redeemed in multiples of 100\")\n\n        if points > self.balance(customer, day):\n            raise ValueError(\"insufficient available points\")\n\n        self._redemptions.setdefault(customer, []).append((day, points))\n\n    def customers(self) -> list[str]:\n        return sorted(set(self._purchases) | set(self._redemptions))\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        return [\n            (purchase_day, amount)\n            for _available_from, _pts, purchase_day, amount in self._purchases.get(\n                customer, ()\n            )\n        ]\n```\n\n## Change request\nAdd a method `total_spent(self, customer: str) -> float` that returns the total amount the customer has spent.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Per-customer list of (available_from_day, points, purchase_day, amount)\n        self._purchases = {}\n        # Per-customer list of (day, points) redemptions\n        self._redemptions = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount is None:\n            raise ValueError(\"amount must be a number\")\n        if amount <= 0:\n            raise ValueError(\"purchase amount must be positive\")\n\n        # 1 point per full 10.00 spent\n        points = int(amount // 10)\n        available_from = day + timedelta(days=14)\n\n        self._purchases.setdefault(customer, []).append(\n            (available_from, points, day, amount)\n        )\n        return points\n\n    def _earned_by(self, customer: str, day: date) -> int:\n        total = 0\n        for available_from, pts, _purchase_day, _amount in self._purchases.get(\n            customer, ()\n        ):\n            if available_from <= day:\n                total += pts\n        return total\n\n    def _redeemed_by(self, customer: str, day: date) -> int:\n        total = 0\n        for red_day, pts in self._redemptions.get(customer, ()):\n            if red_day <= day:\n                total += pts\n        return total\n\n    def balance(self, customer: str, day: date) -> int:\n        return self._earned_by(customer, day) - self._redeemed_by(customer, day)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points is None or not isinstance(points, int):\n            raise ValueError(\"points must be an integer\")\n        if points <= 0:\n            raise ValueError(\"points must be positive\")\n        if points % 100 != 0:\n            raise ValueError(\"points must be redeemed in multiples of 100\")\n\n        if points > self.balance(customer, day):\n            raise ValueError(\"insufficient available points\")\n\n        self._redemptions.setdefault(customer, []).append((day, points))\n\n    def customers(self) -> list[str]:\n        return sorted(set(self._purchases) | set(self._redemptions))\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        return [\n            (purchase_day, amount)\n            for _available_from, _pts, purchase_day, amount in self._purchases.get(\n                customer, ()\n            )\n        ]\n\n    def total_spent(self, customer: str) -> float:\n        return sum(\n            amount for _available_from, _pts, _purchase_day, amount in\n            self._purchases.get(customer, ())\n        )\n```",
+ "code": "from datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Per-customer list of (available_from_day, points, purchase_day, amount)\n        self._purchases = {}\n        # Per-customer list of (day, points) redemptions\n        self._redemptions = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount is None:\n            raise ValueError(\"amount must be a number\")\n        if amount <= 0:\n            raise ValueError(\"purchase amount must be positive\")\n\n        # 1 point per full 10.00 spent\n        points = int(amount // 10)\n        available_from = day + timedelta(days=14)\n\n        self._purchases.setdefault(customer, []).append(\n            (available_from, points, day, amount)\n        )\n        return points\n\n    def _earned_by(self, customer: str, day: date) -> int:\n        total = 0\n        for available_from, pts, _purchase_day, _amount in self._purchases.get(\n            customer, ()\n        ):\n            if available_from <= day:\n                total += pts\n        return total\n\n    def _redeemed_by(self, customer: str, day: date) -> int:\n        total = 0\n        for red_day, pts in self._redemptions.get(customer, ()):\n            if red_day <= day:\n                total += pts\n        return total\n\n    def balance(self, customer: str, day: date) -> int:\n        return self._earned_by(customer, day) - self._redeemed_by(customer, day)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points is None or not isinstance(points, int):\n            raise ValueError(\"points must be an integer\")\n        if points <= 0:\n            raise ValueError(\"points must be positive\")\n        if points % 100 != 0:\n            raise ValueError(\"points must be redeemed in multiples of 100\")\n\n        if points > self.balance(customer, day):\n            raise ValueError(\"insufficient available points\")\n\n        self._redemptions.setdefault(customer, []).append((day, points))\n\n    def customers(self) -> list[str]:\n        return sorted(set(self._purchases) | set(self._redemptions))\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        return [\n            (purchase_day, amount)\n            for _available_from, _pts, purchase_day, amount in self._purchases.get(\n                customer, ()\n            )\n        ]\n\n    def total_spent(self, customer: str) -> float:\n        return sum(\n            amount for _available_from, _pts, _purchase_day, amount in\n            self._purchases.get(customer, ())\n        )\n",
+ "input_tokens": 639,
+ "output_tokens": 625,
+ "cost_usd": 0.0009417000000000001,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "off",
+ "api_params": {
+  "max_tokens": 16000,
+  "extra_body": {
+   "thinking": {
+    "type": "disabled"
+   }
+  }
+ },
+ "seconds": 2.63,
+ "raw_api_response": {
+  "id": "57fb4ca5-9a70-4405-95a1-c4e6729931e1",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\n\nclass Loyalty:\n    def __init__(self) -> None:\n        # Per-customer list of (available_from_day, points, purchase_day, amount)\n        self._purchases = {}\n        # Per-customer list of (day, points) redemptions\n        self._redemptions = {}\n\n    def purchase(self, customer: str, amount: float, day: date) -> int:\n        if amount is None:\n            raise ValueError(\"amount must be a number\")\n        if amount <= 0:\n            raise ValueError(\"purchase amount must be positive\")\n\n        # 1 point per full 10.00 spent\n        points = int(amount // 10)\n        available_from = day + timedelta(days=14)\n\n        self._purchases.setdefault(customer, []).append(\n            (available_from, points, day, amount)\n        )\n        return points\n\n    def _earned_by(self, customer: str, day: date) -> int:\n        total = 0\n        for available_from, pts, _purchase_day, _amount in self._purchases.get(\n            customer, ()\n        ):\n            if available_from <= day:\n                total += pts\n        return total\n\n    def _redeemed_by(self, customer: str, day: date) -> int:\n        total = 0\n        for red_day, pts in self._redemptions.get(customer, ()):\n            if red_day <= day:\n                total += pts\n        return total\n\n    def balance(self, customer: str, day: date) -> int:\n        return self._earned_by(customer, day) - self._redeemed_by(customer, day)\n\n    def redeem(self, customer: str, points: int, day: date) -> None:\n        if points is None or not isinstance(points, int):\n            raise ValueError(\"points must be an integer\")\n        if points <= 0:\n            raise ValueError(\"points must be positive\")\n        if points % 100 != 0:\n            raise ValueError(\"points must be redeemed in multiples of 100\")\n\n        if points > self.balance(customer, day):\n            raise ValueError(\"insufficient available points\")\n\n        self._redemptions.setdefault(customer, []).append((day, points))\n\n    def customers(self) -> list[str]:\n        return sorted(set(self._purchases) | set(self._redemptions))\n\n    def history(self, customer: str) -> list[tuple[date, float]]:\n        return [\n            (purchase_day, amount)\n            for _available_from, _pts, purchase_day, amount in self._purchases.get(\n                customer, ()\n            )\n        ]\n\n    def total_spent(self, customer: str) -> float:\n        return sum(\n            amount for _available_from, _pts, _purchase_day, amount in\n            self._purchases.get(customer, ())\n        )\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": null,
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794526817,
+  "model": "deepseek-flash",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": null,
+  "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+  "usage": {
+   "completion_tokens": 625,
+   "prompt_tokens": 639,
+   "total_tokens": 1264,
+   "completion_tokens_details": null,
+   "prompt_tokens_details": {
+    "audio_tokens": null,
+    "cache_write_tokens": null,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   },
+   "prompt_cache_hit_tokens": 0,
+   "prompt_cache_miss_tokens": 639
+  }
+ }
+}

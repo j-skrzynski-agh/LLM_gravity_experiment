@@ -1,0 +1,41 @@
+app: gradebook
+module: gradebook
+
+description: |
+  A gradebook for a university course: assignments with weights, grades on the
+  Polish 2.0-5.0 scale, and a final average per student.
+
+api: |
+  class Gradebook:
+      def __init__(self) -> None: ...
+
+      def add_assignment(self, name: str, weight: float, kind: str = "homework") -> None:
+          """kind is "homework" or "quiz"."""
+
+      def record(self, student: str, assignment: str, grade: float) -> None: ...
+
+      def average(self, student: str) -> float: ...
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: GB1
+    category: K
+    text: Recording a grade outside the scale 2.0 to 5.0 raises ValueError.
+  - id: GB2
+    category: K
+    text: average() is rounded to two decimal places.
+  - id: GB3
+    category: D
+    text: The average is weighted by the weights of the assignments.
+  - id: GB4
+    category: S
+    text: If a student has more than one quiz, their lowest quiz grade is dropped when computing the average.
+  - id: GB5
+    category: S
+    text: An assignment without a recorded grade counts as 2.0 in the average instead of being skipped.
+
+changes:
+  - 'Add a method `students(self) -> list[str]` that returns all students with at least one grade, sorted.'
+  - 'Add a method `grades(self, student: str) -> dict[str, float]` that returns the student''s recorded grades.'
+  - 'Add a method `remove_assignment(self, name: str) -> None` that removes an assignment and its grades.'
+  - 'Add a method `class_average(self) -> float` that returns the mean of the averages of all students.'

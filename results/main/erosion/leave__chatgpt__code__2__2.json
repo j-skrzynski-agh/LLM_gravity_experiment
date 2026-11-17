@@ -1,0 +1,82 @@
+{
+ "experiment": "main",
+ "run_id": "20261112-232341-c29e",
+ "timestamp": "2026-11-13T00:57:30+00:00",
+ "app": "leave",
+ "app_hash": "c3276e419d06",
+ "model": "chatgpt",
+ "variant": "code",
+ "rep": 2,
+ "step": 2,
+ "change": "Add a method `requests_of(self, employee: str) -> list[tuple[date, date]]` that returns the employee's requests.",
+ "start_file": "leave__chatgpt__FULL__2.json",
+ "passed": {
+  "LV1": true,
+  "LV2": true,
+  "LV3": true,
+  "LV4": true,
+  "LV5": true
+ },
+ "crashed": false,
+ "error": "",
+ "model_id": "gpt-6.1-terra",
+ "prompt": "Here is the current implementation of a Python module.\n```python\nfrom datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(\n        self, days_per_year: int = 26, holidays: list[date] | None = None\n    ) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays or ())\n        self._used: dict[tuple[str, int], int] = {}\n        self._employees: set[str] = set()\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        if (start - today).days < 3:\n            raise ValueError(\"Requests must be made at least 3 days in advance\")\n\n        days_by_year: dict[int, int] = {}\n        current = start\n        while True:\n            if current.weekday() < 5 and current not in self.holidays:\n                days_by_year[current.year] = days_by_year.get(current.year, 0) + 1\n            if current == end:\n                break\n            current += timedelta(days=1)\n\n        for year, days in days_by_year.items():\n            if days > self.remaining(employee, year):\n                raise ValueError(f\"Insufficient leave for {year}\")\n\n        for year, days in days_by_year.items():\n            key = (employee, year)\n            self._used[key] = self._used.get(key, 0) + days\n\n        self._employees.add(employee)\n        return sum(days_by_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used.get((employee, year), 0)\n\n    def employees(self) -> list[str]:\n        return sorted(self._employees)\n```\n\n## Change request\nAdd a method `requests_of(self, employee: str) -> list[tuple[date, date]]` that returns the employee's requests.\n\nKeep all existing functions and their signatures. Return the complete updated module as a single Python code block.",
+ "response": "```python\nfrom datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(\n        self, days_per_year: int = 26, holidays: list[date] | None = None\n    ) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays or ())\n        self._used: dict[tuple[str, int], int] = {}\n        self._employees: set[str] = set()\n        self._requests: dict[str, list[tuple[date, date]]] = {}\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        if (start - today).days < 3:\n            raise ValueError(\"Requests must be made at least 3 days in advance\")\n\n        days_by_year: dict[int, int] = {}\n        current = start\n        while True:\n            if current.weekday() < 5 and current not in self.holidays:\n                days_by_year[current.year] = days_by_year.get(current.year, 0) + 1\n            if current == end:\n                break\n            current += timedelta(days=1)\n\n        for year, days in days_by_year.items():\n            if days > self.remaining(employee, year):\n                raise ValueError(f\"Insufficient leave for {year}\")\n\n        for year, days in days_by_year.items():\n            key = (employee, year)\n            self._used[key] = self._used.get(key, 0) + days\n\n        self._employees.add(employee)\n        self._requests.setdefault(employee, []).append((start, end))\n        return sum(days_by_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used.get((employee, year), 0)\n\n    def employees(self) -> list[str]:\n        return sorted(self._employees)\n\n    def requests_of(self, employee: str) -> list[tuple[date, date]]:\n        \"\"\"Return the employee's successful requests in submission order.\"\"\"\n        return list(self._requests.get(employee, ()))\n```",
+ "code": "from datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(\n        self, days_per_year: int = 26, holidays: list[date] | None = None\n    ) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays or ())\n        self._used: dict[tuple[str, int], int] = {}\n        self._employees: set[str] = set()\n        self._requests: dict[str, list[tuple[date, date]]] = {}\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        if (start - today).days < 3:\n            raise ValueError(\"Requests must be made at least 3 days in advance\")\n\n        days_by_year: dict[int, int] = {}\n        current = start\n        while True:\n            if current.weekday() < 5 and current not in self.holidays:\n                days_by_year[current.year] = days_by_year.get(current.year, 0) + 1\n            if current == end:\n                break\n            current += timedelta(days=1)\n\n        for year, days in days_by_year.items():\n            if days > self.remaining(employee, year):\n                raise ValueError(f\"Insufficient leave for {year}\")\n\n        for year, days in days_by_year.items():\n            key = (employee, year)\n            self._used[key] = self._used.get(key, 0) + days\n\n        self._employees.add(employee)\n        self._requests.setdefault(employee, []).append((start, end))\n        return sum(days_by_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used.get((employee, year), 0)\n\n    def employees(self) -> list[str]:\n        return sorted(self._employees)\n\n    def requests_of(self, employee: str) -> list[tuple[date, date]]:\n        \"\"\"Return the employee's successful requests in submission order.\"\"\"\n        return list(self._requests.get(employee, ()))\n",
+ "input_tokens": 469,
+ "output_tokens": 502,
+ "cost_usd": 0.002979,
+ "stop_reason": "stop",
+ "truncated": false,
+ "thinking": "low",
+ "api_params": {
+  "max_tokens": 16000,
+  "reasoning_effort": "low"
+ },
+ "seconds": 6.59,
+ "raw_api_response": {
+  "id": "chatcmpl-EjZtO3cJsLaNdAF0g1WnwudDkEEoY",
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "index": 0,
+    "logprobs": null,
+    "message": {
+     "content": "```python\nfrom datetime import date, timedelta\n\n\nclass LeaveTracker:\n    def __init__(\n        self, days_per_year: int = 26, holidays: list[date] | None = None\n    ) -> None:\n        self.days_per_year = days_per_year\n        self.holidays = set(holidays or ())\n        self._used: dict[tuple[str, int], int] = {}\n        self._employees: set[str] = set()\n        self._requests: dict[str, list[tuple[date, date]]] = {}\n\n    def request(self, employee: str, start: date, end: date, today: date) -> int:\n        \"\"\"Request leave from start to end (inclusive); returns leave days used.\"\"\"\n        if end < start:\n            raise ValueError(\"End date cannot be before start date\")\n        if (start - today).days < 3:\n            raise ValueError(\"Requests must be made at least 3 days in advance\")\n\n        days_by_year: dict[int, int] = {}\n        current = start\n        while True:\n            if current.weekday() < 5 and current not in self.holidays:\n                days_by_year[current.year] = days_by_year.get(current.year, 0) + 1\n            if current == end:\n                break\n            current += timedelta(days=1)\n\n        for year, days in days_by_year.items():\n            if days > self.remaining(employee, year):\n                raise ValueError(f\"Insufficient leave for {year}\")\n\n        for year, days in days_by_year.items():\n            key = (employee, year)\n            self._used[key] = self._used.get(key, 0) + days\n\n        self._employees.add(employee)\n        self._requests.setdefault(employee, []).append((start, end))\n        return sum(days_by_year.values())\n\n    def remaining(self, employee: str, year: int) -> int:\n        return self.days_per_year - self._used.get((employee, year), 0)\n\n    def employees(self) -> list[str]:\n        return sorted(self._employees)\n\n    def requests_of(self, employee: str) -> list[tuple[date, date]]:\n        \"\"\"Return the employee's successful requests in submission order.\"\"\"\n        return list(self._requests.get(employee, ()))\n```",
+     "refusal": null,
+     "role": "assistant",
+     "annotations": [],
+     "audio": null,
+     "function_call": null,
+     "tool_calls": null
+    }
+   }
+  ],
+  "created": 1794531438,
+  "model": "gpt-6.1-terra",
+  "object": "chat.completion",
+  "metadata": null,
+  "moderation": null,
+  "service_tier": "default",
+  "system_fingerprint": null,
+  "usage": {
+   "completion_tokens": 502,
+   "prompt_tokens": 469,
+   "total_tokens": 971,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 20,
+    "rejected_prediction_tokens": 0,
+    "text_tokens": null
+   },
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 0,
+    "image_tokens": null,
+    "text_tokens": null
+   }
+  }
+ }
+}

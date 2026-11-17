@@ -1,0 +1,48 @@
+app: appointments
+module: appointments
+
+description: |
+  A module for booking appointments with doctors in a small clinic.
+
+api: |
+  from datetime import datetime
+
+  class Scheduler:
+      def __init__(self) -> None: ...
+
+      def book(self, patient: str, doctor: str, start: datetime, end: datetime,
+               now: datetime) -> int:
+          """Book an appointment; returns its id. `now` is the current time."""
+
+      def cancel(self, appointment_id: int, now: datetime) -> None: ...
+
+      def is_free(self, doctor: str, start: datetime, end: datetime) -> bool:
+          """True if the doctor can be booked between start and end."""
+
+# Kategorie: K = konwencja, D = wiedza domenowa, S = decyzja interesariusza
+requirements:
+  - id: AP1
+    category: K
+    text: Booking an appointment that starts before `now` raises ValueError.
+  - id: AP2
+    category: K
+    text: Booking an appointment that overlaps another appointment of the same doctor raises ValueError.
+  - id: AP3
+    category: D
+    text: Appointments that only touch (one ends exactly when the other starts) do not overlap.
+  - id: AP4
+    category: S
+    text: >-
+      Cancelling an appointment less than 24 hours before its start does not free the time slot;
+      the slot stays blocked.
+  - id: AP5
+    category: S
+    text: >-
+      A patient can have at most one upcoming appointment; booking another one while the first
+      is still upcoming raises ValueError.
+
+changes:
+  - 'Add a method `appointments_of(self, doctor: str) -> list[dict]` that returns the doctor''s appointments sorted by start time, each with keys id, patient, start and end.'
+  - 'Add an optional keyword parameter `note: str = ""` at the end of the parameters of book, and a method `note(self, appointment_id: int) -> str` that returns it.'
+  - 'Add a method `count_bookings(self, patient: str) -> int` that returns how many appointments the patient has ever booked.'
+  - 'Add a method `doctors(self) -> list[str]` that returns all doctors with at least one appointment, sorted.'
