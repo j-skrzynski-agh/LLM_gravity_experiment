@@ -1,0 +1,95 @@
+STUDY 1
+  models: ['chatgpt', 'deepseek', 'gemini', 'llama', 'qwen']  repetitions: 3
+  runs: ABL 1080  FULL 210
+  crashed runs per model: {'chatgpt': 0, 'deepseek': 0, 'gemini': 0, 'llama': 9, 'qwen': 10}
+  truncated runs: 0   total cost USD: 1.91
+
+  Table 2 (mean over requirements, 95% CI):
+  K  n=30  P_default 0.47 [0.32, 0.61]  P_stated 0.99 [0.98, 1.00]  Info 0.52 [0.38, 0.67]  never met by default: 9
+  D  n=14  P_default 0.78 [0.59, 0.94]  P_stated 0.98 [0.97, 1.00]  Info 0.20 [0.06, 0.39]  never met by default: 2
+  S  n=28  P_default 0.05 [0.00, 0.12]  P_stated 0.93 [0.88, 0.97]  Info 0.88 [0.80, 0.94]  never met by default: 24
+
+  RQ1 Kruskal-Wallis: H = 29.9, p = 3.2e-07
+  RQ1 Mann-Whitney K vs D: p (Holm) = 0.023
+  RQ1 Mann-Whitney K vs S: p (Holm) = 0.000
+  RQ1 Mann-Whitney D vs S: p (Holm) = 0.000
+
+  Table 3, Study 1 part (P_default / P_stated):
+  chatgpt   K 0.52 / 1.00   D 0.83 / 1.00   S 0.04 / 0.98
+  deepseek  K 0.62 / 1.00   D 0.86 / 1.00   S 0.06 / 0.95
+  gemini    K 0.44 / 1.00   D 0.86 / 1.00   S 0.07 / 1.00
+  llama     K 0.38 / 0.98   D 0.64 / 0.97   S 0.03 / 0.82
+  qwen      K 0.35 / 0.99   D 0.71 / 0.95   S 0.06 / 0.91
+
+  RQ2 FULL runs that pass every requirement: 0.87
+  RQ2 requirements not always met when stated:
+       category  P_default  P_stated  Info
+req_id                                    
+AP4           S       0.00      0.71  0.71
+AR6           S       0.00      0.93  0.93
+CT3           D       0.60      0.93  0.33
+EH5           S       0.00      0.93  0.93
+ES2           K       0.57      0.82  0.25
+ES5           S       0.00      0.82  0.82
+ES6           S       0.00      0.73  0.73
+GB4           S       0.00      0.87  0.87
+HD2           K       1.00      0.92 -0.08
+HD3           D       0.80      0.92  0.12
+HD5           S       0.00      0.92  0.92
+LB5           S       0.00      0.73  0.73
+PK3           D       0.00      0.93  0.93
+PK4           S       0.00      0.93  0.93
+UQ4           S       0.00      0.47  0.47
+  RQ2 2x2 table (rows: P_default <= 0.2, columns: 0 = failed, 1 = passed):
+passed           0    1
+rarely_default         
+False            5  456
+True            28  547
+  RQ2 Fisher exact test: p = 0.00051
+
+EROSION
+  chains per variant: {'code': 210, 'refactor': 75}  evaluated (code met something at start): {'code': 202, 'refactor': 73}
+  steps: 915  crashed steps: 23
+  P_survive (share of requirements met at start that are still met):
+step                 1    2     3     4
+variant  category                      
+code     D         1.0  1.0  0.99  0.99
+         K         1.0  1.0  0.99  0.99
+         S         1.0  1.0  1.00  1.00
+refactor D         1.0  NaN   NaN   NaN
+         K         1.0  NaN   NaN   NaN
+         S         1.0  NaN   NaN   NaN
+  lost requirements: 12
+variant  model  app      rep  req_id
+code     qwen   library  1    LB1       [3, 4]
+                              LB2       [3, 4]
+                         2    LB1       [3, 4]
+                              LB2       [3, 4]
+                              LB3       [3, 4]
+                              LB4       [3, 4]
+
+STUDY 2
+  models: ['chatgpt', 'deepseek', 'gemini']  judges: ['chatgpt', 'claude', 'qwen']
+  answers: 198
+  answers without code (only questions): {('chatgpt', 'BARE'): 7, ('chatgpt', 'FULL'): 3}
+  judge returned no verdict (answers): {'claude': 3, 'qwen': 2}
+  share judged met, per judge: {'chatgpt': 0.71, 'claude': 0.76, 'qwen': 0.81}
+  chatgpt vs claude: agreement 0.90, Cohen's kappa 0.76
+  chatgpt vs qwen: agreement 0.87, Cohen's kappa 0.64
+  claude vs qwen: agreement 0.93, Cohen's kappa 0.78
+  chatgpt as judge minus other judges: own answers -0.02, other answers -0.10
+
+  RQ4 (mean over requirements, 95% CI):
+  D  n=15  BARE 0.40 [0.22, 0.59]  FULL 0.93 [0.87, 0.99]
+  T  n=18  BARE 0.72 [0.58, 0.85]  FULL 0.98 [0.96, 1.00]
+  RQ4 Mann-Whitney D vs T in BARE: p = 0.015
+  RQ4 Wilcoxon BARE vs FULL (same requirements): p = 1.8e-05
+  RQ4 answers meeting all three requirements: {'BARE': 0.28, 'FULL': 0.91}
+  RQ4 never met in BARE: ['IN3', 'KS2', 'NL2', 'NL3', 'PT1', 'PT2']
+
+  Table 3, Study 2 part (BARE / FULL):
+  chatgpt   D 0.56 / 0.97   T 0.97 / 1.00
+  deepseek  D 0.40 / 0.89   T 0.59 / 0.94
+  gemini    D 0.27 / 0.93   T 0.69 / 1.00
+
+Written: fig_pdefault.pdf, fig_study2.pdf, per_req_study1.csv, per_req_study2.csv

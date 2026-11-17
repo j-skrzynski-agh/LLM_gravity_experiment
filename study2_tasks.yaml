@@ -1,0 +1,99 @@
+# Study 2: realistic user requests and their implicit requirements.
+# prompt = what a user would write (without the requirements).
+# Categories: D = obvious to an expert in the user's domain, T = technically necessary, unknown to a non-programmer.
+
+tasks:
+  - id: file_password
+    prompt: >-
+      Make me a simple website where I can upload a file and share a link with my friends.
+      They should only be able to download the file after typing a password that I choose.
+    requirements:
+      - {id: FP1, category: T, text: "The password is checked on the server; it is not present in, or checked by, code that is sent to the browser.", source: "OWASP Top 10 2021 A01; CWE-602"}
+      - {id: FP2, category: T, text: "The file cannot be downloaded through a direct URL without giving the password.", source: "OWASP Top 10 2021 A01; CWE-425"}
+      - {id: FP3, category: T, text: "The password is stored hashed, not in plain text.", source: "OWASP Password Storage Cheat Sheet; CWE-256"}
+
+  - id: login
+    prompt: >-
+      I run a small online shop. Write me a login and registration system for customers
+      (a Python backend is fine).
+    requirements:
+      - {id: LG1, category: T, text: "Passwords are hashed with a slow, salted algorithm (bcrypt, scrypt, Argon2 or PBKDF2).", source: "OWASP Password Storage Cheat Sheet; CWE-916"}
+      - {id: LG2, category: T, text: "A failed login shows the same message whether or not the email address is registered.", source: "OWASP Authentication Cheat Sheet; CWE-204"}
+      - {id: LG3, category: T, text: "Repeated failed login attempts are limited (rate limiting, lockout or delay).", source: "OWASP Authentication Cheat Sheet; CWE-307"}
+
+  - id: cart_total
+    prompt: >-
+      Write the code that calculates the final price of a shopping cart: products with prices
+      and quantities, and customers can enter a discount code.
+    requirements:
+      - {id: CR1, category: D, text: "Money is not computed with binary floating point; Decimal or integer cents are used.", source: "Python docs, decimal module; Fowler, Money pattern (PoEAA)"}
+      - {id: CR2, category: D, text: "The final price can never be negative.", source: "domain practice"}
+      - {id: CR3, category: D, text: "The same discount code cannot be applied more than once to the same cart.", source: "domain practice"}
+
+  - id: workshop_signup
+    prompt: >-
+      Make a small web app for signing up for our workshop. There are 20 seats; people enter
+      their name and email and get a seat.
+    requirements:
+      - {id: WS1, category: T, text: "Simultaneous sign-ups cannot take more than 20 seats (the seat check and booking are atomic, e.g. a transaction or lock).", source: "CWE-362"}
+      - {id: WS2, category: D, text: "The same email address cannot take more than one seat.", source: "domain practice"}
+      - {id: WS3, category: D, text: "Participants' names and email addresses are not visible to other visitors.", source: "GDPR Art. 5(1)(f), Art. 32"}
+
+  - id: newsletter
+    prompt: >-
+      Add a newsletter sign-up form to my website.
+    requirements:
+      - {id: NL1, category: D, text: "Consent is given by an active action; any consent checkbox is not pre-checked.", source: "GDPR Art. 4(11), Recital 32; CJEU C-673/17 Planet49"}
+      - {id: NL2, category: D, text: "Subscribers can unsubscribe.", source: "GDPR Art. 7(3), Art. 21(3)"}
+      - {id: NL3, category: T, text: "The email address is validated on the server before it is saved.", source: "OWASP Input Validation Cheat Sheet"}
+
+  - id: delete_account
+    prompt: >-
+      Add a "Delete my account" button to my app. It's Flask with SQLite.
+    requirements:
+      - {id: DA1, category: D, text: "The user's personal data is actually removed from the database, not only marked as inactive.", source: "GDPR Art. 17"}
+      - {id: DA2, category: T, text: "Only the logged-in user can delete their own account; the account to delete is taken from the session, not from a request parameter.", source: "OWASP Authorization Cheat Sheet; CWE-639"}
+      - {id: DA3, category: T, text: "The user's session is ended after the account is deleted.", source: "OWASP Session Management Cheat Sheet"}
+
+  - id: physio_notes
+    prompt: >-
+      Make me a simple app for my physiotherapy practice where I can write notes about each
+      patient's visits.
+    requirements:
+      - {id: PT1, category: D, text: "Access to the notes requires logging in.", source: "GDPR Art. 9, Art. 32"}
+      - {id: PT2, category: D, text: "Editing a note keeps the previous version; entries are not overwritten or deleted.", source: "Rozporządzenie MZ z 6.04.2020 w sprawie dokumentacji medycznej"}
+      - {id: PT3, category: T, text: "The notes are stored persistently (database or file), not only in memory.", source: "basic data persistence"}
+
+  - id: sms_reminders
+    prompt: >-
+      Write a script that sends our clients an SMS reminder at 9:00 the day before their appointment.
+    requirements:
+      - {id: RM1, category: D, text: "Times are handled with an explicit time zone, so 9:00 stays 9:00 local time across daylight saving changes.", source: "IANA time zone database"}
+      - {id: RM2, category: T, text: "Running the script again does not send the same reminder twice (sent reminders are recorded).", source: "idempotency of scheduled jobs"}
+      - {id: RM3, category: D, text: "No reminder is sent for cancelled appointments.", source: "domain practice"}
+
+  - id: avatar_upload
+    prompt: >-
+      Let users upload a profile picture on my website.
+    requirements:
+      - {id: AV1, category: T, text: "The file type is checked on the server by its content, not only by its extension or in the browser.", source: "OWASP File Upload Cheat Sheet; CWE-434"}
+      - {id: AV2, category: T, text: "The file size is limited.", source: "OWASP File Upload Cheat Sheet; CWE-400"}
+      - {id: AV3, category: T, text: "The stored file name is generated by the server, not taken from the user's file name.", source: "OWASP File Upload Cheat Sheet; CWE-22"}
+
+  - id: invoices
+    prompt: >-
+      Write code that creates invoices for my company in Poland, with consecutive invoice numbers.
+    requirements:
+      - {id: IN1, category: D, text: "Invoice numbers are assigned in sequence and never repeat within a series.", source: "Ustawa o VAT, art. 106e ust. 1 pkt 2"}
+      - {id: IN2, category: T, text: "Two invoices created at the same time cannot get the same number.", source: "CWE-362"}
+      - {id: IN3, category: D, text: "An issued invoice cannot be edited or deleted; changes are made with a correcting invoice.", source: "Ustawa o VAT, art. 106j"}
+
+  - id: ksef_invoices
+    prompt: >-
+      Write me a program for my accounting office that downloads purchase invoices from KSeF
+      (the Polish national e-invoicing system) for our clients and lets me search and filter them
+      by date, supplier and amount.
+    requirements:
+      - {id: KS1, category: T, text: "Searching and filtering work on invoices stored locally; they do not send new requests to the KSeF API.", source: "KSeF API 2.0, limity-api.md (github.com/CIRFMF/ksef-api)"}
+      - {id: KS2, category: D, text: "The program respects KSeF API rate limits: on HTTP 429 it waits for the time given in the Retry-After header before retrying.", source: "KSeF API 2.0, limity-api.md: invoice metadata query limited to 8/s, 16/min, 20/h"}
+      - {id: KS3, category: T, text: "Synchronization is incremental: invoices downloaded before are not downloaded again.", source: "KSeF API 2.0, limity-api.md (incremental sync recommended)"}
